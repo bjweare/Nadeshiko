@@ -17,14 +17,9 @@
 set -feE
 shopt -s extglob
 BHLLS_LOGGING_ON=t
-. bhlls.sh
+. "${0%/*}/bhlls.sh"
 
-# ffmpeg has to be built with libx264, libass and fdk’s aac/internal aac.
-# This script was written for ffmpeg-9999, >3.4.2.
-# mediainfo is the shortest way to get the bitrate of original video.
-# mkvmerge and mkvextract are for extracting subs and fonts to render subs.
-
-RC_FILE="${0%/*}/nadeshiko.rc.sh"
+RC_FILE="$MYDIR/nadeshiko.rc.sh"
 VERSION='20180301'
 where_to_place_new_file=$PWD
 
@@ -50,6 +45,8 @@ container_own_size=0
 video_size_small=10M
 # “tiny” command line parameter to override max_size
 video_size_tiny=2M
+# “test” command line parameter to override max_size
+video_size_test=99999M
 #
 # Default encoder options.
 ffmpeg='ffmpeg -hide_banner'  # ffmpeg binary
@@ -69,9 +66,11 @@ ffmpeg_acodec='aac'           # audio codec
 #  nadeshiko.sh offers three modes:
 #  - dumb mode: use default values of max_size and abitrate, ignore vbitrate
 #    and fit as much video bitrate as max_size allows.
-#  - intelligent mode: operates on desired and minimal bitrate – see below.
-#  - forced mode: apply bitrates and/or scale passed through the command line:
-#    ( <vbNNNNsuffix> <abNNNNsuffix>, e.g. vb2M, vb1700k, ab192k).
+#  - intelligent mode: operates on desired and minimal bitrate,
+#    can lower resolution to preserve more quality. Requires the table
+#    of resolutions and bitrates to be present (it is found right below),
+#  - forced mode: this mode is set by the commandline options, that force
+#    scale and bitrates for audio/video.
 #    forced > intelligent > dumb
 #
 video_360p_desired_bitrate=500k
@@ -94,22 +93,6 @@ video_1080p_desired_bitrate=3500k
 video_1080p_minimal_bitrate=1500k
 audio_1080p_bitrate=128k
 #
- # Preserve more quality at the cost of lowering resolution.
-#  If set and calculations for the original (or requested) resolution show,
-#  that the video encoded with desired bitrate corresponding to that
-#  resolution, won’t fit in the requested max_size, then redo calculations
-#  for a lower resolution. The first from the lower ones, that will allow
-#  to have a desired bitrate (by default lower resolutions have lower
-#  requirements for desired and minimal bitrates), will be chosen and
-#  the video will be scaled down to avoid artifacts.
-#
-#  Values:
-#    “desired” – pick resolution that would allow its desired bitrate.
-#    “minimal” – pick resolution that would allow its minimal bitrate.
-#    commented (i.e. unset) – do not enable intellectual mode.
-#
-#sacrifice_resolution_for_better_bitrate=desired
-
  # By default, burn subtitles into video.
 #  Override with “nosubs” on command line
 #  or put “unset subs” in the RC file.
@@ -128,16 +111,16 @@ show_help() {
 	Required options
 	         start_time – Time from the beginning of <source video>.
 	          stop_time   Any formats are possible:
-	                      12:34:56.780   = 12 h 34 min 56 s 780 ms
-	                         34:56.1     = 34 min 56 s 100 ms
+	                      01:23:45:670   = 1 h 23 min 45 s 670 ms
+	                         23:45.1     = 23 min 45 s 100 ms
 	                             5       = 5 s
-	                      Padding zeroes aren’t needed.
+	                      Padding zeroes aren’t required.
 	       source video – Path to the source videofile.
 
 	Other options
 	      nosub, nosubs – make a clean video, without hardsubs.
 	            noaudio – make a mute video.
-	           si, 1000 – when converting kMG suffixes of the maximum
+	                 si – when converting kMG suffixes of the maximum
 	                      file size, use powers 1000 instead of 1024.
 	          <format>p – Force resolution to the specified format.
 	                      Format is one of: 1080, 720, 576, 480, 360.
@@ -149,7 +132,7 @@ show_help() {
 	      ab<number>[k] – Force audio bitrate the same way.
 	                      Example: ab128000, ab192k, ab88k.
 
-	The order of options is unimportant. Throw them as you want,
+	The order of options is unimportant. Throw them in,
 	Nadeshiko will do her best.
 
 	https://github.com/deterenkelt/Nadeshiko
@@ -235,12 +218,12 @@ check_util_support() {
 #  [<vb|ab><bitrate>[kMG]] – force specified bitrate, ignoring the defaults
 #       and desired/minimal values from RC file.
 #       Example: vb2M, vb1700k, ab192k.
-#  [<si>|<1000>] – override kilo=1024 from the RC file.
+#  [si] – override kilo=1024 from the RC file.
 #  [path where to place new file] – override placement in the directory,
 #       from which Nadeshiko is called.
 #  ^
 #  ╰­----The order is unimportant.
-#       Just throw keys on the command line, Nadeshiko will do her best.
+#       Just throw the keys on the command line, Nadeshiko will do her best.
 #
 parse_args() {
 	args=("$@")
@@ -308,7 +291,7 @@ parse_args() {
 			unset subs
 		elif [ "$arg" = noaudio ]; then
 			audio="-an"
-		elif [[ "$arg" = @(si|1000) ]]; then
+		elif [ "$arg" = si ]; then
 			kilo=1000
 		elif [[ "$arg" =~ ^(360|480|576|720|1080)p$ ]]; then
 			# $res and $scale variables are quite similar,
@@ -321,7 +304,7 @@ parse_args() {
 			mode='forced'
 			res="${BASH_REMATCH[1]}"
 			declare -gn scale=res
-		elif [[ "$arg" = @(tiny|small) ]]; then
+		elif [[ "$arg" =~ ^(tiny|small)$ ]]; then
 			declare -gn max_size="video_size_$arg"
 		elif [[ "$arg" =~ ^(vb|ab)([0-9]+[kMG])$ ]]; then
 			mode='forced'
@@ -344,6 +327,7 @@ parse_args() {
 			fi
 		fi
 	done
+	[ "$mode" = forced ] && declare -gn max_size=video_size_test
 	[ -v video ] && [ -v time1 ] && [ -v time2 ] \
 	&& [ $time1_total_ms -ne $time2_total_ms ] \
 		|| err "Set video file, start time and stop time!"
@@ -483,9 +467,9 @@ fit_bitrate_to_filesize() {
 		[ "$audio" = '-an' ] \
 			&& audio_track_size=0 \
 			|| audio_track_size=$(( (duration_total_s+1) * abitrate_in_bits ))
-		space_for_video_track=$((  max_size_in_bits  \
-		                         - audio_track_size  \
-		                         - container_own_size ))
+		space_for_video_track=$(( max_size_in_bits    \
+		                          - audio_track_size   \
+		                          - container_own_size ))
 		max_fitting_video_bitrate=$((  space_for_video_track  \
 		                               / (duration_total_s+1) ))
 
@@ -500,13 +484,16 @@ fit_bitrate_to_filesize() {
 		echo "Have space for $((max_fitting_video_bitrate/1000))k / $abitrate."
 		# If we know the bitrate of the original file,
 		# prevent exceeding its value.
-		[ -v orig_video_bitrate_bits \
-		  -a $max_fitting_video_bitrate -gt $orig_video_bitrate_bits ] && {
-		  	info "Can fit original $orig_video_bitrate kbps!"
-		  	info "Restricting maximum video bitrate to $orig_video_bitrate kbps."
-		  	max_fitting_video_bitrate=$orig_video_bitrate_bits
-		  	vbitrate_in_bits=$orig_video_bitrate_bits
-		  	vbitrate=$((vbitrate_in_bits/1000))k
+		[ "$mode" != forced ] && {
+			[ -v orig_video_bitrate_bits ] \
+				&& [ $max_fitting_video_bitrate \
+				     -gt $orig_video_bitrate_bits ] && {
+			  	info "Can fit original $orig_video_bitrate kbps!"
+			  	info "Restricting maximum video bitrate to $orig_video_bitrate kbps."
+			  	max_fitting_video_bitrate=$orig_video_bitrate_bits
+			  	vbitrate_in_bits=$orig_video_bitrate_bits
+			  	vbitrate=$((vbitrate_in_bits/1000))k
+			}
 		}
 		return 0
 	}
@@ -634,9 +621,9 @@ fit_bitrate_to_filesize() {
 
 
 encode() {
-	local new_file_name="${video%.*} $start–$stop.$container" encoding_info \
-	      if_forced
-	new_file_name="${new_file_name##*/}"
+	local new_file_name encoding_info
+	new_file_name="${video%.*} $start–$stop.$container"
+	new_file_name="$where_to_place_new_file/${new_file_name##*/}"
 	encoding_info="Encoding with $((max_fitting_video_bitrate/1000))k "
 	encoding_info+="/ $abitrate @"
 	[[ "$res" =~ ^[0-9]+$ ]] \
@@ -646,7 +633,7 @@ encode() {
 	encoding_info+='.'
 	info  "$encoding_info"
 	milinc
-	pushd "${video%/*}" >/dev/null
+	#pushd "${video%/*}" >/dev/null
 	[ -v scale -o -v subs ] && {
 		# If we do hardsubbing or scaling, we need to assemble -vf string.
 		[ -v scale ] && {
@@ -662,9 +649,9 @@ encode() {
 				id=${REPLY%$'\t'*}
 				font_name=${REPLY#*$'\t'}
 				mkvextract attachments \
-					"$video" $id:"$TMPDIR/fonts/$font_name" >/dev/null
+				           "$video" $id:"$TMPDIR/fonts/$font_name" >/dev/null
 			done < <(mkvmerge -i "$video" \
-				| sed -rn "s/Attachment ID ([0-9]+):.*\s+'(.*)(ttf|TTF|otf|OTF)'$/\1\t\2\3/p")
+			         | sed -rn "s/Attachment ID ([0-9]+):.*\s+'(.*)(ttf|TTF|otf|OTF)'$/\1\t\2\3/p")
 			filter_list="${filter_list:+$filter_list,}"
 			filter_list+="setpts=PTS+$((start_total_ms/1000)).$start_ms/TB,"
 			filter_list+="subtitles=$TMPDIR/subs.ass:fontsdir=$TMPDIR/fonts,"
@@ -705,13 +692,13 @@ encode() {
 
 	rm -f ffmpeg2pass-0.log ffmpeg2pass-0.log.mbtree
 	mildec
-	info "Success: $new_file_name"
-	mv "$new_file_name" "$where_to_place_new_file"
+	info "Success: ${new_file_name##*/}"
+	# mv "$new_file_name" "$where_to_place_new_file"
 	which xclip &>/dev/null && {
-		echo -n "$where_to_place_new_file/$new_file_name" | xclip
+		echo -n "$new_file_name" | xclip
 		info 'Copied path to clipboard.'
 	}
-	popd >/dev/null
+	#popd >/dev/null
 	return 0
 }
 
