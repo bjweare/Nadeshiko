@@ -49,14 +49,14 @@ video_size_tiny=2M
 video_size_test=99999M
 #
 # Default encoder options.
-ffmpeg='ffmpeg -hide_banner'  # ffmpeg binary
-ffmpeg_pix_fmt='yuv420p'      # chroma subsampling
-ffmpeg_vcodec='libx264'       # video codec
-ffmpeg_preset='veryslow'      # video codec preset
-ffmpeg_tune='film'            # video codec preset tune
-ffmpeg_profile='high'         # video codec profile
-ffmpeg_level='6.2'            # video codec profile level
-ffmpeg_acodec='aac'           # audio codec
+ffmpeg='ffmpeg -hide_banner -v error'
+ffmpeg_pix_fmt='yuv420p'
+ffmpeg_vcodec='libx264'
+ffmpeg_preset='veryslow'
+ffmpeg_tune='film'
+ffmpeg_profile='high'
+ffmpeg_level='6.2'
+ffmpeg_acodec='aac'
 #
  # Default bitrate-resolution profiles.
 #  Desired bitrate is the one we aim to have, and the minimal is the lowest
@@ -101,7 +101,11 @@ subs=t
 
  # Reading the RC file.
 #
-[ -r "$RC_FILE" ] && . "$RC_FILE"
+if [ -r "$RC_FILE" ]; then
+	. "$RC_FILE"
+else
+	warn "$RC_FILE not found! Built-in defaults will be used."
+fi
 
 show_help() {
 	cat <<-EOF
@@ -633,7 +637,11 @@ encode() {
 	encoding_info+='.'
 	info  "$encoding_info"
 	milinc
-	#pushd "${video%/*}" >/dev/null
+
+	set +f
+	rm -f "$LOGDIR/"ffmpeg*  "$LOGDIR/"mkvextract*  #  Remove old ffmpeg logs.
+	set -f
+
 	[ -v scale -o -v subs ] && {
 		# If we do hardsubbing or scaling, we need to assemble -vf string.
 		[ -v scale ] && {
@@ -644,12 +652,14 @@ encode() {
 			# Extracting subs and fonts.
 			# Let’s hope that the source is mkv and the subs are ass.
 			mkdir "$TMPDIR/fonts"
+			FFREPORT=file=$LOGDIR/ffmpeg-extraction-subs.log:level=32 \
 			$ffmpeg -i "$video" -map 0:s "$TMPDIR/subs.ass"
 			while read -r ; do
 				id=${REPLY%$'\t'*}
 				font_name=${REPLY#*$'\t'}
 				mkvextract attachments \
-				           "$video" $id:"$TMPDIR/fonts/$font_name" >/dev/null
+				           "$video" $id:"$TMPDIR/fonts/$font_name" \
+				           >"$LOGDIR/mkvextract.log"
 			done < <(mkvmerge -i "$video" \
 			         | sed -rn "s/Attachment ID ([0-9]+):.*\s+'(.*)(ttf|TTF|otf|OTF)'$/\1\t\2\3/p")
 			filter_list="${filter_list:+$filter_list,}"
@@ -688,17 +698,15 @@ encode() {
 	            -pass 2 \
 	        ${audio:--c:a $ffmpeg_acodec -b:a $abitrate} \
 	        -movflags +faststart \
-	        "${video%.*} $start–$stop.$container"
+	        "$new_file_name"
 
 	rm -f ffmpeg2pass-0.log ffmpeg2pass-0.log.mbtree
 	mildec
 	info "Success: ${new_file_name##*/}"
-	# mv "$new_file_name" "$where_to_place_new_file"
 	which xclip &>/dev/null && {
 		echo -n "$new_file_name" | xclip
 		info 'Copied path to clipboard.'
 	}
-	#popd >/dev/null
 	return 0
 }
 

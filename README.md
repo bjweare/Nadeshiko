@@ -62,7 +62,7 @@ Desired video bitrate for 1080p means the one we ideally would like to have. Min
 
 If a fitting bitrate wasn’t found within the profile limits of the native resolution, Nadeshiko will switch to the next lower resolution. 720p in our example. This will reset *desired* and *minimal* bitrates and enable the *scale* filter in ffmpeg. Nadeshiko will go down by 100k again and switch resolution profiles until either a good match is found or no options left.
 
-Audio bitrate remains constant and changes, only if a profile with lower resolution is applied, and it would have different (a lower one, probably) bitrate for the audio track.
+Audio bitrate remains constant and changes, only if a profile with a lower resolution is applied. The new profile would probably have a different (usually lower, as we go down) bitrate for the audio track.
 
 Pairs of *desired* and *minimal* bitrate bound to certain *resolutions* are the basis of automatic balance. You may want to shift the borders in `nadeshiko.rc.sh`.
 
@@ -80,7 +80,7 @@ This mode is not intended for use, it is more like a fallback for when the autom
 
 ## Known limitations
 
-#### subtitles: ASS/SSA only
+#### subtitles: only ASS/SSA and only the default subtitle stream
 
 #### fonts extraction: MKV/WEBM contaniers only
 
@@ -88,7 +88,7 @@ This mode is not intended for use, it is more like a fallback for when the autom
 
 #### Forced scale works only with the five predefined standards: 1080p, 720p, 576p, 480p and 360p.
 
-> *A key like 160p or 2270 wouldn’t be recognised, as it would confuse users where they may use frivolous numbers and where they should not.*
+> *A key like 160p or 2270 wouldn’t be recognised, so the resolution will be the same as of the original file. The ability to set frivolous numbers as a scale profile would confuse users about the resolution–bitrate profiles in the RC file.*
 
 #### No fragment catenation (yet)
 
@@ -98,10 +98,20 @@ This mode is not intended for use, it is more like a fallback for when the autom
 
 > *[How to crop with ffmpeg](https://ffmpeg.org/ffmpeg-filters.html#crop).*
 
+#### Static audio bitrates
+
+> *Unlike video bitrate, that changes many times during calculations, audio bitrates are constant values. Audio bitrate may change only when Nadeshiko switches to another resolution profile. Sound is often given second priority (if it isn’t cut out at all), but there are situations, when initially low audio bitrate may be raised. Say you set the default audio bitrate to 98k, but the space in the container allows for up to 200k. Why not raise the audio bitrate to 192k? This feature is viewed in the near perspective.*
+
 #### No integration with mpv (sadly)
 
 > *What has driven the creation of Nadeshiko is `convert_script.lua` for mpv, that started to garble video. It was an mpv script, which once could encode, crop and catenate. Thanks be to it and RIP.*
 > *There are plans to somehow couple mpv with Nadeshiko, so that the latter would be a video cutting backend, but so far Lua repels too much to touch it.*
+
+ 
+
+## It isn’t working!
+
+There should be a folder called `nadeshiko_logs` alongside the file. It keeps last five logs of `nadeshiko.sh` and `ffmpeg` logs for the first and the second passes. Try to solve the mystery – it probably lies within lacking ffmpeg modules and solves with your package manager. If it isn’t something that’s handled, i.e. `nadeshiko.sh` stops with exit code 2, then [file a bug](https://github.com/deterenkelt/Nadeshiko/issues/new).
 
  
 
@@ -118,6 +128,8 @@ MSU [video codecs comparison](http://www.compression.ru/video/codec_comparison/c
 Basics of encoding with H264 in [FFmpeg wiki](https://trac.ffmpeg.org/wiki/Encode/H.264) – **Start here.**
 
 Tables of [profiles](https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Profiles) and [levels](https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Levels) on Wikipedia.
+
+“[Optimal bitrate for a resolution](http://www.lighterra.com/papers/videoencodingh264/)”.
 
 #### VP9
 
@@ -138,6 +150,3 @@ Page about filters on [FFmpeg wiki](https://ffmpeg.org/ffmpeg-filters.html#subti
 Ibid, “[How to burn subtitles into video](https://trac.ffmpeg.org/wiki/HowToBurnSubtitlesIntoVideo)”.
 
 “[Why subtitles aren’t honouring -ss](https://trac.ffmpeg.org/ticket/2067)”.
-
- 
-
