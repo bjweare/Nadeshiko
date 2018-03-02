@@ -104,7 +104,7 @@ This mode is not intended for use, it is more like a fallback for when the autom
 
 #### Invalid(?) seeking in chaptered MKV
 
-> *Some MKV fails are assembled in such a __peculiar__ way, – Hello, Coalgirls – that not even `mediainfo` can determine the bitrate of the video stream. Seeking in these files gives different numbers in ffmpeg and mpv.*
+> *Some MKV fails are assembled in such a __peculiar__ way, – Hello, Coalgirls – that not even `mediainfo` can determine the bitrate of the video stream. Seeking in these files gives different positions in ffmpeg and mpv.*
 
 #### No integration with mpv (sadly)
 
