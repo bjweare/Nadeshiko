@@ -102,6 +102,10 @@ This mode is not intended for use, it is more like a fallback for when the autom
 
 > *Unlike video bitrate, that changes many times during calculations, audio bitrates are constant values. Audio bitrate may change only when Nadeshiko switches to another resolution profile. Sound is often given second priority (if it isn’t cut out at all), but there are situations, when initially low audio bitrate may be raised. Say you set the default audio bitrate to 98k, but the space in the container allows for up to 200k. Why not raise the audio bitrate to 192k? This feature is viewed in the near perspective.*
 
+#### Invalid(?) seeking in chaptered MKV
+
+> *Some MKV fails are assembled in such a __peculiar__ way, – Hello, Coalgirls – that not even `mediainfo` can determine the bitrate of the video stream. Seeking in these files gives different numbers in ffmpeg and mpv.*
+
 #### No integration with mpv (sadly)
 
 > *What has driven the creation of Nadeshiko is `convert_script.lua` for mpv, that started to garble video. It was an mpv script, which once could encode, crop and catenate. Thanks be to it and RIP.*
