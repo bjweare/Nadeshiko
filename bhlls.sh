@@ -50,11 +50,6 @@
 # BHLLS doesn’t set any of set and shopt permanently, in order to
 # avoid clashing with scripts’ own set and shopt calls.
 
- # Unset after sourcing bhlls.sh to show full xtrace output
-#  including BHLLS own functions.
-#
-BHLLS_HIDE_FROM_XTRACE=t
-
  # Colours for messages.
 #  If you don’t use single-letter variables, better use them for colours.
 #
@@ -97,14 +92,19 @@ err_colour=$__r
 # $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
-	MYDIR=`realpath "$0"`
-	MYDIR=${MYDIR%/*}
+	MYPATH=`realpath "$0"`
+	MYDIR=`dirname "$0"`
 }
 CMDLINE="$0 $*"
 TERM_COLS=`tput cols`
 TERM_LINES=`tput lines`
-BHLLS_VERSION="20180301"
+BHLLS_VERSION="20180303"
 TMPDIR=`mktemp -d`
+
+ # Unset after sourcing bhlls.sh to show full xtrace output
+#  including BHLLS own functions.
+#
+BHLLS_HIDE_FROM_XTRACE=t
 
 bhlls_on_exit() {
 	[ "$(type -t on_exit)" = function ] && on_exit  # run user’s on_exit().
@@ -114,11 +114,10 @@ trap 'bhlls_on_exit' EXIT TERM INT QUIT KILL
 
 bhlls_show_error() {
 	local file=$1 line=$2 lineno=$3
-	echo -e "$file: An error occured!\nLine $lineno: $line" >&2
-	notify-send --hint int:transient:1 \
-	            -t 3000 \
-	            "$MYNAME" "Error: check the console." \
-	    || :
+	echo -e "${__b}${__r}$file: bash error.${__s}" >&2
+	echo -e "${__b}${__r}Line $lineno:${__s} ${__b}$line${__s}" >&2
+	notify-send "Bash error. See console."
+	[ "$LOG" = /dev/null ] && return 0
 	info "Log is written to
 	      $LOG"
 	return 0
@@ -300,25 +299,32 @@ mildrop() {
 
  # Shows an info message.
 #  Features asterisk, automatic indentation with mil*, keeps lines
-#
 #  $1 — a message or a key of an item in the corresponding array containing
 #       the messages. Depends on whether $MSG_USE_ARRAYS is set (see above).
 #
 info() {
 	xtrace_off
-	msg "$@"; local msg_res=$?
+	msg "$@"
 	xtrace_on
-	return $msg_res
 }
 
- # Same as info, but omits the ending newline, like “echo -n” does.
+ # Same as info(), but omits the ending newline, like “echo -n” does.
 #  This allows to print whatever with just simple “echo” later.
 #
 infon() {
 	xtrace_off
-	nonl=t msg "$@"; local msg_res=$?
+	nonl=t msg "$@"
 	xtrace_on
-	return $msg_res
+}
+
+ # Like info() that has a higher rank than usual info(),
+#  which allows its message to be also shown on desktop.
+#  $1 – a message to be shown both in console and on desktop.
+#
+info-ns() {
+	xtrace_off
+	msg "$@"
+	xtrace_on
 }
 
  # Shows an info message and waits for the given command to finish,
@@ -346,7 +352,6 @@ infow() {
 		mildec
 	}
 	xtrace_on
-	return 0
 }
 
 #  Like info, but the output goes to stderr. Dimmed yellow asterisk.
@@ -394,20 +399,54 @@ plainmsg() {
 	xtrace_on
 }
 
+ # Desktop notifications
+#
+#  Main script should only call info(), warn() and err() functions.
+#  Inside those functions messages will also be sent to desktop.
+#  Whether the notification will be sent is controlled
+#  by the following variables:
+#
+#  If set, disables all desktop notifications.
+#  By default it is unset, and notifications are shown.
+#NO_DESKTOP_NOTIFICATIONS=t
+#
+#  This array defines importance of messages.
+#  The ranks are as follows: 0=info, 1=info-ns, 2=warn, 3=err.
+NOTIFY_SEND_RANKS=( 'info' 'info-ns' 'warn' 'err')
+#
+#  A number, defines minimum rank of the message to be shown on desktop.
+#  Default value is 1, usual info() messages aren’t shown,
+#  info-ns(), warn() and err() are shown.
+NOTIFY_SEND_MINIMUM_RANK=1
 
- # Shows an info, a warning or an error message.
-#  TAKES:
-#    $1 — a text message or, if MSG_USE_ARRAYS is set, a key from
-#         - INFO_MESSAGES, if called as info*();
-#         - WARNING_MESSAGES,  if called as warn*();
-#         - ERROR_MESSAGES, if called as err*().
-#         That key may contain spaces, and the number of spaces between words
-#         in the key is not important, i.e.
-#           $ warn "no needed file found"
-#           $ warn  no needed file found
-#         and
-#           $ warn  no   needed  file     found
-#         will use the same item in the WARNING_MESSAGES array.
+ # Shows a desktop notification
+#  $1 – icon.
+#
+bhlls_notify_send() {
+	[ -v NO_DESKTOP_NOTIFICATIONS ] && return 0
+	local msg="$1" icon="$2"
+	# The hint is for the message to not pile in the stack – it is limited.
+	# ||:  is for running safely under set -e.
+	notify-send --hint int:transient:1 -t 3000 \
+	            "${MY_MSG_TITLE:-$MYNAME}" "$msg" \
+	            ${icon:+--icon=dialog-$icon}|| :
+	return 0
+}
+
+
+ # Shows an info, a warning or an error message
+#  on console and optionally, on desktop too.
+#  $1 — a text message or, if MSG_USE_ARRAYS is set, a key from
+#       - INFO_MESSAGES, if called as info*();
+#       - WARNING_MESSAGES,  if called as warn*();
+#       - ERROR_MESSAGES, if called as err*().
+#       That key may contain spaces, and the number of spaces between words
+#       in the key is not important, i.e.
+#         $ warn "no needed file found"
+#         $ warn  no needed file found
+#       and
+#         $ warn  no   needed  file     found
+#       will use the same item in the WARNING_MESSAGES array.
 #  RETURNS:
 #    If called as an err* function, then quits the script with exit/return code 5
 #    or 5–∞, if ERROR_CODES is set.
@@ -415,15 +454,21 @@ plainmsg() {
 #
 msg() {
 	local msgtype c cs=$__s nonl asterisk='  ' message redir code=5 internal \
-	      key msg_key_exists
+	      key msg_key_exists notifysend_rank notifysend_icon
 	case "${FUNCNAME[1]}" in
 		*info*)  # all *info*
 			msgtype=info
 			local -n  msg_array=INFO_MESSAGES
 			local -n  c=info_colour
+			notifysend_rank=0
+			notifysend_icon=
 			;;&
-		info|infon)
+		info|infon|info-ns)
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+INFO: }"
+			;;&
+		info-ns)
+			notifysend_rank=1
+			notifysend_icon='information'
 			;;
 		infow)
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+RUNNING: }"
@@ -434,12 +479,16 @@ msg() {
 			local -n  msg_array=WARNING_MESSAGES
 			local -n  c=warn_colour
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+WARNING: }"
+			notifysend_rank=2
+			notifysend_icon='warning'
 		    ;;&
 		*err*)
 			msgtype=err redir='>&2'
 			local -n  msg_array=ERROR_MESSAGES
 			local -n  c=err_colour
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+ERROR: }"
+			notifysend_rank=3
+			notifysend_icon='error'
 			;;&
 		errw)
 			asterisk='  '
@@ -447,14 +496,19 @@ msg() {
 			;;
 		iwarn|ierr|iinfo)
 			internal=t
+			notifysend_rank=0
 			;;&
 		iwarn)
 			# For internal messages.
 			local -n  msg_array=BHLLS_WARNING_MESSAGES
+			notifysend_rank=2
+			notifysend_icon='warning'
 			;;
 		ierr)
 			# For internal messages.
 			local -n  msg_array=BHLLS_ERROR_MESSAGES
+			notifysend_rank=3
+			notifysend_icon='error'
 			;;
 	esac
 	[ -v nonl ] && nonl='-n'
@@ -491,7 +545,8 @@ msg() {
 	          | tee -a $LOG \
 	          | fold  -w $((TERM_COLS - MI_LEVEL*MI_SPACENUM -2)) -s \
 	          | sed -r \"1s/^/${MI#  }/; 1!s/^/$MI/g\" $redir"
-
+	[ ${notifysend_rank:--1} -ge $NOTIFY_SEND_MINIMUM_RANK ] \
+		&& bhlls_notify_send "$message" ${notifysend_icon:-}
 	[ "$msgtype" = err ] && {
 		# If this is an error message, we must also quit
 		# with a certain exit/return code.

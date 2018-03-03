@@ -1,63 +1,94 @@
 #! /usr/bin/env bash
 
 # nadeshiko.sh
-# A shell script to cut small videos with ffmpeg.
-# deterenkelt © 2018
+#   A shell script to cut small videos with ffmpeg.
+#   deterenkelt © 2018
 
 # This program is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published
-# by the Free Software Foundation; either version 3 of the License,
-# or (at your option) any later version.
-#
+#   under the terms of the GNU General Public License as published
+#   by the Free Software Foundation; either version 3 of the License,
+#   or (at your option) any later version.
 # This program is distributed in the hope that it will be useful,
-# but without any warranty; without even the implied warranty
-# of merchantability or fitness for a particular purpose.
-# See the GNU General Public License for more details.
+#   but without any warranty; without even the implied warranty
+#   of merchantability or fitness for a particular purpose.
+#   See the GNU General Public License for more details.
 
 set -feE
 shopt -s extglob
-BHLLS_LOGGING_ON=t
-. "${0%/*}/bhlls.sh"
+declare -r BHLLS_LOGGING_ON=t
+. "$(dirname "$0")/bhlls.sh"
 
-RC_FILE="$MYDIR/nadeshiko.rc.sh"
-VERSION='20180301'
+declare -r RC_FILE="$MYDIR/nadeshiko.rc.sh"
+declare -r VERSION='20180303'
+declare -r MY_MSG_TITLE='Nadeshiko'
 where_to_place_new_file=$PWD
 
  # Default values. Edit nadeshiko.rc.sh to override them.
 #
-# Output container.
+#  Output container format.
+#  Theoretically it’s possible to use mkv.
 container=mp4
-# Output size. kMG suffixes use powers of 2, unless $kilo is set to 1000.
-max_size=20M
-# Video bitrate, in kbit/s.
-# In “dumb” mode serves as a lower border, beyond which Nadeshiko
-# will refuse to encode.
-vbitrate=1500k
-# Audio bitrate, in kbit/s. CBR.
-abitrate=98k
-# Multiplier for max_size “k” “M” “G” suffixes. Can be 1024 or 1000.
+#
+#  Maximum size for the encoded file.
+#  [kMG] suffixes use powers of 2, unless $kilo is set to 1000.
+max_size_default=20M
+#
+#  Pass “small” to the command line parameter,
+#  to override max_size_default with the value specified below.
+max_size_small=10M
+#
+#  Pass “tiny” to the command line parameter,
+#  to override max_size_default with the value specified below.
+max_size_tiny=2M
+#
+#  For manual control and experiments. Intended to be used
+#  along with vbNNNN, abNNNN and XXXp.
+declare -r max_size_unlimited=99999M
+#
+#  Multiplier for max_size “k” “M” “G” suffixes. Can be 1024 or 1000.
+#  Reducing this value may solve the problem with videos not uploading,
+#  because file size limit uses powers of 10 (10, 100, 1000…)
 kilo=1024
-# Space in bits required for container metadata.
-# Currently set to 0, because ffmpeg fits everything nicely to $max_size.
-container_own_size=0
 #
-# “small” command line parameter to override max_size
-video_size_small=10M
-# “tiny” command line parameter to override max_size
-video_size_tiny=2M
-# “test” command line parameter to override max_size
-video_size_test=99999M
+#  Space required for the container header and footer.
+#  The value is a percent of the maximum allowed file size, e.g. “1%”, “5%”.
+container_own_size=2%
 #
-# Default encoder options.
-ffmpeg='ffmpeg -hide_banner -v error'
+#  Default video bitrate (fallback for dumb mode, shouldn’t be used).
+vbitrate=1500k
+#
+#  Default audio bitrate (fallback for dumb mode, shouldn’t be used).
+abitrate=98k
+
+
+ # Default encoder options
+#
+#  Do not spam to console
+#  (ffmpeg logs are still on the info level).
+ffmpeg='ffmpeg -v error'
+#
+#  Maximum compatibility.
 ffmpeg_pix_fmt='yuv420p'
-ffmpeg_vcodec='libx264'
-ffmpeg_preset='veryslow'
-ffmpeg_tune='film'
-ffmpeg_profile='high'
-ffmpeg_level='6.2'
-ffmpeg_acodec='aac'
 #
+#  Good quality/file size ratio, optimum speed/quality encoding.
+ffmpeg_vcodec='libx264'
+#
+#  Quality > speed, obviously.
+ffmpeg_preset='veryslow'
+#
+#  Best quality from the preset.
+ffmpeg_tune='film'
+#
+#  Compatibility again,
+ffmpeg_profile='high'
+#
+#  …and again,
+ffmpeg_level='4.2'
+#
+#  …and again.
+ffmpeg_acodec='aac'
+
+
  # Default bitrate-resolution profiles.
 #  Desired bitrate is the one we aim to have, and the minimal is the lowest
 #  on which we agree.
@@ -75,19 +106,19 @@ ffmpeg_acodec='aac'
 #
 video_360p_desired_bitrate=500k
 video_360p_minimal_bitrate=220k
-audio_360p_bitrate=98k
+audio_360p_bitrate=80k
 #
 video_480p_desired_bitrate=1000k
 video_480p_minimal_bitrate=400k
-audio_480p_bitrate=128k
+audio_480p_bitrate=80k
 #
 video_576p_desired_bitrate=1500k
 video_576p_minimal_bitrate=720k
-audio_576p_bitrate=128k
+audio_576p_bitrate=98k
 #
 video_720p_desired_bitrate=2000k
 video_720p_minimal_bitrate=800k
-audio_720p_bitrate=128k
+audio_720p_bitrate=112k
 #
 video_1080p_desired_bitrate=3500k
 video_1080p_minimal_bitrate=1500k
@@ -126,15 +157,16 @@ show_help() {
 	            noaudio – make a mute video.
 	                 si – when converting kMG suffixes of the maximum
 	                      file size, use powers 1000 instead of 1024.
-	          <format>p – Force resolution to the specified format.
-	                      Format is one of: 1080, 720, 576, 480, 360.
-	              small – override the default maximum file size (20 MiB).
-	               tiny   Values must be set in RC file beforehand.
+	          <format>p – force encoding to the specified resolution,
+	                      <format> is one of: 1080, 720, 576, 480, 360.
+	       small | tiny – override the default maximum file size (20M).
+	        | unlimited   Values must be set in nadeshiko.rc.sh beforehand.
 	                      Default presets are: small=10M, tiny=2M.
-	    vb<number>[kMG] – Force video bitrate to specified number.
+	    vb<number>[kMG] – force video bitrate to specified <number>.
 	                      A suffix may be applied: vb300000, vb1200k, vb2M.
-	      ab<number>[k] – Force audio bitrate the same way.
+	      ab<number>[k] – force audio bitrate the same way.
 	                      Example: ab128000, ab192k, ab88k.
+	           <folder> – place encoded file in the <folder>.
 
 	The order of options is unimportant. Throw them in,
 	Nadeshiko will do her best.
@@ -185,7 +217,7 @@ check_util_support() {
 		esac
 	done
 	check_required_utils || err "Missing dependencies."
-	codec_list=$($ffmpeg -codecs)
+	codec_list=$($ffmpeg -hide_banner -codecs)
 	for arg in "$@"; do
 		case "$arg" in
 			common)
@@ -309,7 +341,7 @@ parse_args() {
 			res="${BASH_REMATCH[1]}"
 			declare -gn scale=res
 		elif [[ "$arg" =~ ^(tiny|small)$ ]]; then
-			declare -gn max_size="video_size_$arg"
+			declare -gn max_size="max_size_$arg"
 		elif [[ "$arg" =~ ^(vb|ab)([0-9]+[kMG])$ ]]; then
 			mode='forced'
 			[ "${BASH_REMATCH[1]}" = vb ] && {
@@ -329,12 +361,14 @@ parse_args() {
 				err "Command line specified directory “$arg” for the new file,
 				     but it is not writeable."
 			fi
+		else
+			err "“$arg”: parameter unrecognised."
 		fi
 	done
-	[ "$mode" = forced ] && declare -gn max_size=video_size_test
+	[ "$mode" = forced ] && declare -gn max_size="max_size_unlimited"
 	[ -v video ] && [ -v time1 ] && [ -v time2 ] \
 	&& [ $time1_total_ms -ne $time2_total_ms ] \
-		|| err "Set video file, start time and stop time!"
+		|| err "Set video file, start time and stop time!"
 	# [ -v scale ] || [ -v forced_vbitrate ] || [ -v forced_abitrate ] && {
 	# 	[ -v scale ] && [ -v forced_vbitrate -a -v forced_abitrate ] || {
 	# 		err "Forced mode requires all three settings to be set:
@@ -347,6 +381,7 @@ parse_args() {
 }
 
 set_vars() {
+	[ -v max_size ] || declare -g max_size=$max_size_default
 	if [ "$time2_total_ms" -gt "$time1_total_ms" ]; then
 		declare -gn start='time1' \
 		            start_h='time1_h' \
@@ -448,12 +483,16 @@ set_vars() {
 
 fit_bitrate_to_filesize() {
 	info "Calculating, how we fit… "
-	max_size_in_bits=$max_size
-	max_size_in_bits=${max_size_in_bits//k/*$kilo}
-	max_size_in_bits=${max_size_in_bits//M/*$kilo*$kilo}
-	max_size_in_bits=${max_size_in_bits//G/*$kilo*$kilo*$kilo}
-	max_size_in_bits=$(($max_size_in_bits*8))
-
+	max_size_in_bytes=$max_size
+	max_size_in_bytes=${max_size_in_bytes//k/*$kilo}
+	max_size_in_bytes=${max_size_in_bytes//M/*$kilo*$kilo}
+	max_size_in_bytes=${max_size_in_bytes//G/*$kilo*$kilo*$kilo}
+	max_size_in_bytes=$(($max_size_in_bytes))
+	max_size_in_bits=$(($max_size_in_bytes*8))
+	container_own_size_percents=${container_own_size%\%}
+	container_own_size_in_bits=$(( max_size_in_bits              \
+	                               * container_own_size_percents  \
+	                               / 100                          ))
 	 # Calculates the maximum amount of video bitrate,
 	#  that fits into max_size.
 	#
@@ -466,14 +505,19 @@ fit_bitrate_to_filesize() {
 		vbitrate_in_bits=$((  $vbitrate_in_bits       \
 		                      $dar_bitrate_correction  \
 		                      - ${decrement:-0}        ))
+
 		infon "Trying $((vbitrate_in_bits/1000))k / $abitrate @"
 		[ -v res ] && echo -n "${res}p.  " || echo -n 'Native.  '
+
 		[ "$audio" = '-an' ] \
-			&& audio_track_size=0 \
-			|| audio_track_size=$(( (duration_total_s+1) * abitrate_in_bits ))
-		space_for_video_track=$(( max_size_in_bits    \
-		                          - audio_track_size   \
-		                          - container_own_size ))
+			&& audio_track_size_in_bits=0 \
+			|| audio_track_size_in_bits=$(( (duration_total_s+1) \
+			                                * abitrate_in_bits   ))
+
+		space_for_video_track=$(( max_size_in_bits            \
+		                          - audio_track_size_in_bits   \
+		                          - container_own_size_in_bits ))
+
 		max_fitting_video_bitrate=$((  space_for_video_track  \
 		                               / (duration_total_s+1) ))
 
@@ -533,6 +577,14 @@ fit_bitrate_to_filesize() {
 			abitrate_in_bits=${abitrate_in_bits//M/*1000*1000}
 			abitrate_in_bits=$(($abitrate_in_bits))
 		}
+		return 0
+	}
+
+	# For the second and next calls of fit_bitrate_to_filesize()
+	increment_container_own_size() {
+		local container_own_size_clean=${container_own_size%\%}
+		((container_own_size_clean++))
+		container_own_size="${container_own_size_clean}%"
 		return 0
 	}
 
@@ -620,13 +672,18 @@ fit_bitrate_to_filesize() {
 	mildrop
 	[ -v cannot_fit ] && err "Cannot fit $duration_hms into $max_size."
 	[ "$mode" = forced ] && max_fitting_video_bitrate="$vbitrate_in_bits"
+	#  In case the new file will come out bigger than $max_size,
+	#  and this function will be called again to recalculate
+	#  $max_fitting_video_bitrate, increment $container_own_size,
+	#  so that next time it’ll be 1% bigger.
+	increment_container_own_size
 	return 0
 }
 
 
 encode() {
-	local new_file_name encoding_info
-	new_file_name="${video%.*} $start–$stop.$container"
+	local encoding_info
+	declare -g new_file_name="${video%.*} $start–$stop.$container"
 	new_file_name="$where_to_place_new_file/${new_file_name##*/}"
 	encoding_info="Encoding with $((max_fitting_video_bitrate/1000))k "
 	encoding_info+="/ $abitrate @"
@@ -651,15 +708,15 @@ encode() {
 			info "Extracting subs and fonts."
 			# Extracting subs and fonts.
 			# Let’s hope that the source is mkv and the subs are ass.
-			mkdir "$TMPDIR/fonts"
+			[ -d "$TMPDIR/fonts" ] || mkdir "$TMPDIR/fonts"
 			FFREPORT=file=$LOGDIR/ffmpeg-extraction-subs.log:level=32 \
-			$ffmpeg -i "$video" -map 0:s "$TMPDIR/subs.ass"
+			$ffmpeg -hide_banner -i "$video" -map 0:s "$TMPDIR/subs.ass"
 			while read -r ; do
 				id=${REPLY%$'\t'*}
 				font_name=${REPLY#*$'\t'}
 				mkvextract attachments \
 				           "$video" $id:"$TMPDIR/fonts/$font_name" \
-				           >"$LOGDIR/mkvextract.log"
+				           &>"$LOGDIR/mkvextract.log"
 			done < <(mkvmerge -i "$video" \
 			         | sed -rn "s/Attachment ID ([0-9]+):.*\s+'(.*)(ttf|TTF|otf|OTF)'$/\1\t\2\3/p")
 			filter_list="${filter_list:+$filter_list,}"
@@ -702,17 +759,24 @@ encode() {
 
 	rm -f ffmpeg2pass-0.log ffmpeg2pass-0.log.mbtree
 	mildec
-	info "Success: ${new_file_name##*/}"
-	which xclip &>/dev/null && {
-		echo -n "$new_file_name" | xclip
-		info 'Copied path to clipboard.'
-	}
 	return 0
 }
+
 
 parse_args "$@"
 check_util_support common ${subs:+subs}
 set_vars
-fit_bitrate_to_filesize
-encode
+until [ $(stat --printf %s "${new_file_name:-/dev/null}") \
+        -le ${max_size_in_bytes:--1} ]; \
+do
+	fit_bitrate_to_filesize
+	encode
+done
+info-ns "Encoded successfully."
+info "${new_file_name##*/}"
+which xclip &>/dev/null && {
+	echo -n "$new_file_name" | xclip
+	info 'Copied path to clipboard.'
+}
+
 exit 0

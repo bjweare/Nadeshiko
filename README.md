@@ -5,7 +5,7 @@ A shell script to cut short videos with ffmpeg.
 
 * Optimises bitrate and resolution for size.
 * Three sizes, five resolutions with predefined bitrate settings.
-* Almost everything is customiseable up to the audio codec and h264 profile level.
+* Almost everything is customiseable up to the audio codec and video codec’s profile level.
 
 ## How to run it
 
@@ -26,15 +26,16 @@ A shell script to cut short videos with ffmpeg.
 	            noaudio – make a mute video.
 	                 si – when converting kMG suffixes of the maximum
 	                      file size, use powers 1000 instead of 1024.
-	          <format>p – Force resolution to the specified format.
-	                      Format is one of: 1080, 720, 576, 480, 360.
-	              small – override the default maximum file size (20 MiB).
-	               tiny   Values must be set in RC file beforehand.
+	          <format>p – force encoding to the specified resolution,
+	                      <format> is one of: 1080, 720, 576, 480, 360.
+	              small – override the default maximum file size (20M).
+	               tiny   Values must be set in nadeshiko.rc.sh beforehand.
 	                      Default presets are: small=10M, tiny=2M.
-	    vb<number>[kMG] – Force video bitrate to specified number.
+	    vb<number>[kMG] – force video bitrate to specified <number>.
 	                      A suffix may be applied: vb300000, vb1200k, vb2M.
-	      ab<number>[k] – Force audio bitrate the same way.
+	      ab<number>[k] – force audio bitrate the same way.
 	                      Example: ab128000, ab192k, ab88k.
+	           <folder> – place encoded file in the <folder>.
 
 	The order of options is unimportant. Throw them in,
 	Nadeshiko will do her best.
@@ -115,7 +116,28 @@ This mode is not intended for use, it is more like a fallback for when the autom
 
 ## It isn’t working!
 
+### Nadeshiko doesn’t encode
+
 There should be a folder called `nadeshiko_logs` alongside the file. It keeps last five logs of `nadeshiko.sh` and `ffmpeg` logs for the first and the second passes. Try to solve the mystery – it probably lies within lacking ffmpeg modules and solves with your package manager. If it isn’t something that’s handled, i.e. `nadeshiko.sh` stops with exit code 2, then [file a bug](https://github.com/deterenkelt/Nadeshiko/issues/new).
+
+### The video doesn’t play
+
+Various devices: computers, smartphones, TVs and fridges have different support for H264 playback. Compatibility options for H264 are *profiles* and *levels* (see below). Nadeshiko uses *high* profile and level *4.2*, that offers playback in the most browser as of February 2018. Thus, the first thing to do is to check, that the RC file doesn’t set profile and level to anything higher.
+
+	<- lower                  Profiles                  -> higher
+
+	     baseline - main - high - high10 - high422 - high444
+	                       ^^^^
+
+	<- lower                   Levels                   -> higher
+
+	… - 3.0 - 3.1 - 4.0 - 4.1 - 4.2 - 5.0 - 5.1 - 5.2 - 6.0 - 6.2
+	                            ^^^
+
+Then, if everything seems as it should, there are two options:
+* one is to lower encoding *level*, **then** encoding *profile*. Certain profiles support multiple levels, for example “main” and “high” both support level 4.0.
+> *Firefox 52 built on Gentoo plays high-6.2, while Waterfox 53 on Windows can only play high-4.2.*
+* the other option is to check, if what’s responsible for video playback on your device is updated and supports the encoding features. That’s for the time, when you feel like you are behind times.
 
  
 
@@ -125,32 +147,45 @@ There should be a folder called `nadeshiko_logs` alongside the file. It keeps la
 
 “[Understanding rate control modes (x264, x265, vpx)](http://slhck.info/video/2017/03/01/rate-control.html)” – nicely explains how encoders are applied.
 
-MSU [video codecs comparison](http://www.compression.ru/video/codec_comparison/codec_comparison_en.html) – may help in a choose of a favourite video codec.
+[MSU video codecs comparison](http://www.compression.ru/video/codec_comparison/codec_comparison_en.html) – may help in a choose of a favourite video codec.
 
-#### H264
+### H264
 
-Basics of encoding with H264 in [FFmpeg wiki](https://trac.ffmpeg.org/wiki/Encode/H.264) – **Start here.**
+Basics of encoding with x264 in [FFmpeg wiki](https://trac.ffmpeg.org/wiki/Encode/H.264) – **Start here.**
 
 Tables of [profiles](https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Profiles) and [levels](https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Levels) on Wikipedia.
 
-“[Optimal bitrate for a resolution](http://www.lighterra.com/papers/videoencodingh264/)”.
+“[Optimal bitrate for different resolutions](http://www.lighterra.com/papers/videoencodingh264/)”.
 
-#### VP9
+“[Comparison of x264 presets](http://blogs.motokado.com/yoshi/2011/06/25/comparison-of-x264-presets/)”
+
+### VP9
 
 Basics of encoding with libvpx-vp9 in [FFmpeg wiki](https://trac.ffmpeg.org/wiki/Encode/VP9).
 
 [Google’s paper](https://developers.google.com/media/vp9/bitrate-modes/) about VP9 encoding capabilities and modes.
 
-#### AAC and friends
+### AAC and friends
 
 HQ audio in general and a nice codecs comparison in [FFmpeg wiki](https://trac.ffmpeg.org/wiki/Encode/HighQualityAudio).
 
 AAC on [FFmpeg wiki](https://trac.ffmpeg.org/wiki/Encode/AAC).
 
-#### Filters, subtitles
+### Filters, subtitles
 
 Page about filters on [FFmpeg wiki](https://ffmpeg.org/ffmpeg-filters.html#subtitles-1).
 
 Ibid, “[How to burn subtitles into video](https://trac.ffmpeg.org/wiki/HowToBurnSubtitlesIntoVideo)”.
 
 “[Why subtitles aren’t honouring -ss](https://trac.ffmpeg.org/ticket/2067)”.
+
+
+### “Past duration 0.904747 too large”
+
+These errors coming from ffmpeg most often should be mere warnings. This happens when the source file has a fixed framerate in its header, but in the stream data framerate varies (drops). `ffmpeg` doesn’t like it, as there’s nowhere to get the “missing” frames from. It doesn’t mean, that the new file will have artifacts or jitter, VLC encoder simply ignores this. The discrepancy in stated and actual framerate is common in the sources that are streams. That is, if your source was a live stream or a TV rip, seeing “Past duration N.NNNNNNN too large” is quite normal.
+
+This error message is discussed in FFmpeg tickets №№ [4401](https://trac.ffmpeg.org/ticket/4401), [4643](https://trac.ffmpeg.org/ticket/4643) and [4700](https://trac.ffmpeg.org/ticket/4700).
+
+#  “medium” and more fast presets encode rough and leave visible artifacts.
+#  “ultrafast” was spotted changing profile from high to baseline
+#  on long files.
