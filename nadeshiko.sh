@@ -848,8 +848,8 @@ encode-libx264() {
 	        $vf_string \
 	        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
 	            -b:v $vbitrate_bits \
-	            -maxrate $vbitrate_bits \
-	            -bufsize $((2*vbitrate_bits)) \
+	                -maxrate $vbitrate_bits \
+	                -bufsize $((2*vbitrate_bits)) \
 	            -preset:v $libx264_preset -tune:v $libx264_tune \
 	            -profile:v $libx264_profile -level $libx264_level \
 	        -pass 1 -an \
@@ -861,8 +861,8 @@ encode-libx264() {
 	        $vf_string \
 	        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
 	            -b:v $vbitrate_bits \
-	            -maxrate $vbitrate_bits \
-	            -bufsize $((2*vbitrate_bits)) \
+	                -maxrate $vbitrate_bits \
+	                -bufsize $((2*vbitrate_bits)) \
 	            -preset:v $libx264_preset -tune:v $libx264_tune \
 	            -profile:v $libx264_profile -level $libx264_level \
 	        -pass 2 \
@@ -902,13 +902,13 @@ encode-libvpx-vp9() {
 			libvpx_tile_columns=$((    orig_width
 				                     / tile_column_min_width  ))
 		fi
-		# Docs on Google Devs count threads as tile-columns*2 for resolutions
-		# under 2160p, i.e. give a minimum of two threads per one tile.
-		libvpx_threads=$((libvpx_tile_columns*2))
 		# Videos with a width smaller than $tile_column_min_width
 		# as well as cropped ones will result in 0 tile-columns
 		# and log2(0) will return -1, while it should still return 0.
 		[ $libvpx_tile_columns -eq 0 ] && libvpx_tile_columns=1
+		# Docs on Google Devs count threads as tile-columns*2 for resolutions
+		# under 2160p, i.e. give a minimum of two threads per one tile.
+		libvpx_threads=$((libvpx_tile_columns*2))
 		# tile-columns should be a log2(actual number of tile-columns)
 		libvpx_tile_columns=$(log2 $libvpx_tile_columns)
 	}
@@ -920,12 +920,12 @@ encode-libvpx-vp9() {
 	        $vf_string \
 	        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
 	            -crf $libvpx_crf -b:v $vbitrate_bits \
-	                -minrate $((vbitrate_bits/2)) \
-	                -maxrate $vbitrate_bits \
+	                             -minrate $((vbitrate_bits/2)) \
+	                             -maxrate $vbitrate_bits \
 	            -overshoot-pct 0 \
-	            -threads $libvpx_threads \
+	            -frame-parallel $libvpx_frame_parallel \
 	                -tile-columns $libvpx_tile_columns \
-	                -frame-parallel $libvpx_frame_parallel \
+	                    -threads $libvpx_threads \
 	            -deadline $libvpx_pass1_deadline \
 	                -cpu-used $libvpx_pass1_cpu_used \
 	            -auto-alt-ref $libvpx_auto_alt_ref \
@@ -941,12 +941,12 @@ encode-libvpx-vp9() {
 	        $vf_string \
 	        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
 	            -crf $libvpx_crf -b:v $vbitrate_bits \
-	                    -minrate $((vbitrate_bits/2)) \
-	                    -maxrate $vbitrate_bits \
+	                             -minrate $((vbitrate_bits/2)) \
+	                             -maxrate $vbitrate_bits \
 	            -overshoot-pct 0 \
-	            -threads $libvpx_threads \
-	                    -tile-columns $libvpx_tile_columns \
-	                    -frame-parallel $libvpx_frame_parallel \
+	            -frame-parallel $libvpx_frame_parallel \
+	                -tile-columns $libvpx_tile_columns \
+	                    -threads $libvpx_threads \
 	            -deadline $libvpx_pass2_deadline \
 	                -cpu-used $libvpx_pass2_cpu_used \
 	            -auto-alt-ref $libvpx_auto_alt_ref \
