@@ -16,7 +16,7 @@ A shell script to cut short videos with ffmpeg.
 	Required options
 	         start_time – Time from the beginning of <source video>.
 	          stop_time   Any formats are possible:
-	                      01:23:45:670   = 1 h 23 min 45 s 670 ms
+	                      01:23:45.670   = 1 h 23 min 45 s 670 ms
 	                         23:45.1     = 23 min 45 s 100 ms
 	                             5       = 5 s
 	                      Padding zeroes aren’t required.

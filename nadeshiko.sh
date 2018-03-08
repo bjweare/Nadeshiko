@@ -57,7 +57,7 @@ show_help() {
 	Required options
 	         start_time – Time from the beginning of <source video>.
 	          stop_time   Any formats are possible:
-	                      01:23:45:670   = 1 h 23 min 45 s 670 ms
+	                      01:23:45.670   = 1 h 23 min 45 s 670 ms
 	                         23:45.1     = 23 min 45 s 100 ms
 	                             5       = 5 s
 	                      Padding zeroes aren’t required.
@@ -106,13 +106,15 @@ check_util_support() {
 	local codec_list missing_encoders arg
 	for arg in "$@"; do
 		case "$arg" in
-			common)
+			video)
 				required_utils+=(
 					# For encoding. 3.4.2+ recommended.
 					ffmpeg
-					# To get source video resolution.
+					# For retrieving data from the source video
+					# and verifying resulting video.
 					ffprobe
-					# To get source video bit rate. ffprobe shows only N/A.
+					# For the parts not retrievable with ffprobe
+					# and as a fallback option for when ffprobe fails.
 					mediainfo
 				)
 				;;
@@ -121,7 +123,7 @@ check_util_support() {
 					# To get the list of attachments in the source video.
 					mkvmerge
 					# To extract subtitles and fonts from the source video.
-					# (subtitles are needed for hardsubbing, and hardsub.
+					# (subtitles are needed for hardsubbing, and the hardsub
 					# will be poor without built-in fonts).
 					mkvextract
 				)
@@ -132,12 +134,14 @@ check_util_support() {
 	codec_list=$($ffmpeg -hide_banner -codecs)
 	for arg in "$@"; do
 		case "$arg" in
-			common)
+			video)
 				grep -qE "\s.EV... .*encoders:.*$ffmpeg_vcodec" \
 					<<<"$codec_list" || {
 					warn "FFmpeg doesn’t support $ffmpeg_vcodec encoder."
 					missing_encoders=t
 				}
+				;;
+			audio)
 				grep -qE "\s.EA... .*encoders:.*$ffmpeg_acodec" \
 					<<<"$codec_list" || {
 					warn "FFmpeg doesn’t support $ffmpeg_acodec encoder."
@@ -597,7 +601,9 @@ fit_bitrate_to_filesize() {
 		# Setting _bits variable
 		declare -g ${varname}_bits=$var
 		# Setting _pretty variable for user’s output
-		# M’s cut too much, seeing 2430 would be more pleasant, than “2M”.
+		# M’s cut too much, seeing 2430k would be more informative, than “2M”.
+		# “Is that 2000k or 2900k?” Those 900k make a difference.
+		#
 		# if [[ "$var" =~ .......$ ]]; then
 		# 	var_pretty="$((var/1000000))M"
 		# el
@@ -991,7 +997,7 @@ encode() {
 
 parse_args "$@"
 set_vars
-check_util_support common ${subs:+subs}
+check_util_support video ${audio:+audio} ${subs:+subs}
 display_settings
 until [ $(stat --printf %s "${new_file_name:-/dev/null}") \
         -le ${max_size_in_bytes:--1} ]; \
