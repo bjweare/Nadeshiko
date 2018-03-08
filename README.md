@@ -5,7 +5,8 @@ A shell script to cut short videos with ffmpeg.
 
 * Optimises bitrate and resolution for size.
 * Three sizes, five resolutions with predefined bitrate settings.
-* Almost everything is customiseable up to the audio codec and video codec’s profile level.
+* Supported codec combinations: **libx264** + **libopus**/**aac** and **libvpx-vp9** + **libopus**/**libvorbis**.
+*  video codec’s profile level.
 
 ## How to run it
 
@@ -15,7 +16,7 @@ A shell script to cut short videos with ffmpeg.
 	Required options
 	         start_time – Time from the beginning of <source video>.
 	          stop_time   Any formats are possible:
-	                      01:23:45.670   = 1 h 23 min 45 s 670 ms
+	                      01:23:45:670   = 1 h 23 min 45 s 670 ms
 	                         23:45.1     = 23 min 45 s 100 ms
 	                             5       = 5 s
 	                      Padding zeroes aren’t required.
@@ -28,17 +29,37 @@ A shell script to cut short videos with ffmpeg.
 	                      file size, use powers 1000 instead of 1024.
 	          <format>p – force encoding to the specified resolution,
 	                      <format> is one of: 1080, 720, 576, 480, 360.
-	              small – override the default maximum file size (20M).
-	               tiny   Values must be set in nadeshiko.rc.sh beforehand.
+	       small | tiny – override the default maximum file size (20M).
+	        | unlimited   Values must be set in nadeshiko.rc.sh beforehand.
 	                      Default presets are: small=10M, tiny=2M.
 	    vb<number>[kMG] – force video bitrate to specified <number>.
 	                      A suffix may be applied: vb300000, vb1200k, vb2M.
 	      ab<number>[k] – force audio bitrate the same way.
 	                      Example: ab128000, ab192k, ab88k.
+	       crop=W:H:X:Y – apply crop filter. Cancels scale.
 	           <folder> – place encoded file in the <folder>.
 
 	The order of options is unimportant. Throw them in,
 	Nadeshiko will do her best.
+
+ 
+
+## Examples
+
+Cut first 1 minute 20 seconds
+	./nadeshiko.sh 'file.mkv' 0 1:20
+
+Cut with milliseconds
+	./nadeshiko.sh 'file.mkv' 17:21.01 18:00.652
+(.1 = 100 ms, .01 = 10 ms, .001 = 1 ms)
+
+Fit the cut to 10 MiB instead of 20 MiB
+	./nadeshiko.sh 'file.mkv' 17:21.01 18:00.652 small
+
+Sacrifice audio and resolution to fit more minutes
+	./nadeshiko.sh 'file.mkv' 20:00 25:14 ab80k 480p
+
+The order of options is not important. More options listed above.
 
  
 
@@ -95,10 +116,6 @@ This mode is not intended for use, it is more like a fallback for when the autom
 
 > *You’d have to stich fragments [with ffmpeg](https://trac.ffmpeg.org/wiki/Concatenate#samecodec).*
 
-#### No cropping (yet)
-
-> *[How to crop with ffmpeg](https://ffmpeg.org/ffmpeg-filters.html#crop).*
-
 #### Static audio bitrates
 
 > *Unlike video bitrate, that changes many times during calculations, audio bitrates are constant values. Audio bitrate may change only when Nadeshiko switches to another resolution profile. Sound is often given second priority (if it isn’t cut out at all), but there are situations, when initially low audio bitrate may be raised. Say you set the default audio bitrate to 98k, but the space in the container allows for up to 200k. Why not raise the audio bitrate to 192k? This feature is viewed in the near perspective.*
@@ -143,13 +160,16 @@ Then, if everything seems as it should, there are two options:
 
 ## What to read about encoding
 
-> *Unfortunately, there’s no newbie guide to ffmpeg, that would be short and straight to the point. For starters remember, that all `ffmpeg` options are divided on __common__, like `-y` or `-hide_banner`, __input__ options, that should go __before__ input file they relate to, and __output__ options, that are always placed after all input files and before output file.*
+If you’re a complete newbie, [start here](https://wiki.installgentoo.com/index.php/WebM).
 
 “[Understanding rate control modes (x264, x265, vpx)](http://slhck.info/video/2017/03/01/rate-control.html)” – nicely explains how encoders are applied.
 
 [MSU video codecs comparison](http://www.compression.ru/video/codec_comparison/codec_comparison_en.html) – may help in a choose of a favourite video codec.
+http://www.compression.ru/video/codec_comparison/hevc_2017/
 
 ### H264
+
+ffmpeg -h encoder=libx264
 
 Basics of encoding with x264 in [FFmpeg wiki](https://trac.ffmpeg.org/wiki/Encode/H.264) – **Start here.**
 
@@ -160,6 +180,8 @@ Tables of [profiles](https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Profiles) an
 “[Comparison of x264 presets](http://blogs.motokado.com/yoshi/2011/06/25/comparison-of-x264-presets/)”
 
 ### VP9
+
+ffmpeg -h encoder=libvpx-vp9
 
 Basics of encoding with libvpx-vp9 in [FFmpeg wiki](https://trac.ffmpeg.org/wiki/Encode/VP9).
 
@@ -189,3 +211,20 @@ This error message is discussed in FFmpeg tickets №№ [4401](https://trac.ffm
 #  “medium” and more fast presets encode rough and leave visible artifacts.
 #  “ultrafast” was spotted changing profile from high to baseline
 #  on long files.
+
+
+### VP9 has bad bitrate handling
+
+[MSU Codec Comparison 2017 Part V: High Quality Encoders](http://compression.ru/video/codec_comparison/hevc_2017/MSU_HEVC_comparison_2017_P5_HQ_encoders.pdf) in the chapter № 6 “Bitrate handling” shows VP9 as overshooting target bitrate for over 1.5 times. But if you look at the options they use at the end of the paper, you may notice, that they intentionally allow overshooting for up to 2 times with `--overshoot-pct 100`.
+<screenshot>
+
+So if you opt to use it, expect Nadeshiko to reencode the file several times, when the resulting file size exceeds the requested *maximum file size*.
+
+
+The libvpx version in these tests is 1.6.1.
+
+### Subs get copied in mkv
+
+Not sure if they need to be cut. HTML5 players in web browsers do not enable
+subtitles by default, and if one can enable them forcefully, 95% of users
+won’t find how to enable them.

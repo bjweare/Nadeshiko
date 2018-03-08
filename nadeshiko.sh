@@ -13,130 +13,41 @@
 #   of merchantability or fitness for a particular purpose.
 #   See the GNU General Public License for more details.
 
-set -feE
+set -feEu
 shopt -s extglob
 declare -r BHLLS_LOGGING_ON=t
+# Logging, error handling, messages to console and desktop.
 . "$(dirname "$0")/bhlls.sh"
+# Parsing ffprobe and mediainfo output into usable format.
+. "$MYDIR/gather_file_info.sh"
 
-declare -r RC_FILE="$MYDIR/nadeshiko.rc.sh"
-declare -r VERSION='20180303'
+declare -r rc_file="$MYDIR/nadeshiko.rc.sh"
+declare -r example_rc_file="$MYDIR/example.nadeshiko.rc.sh"
+declare -r version='20180308'
 declare -r MY_MSG_TITLE='Nadeshiko'
 where_to_place_new_file=$PWD
 
- # Default values. Edit nadeshiko.rc.sh to override them.
-#
-#  Output container format.
-#  Theoretically it’s possible to use mkv.
-container=mp4
-#
-#  Maximum size for the encoded file.
-#  [kMG] suffixes use powers of 2, unless $kilo is set to 1000.
-max_size_default=20M
-#
-#  Pass “small” to the command line parameter,
-#  to override max_size_default with the value specified below.
-max_size_small=10M
-#
-#  Pass “tiny” to the command line parameter,
-#  to override max_size_default with the value specified below.
-max_size_tiny=2M
-#
-#  For manual control and experiments. Intended to be used
-#  along with vbNNNN, abNNNN and XXXp.
-declare -r max_size_unlimited=99999M
-#
-#  Multiplier for max_size “k” “M” “G” suffixes. Can be 1024 or 1000.
-#  Reducing this value may solve the problem with videos not uploading,
-#  because file size limit uses powers of 10 (10, 100, 1000…)
-kilo=1024
-#
-#  Space required for the container header and footer.
-#  The value is a percent of the maximum allowed file size, e.g. “1%”, “5%”.
-container_own_size=2%
-#
-#  Default video bitrate (fallback for dumb mode, shouldn’t be used).
-vbitrate=1500k
-#
-#  Default audio bitrate (fallback for dumb mode, shouldn’t be used).
-abitrate=98k
-
-
- # Default encoder options
-#
-#  Do not spam to console
-#  (ffmpeg logs are still on the info level).
-ffmpeg='ffmpeg -v error'
-#
-#  Maximum compatibility.
-ffmpeg_pix_fmt='yuv420p'
-#
-#  Good quality/file size ratio, optimum speed/quality encoding.
-ffmpeg_vcodec='libx264'
-#
-#  Quality > speed, obviously.
-ffmpeg_preset='veryslow'
-#
-#  Best quality from the preset.
-ffmpeg_tune='film'
-#
-#  Compatibility again,
-ffmpeg_profile='high'
-#
-#  …and again,
-ffmpeg_level='4.2'
-#
-#  …and again.
-ffmpeg_acodec='aac'
-
-
- # Default bitrate-resolution profiles.
-#  Desired bitrate is the one we aim to have, and the minimal is the lowest
-#  on which we agree.
-#
-#  To find the balance between resolution and quality,
-#  nadeshiko.sh offers three modes:
-#  - dumb mode: use default values of max_size and abitrate, ignore vbitrate
-#    and fit as much video bitrate as max_size allows.
-#  - intelligent mode: operates on desired and minimal bitrate,
-#    can lower resolution to preserve more quality. Requires the table
-#    of resolutions and bitrates to be present (it is found right below),
-#  - forced mode: this mode is set by the commandline options, that force
-#    scale and bitrates for audio/video.
-#    forced > intelligent > dumb
-#
-video_360p_desired_bitrate=500k
-video_360p_minimal_bitrate=220k
-audio_360p_bitrate=80k
-#
-video_480p_desired_bitrate=1000k
-video_480p_minimal_bitrate=400k
-audio_480p_bitrate=80k
-#
-video_576p_desired_bitrate=1500k
-video_576p_minimal_bitrate=720k
-audio_576p_bitrate=98k
-#
-video_720p_desired_bitrate=2000k
-video_720p_minimal_bitrate=800k
-audio_720p_bitrate=112k
-#
-video_1080p_desired_bitrate=3500k
-video_1080p_minimal_bitrate=1500k
-audio_1080p_bitrate=128k
-#
- # By default, burn subtitles into video.
-#  Override with “nosubs” on command line
-#  or put “unset subs” in the RC file.
-#
-subs=t
-
  # Reading the RC file.
 #
-if [ -r "$RC_FILE" ]; then
-	. "$RC_FILE"
+if [ -r "$rc_file" ]; then
+	. "$rc_file"
 else
-	warn "$RC_FILE not found! Built-in defaults will be used."
+	if [ -r "$example_rc_file" ]; then
+		cp "$example_rc_file" "$rc_file" || err "Couldn’t create RC file!"
+		. "$rc_file"
+	else
+		err "No RC file or example RC file was found!"
+	fi
 fi
+# Let the defaults for these parameters be determined by the user.
+[ -v subs ] && rc_default_subs=t
+[ -v audio ] && rc_default_audio=t
+[ -v scale ] && {
+	[[ "$scale" =~ ^(360|480|576|720|1080)p$ ]] \
+		|| err "Scale should one of 1080p, 720p, 576p, 480p, 360p."
+	# NB Scale from RC doesn’t set force_scale!
+	scale=${scale%p} && rc_default_scale=$scale
+}
 
 show_help() {
 	cat <<-EOF
@@ -153,10 +64,10 @@ show_help() {
 	       source video – Path to the source videofile.
 
 	Other options
-	      nosub, nosubs – make a clean video, without hardsubs.
-	            noaudio – make a mute video.
-	                 si – when converting kMG suffixes of the maximum
-	                      file size, use powers 1000 instead of 1024.
+	            (no)sub – enable/disable hardsubs. Default is do hardsub.
+	          (no)audio – use/throw away audio track. Default is to add.
+	         si, k=1000 – Only for maximum file size – when converting
+	                      [kMG] suffixes, use 1000 instead of 1024.
 	          <format>p – force encoding to the specified resolution,
 	                      <format> is one of: 1080, 720, 576, 480, 360.
 	       small | tiny – override the default maximum file size (20M).
@@ -166,6 +77,7 @@ show_help() {
 	                      A suffix may be applied: vb300000, vb1200k, vb2M.
 	      ab<number>[k] – force audio bitrate the same way.
 	                      Example: ab128000, ab192k, ab88k.
+	       crop=W:H:X:Y – crop video. Cannot be used with scale.
 	           <folder> – place encoded file in the <folder>.
 
 	The order of options is unimportant. Throw them in,
@@ -178,9 +90,9 @@ show_help() {
 
 show_version() {
 	cat <<-EOF
-	nadeshiko.sh $VERSION
+	nadeshiko.sh $version
 	© deterenkelt 2018.
-	Licence GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+	Licence GPLv3+: GNU GPL ver. 3 or later <http://gnu.org/licenses/gpl.html>
 	This is free software: you are free to change and redistribute it.
 	There is no warranty, to the extent permitted by law.
 	EOF
@@ -221,45 +133,33 @@ check_util_support() {
 	for arg in "$@"; do
 		case "$arg" in
 			common)
-				grep -qE "\s.EV... .*encoders:.*$vcodec" <<<"$codec_list" || {
-					warn "$ffmpeg doesn’t support $vcodec encoder!"
+				grep -qE "\s.EV... .*encoders:.*$ffmpeg_vcodec" \
+					<<<"$codec_list" || {
+					warn "FFmpeg doesn’t support $ffmpeg_vcodec encoder."
 					missing_encoders=t
 				}
-				grep -qE "\s.EA... .*encoders:.*$acodec" <<<"$codec_list" || {
-					warn "$ffmpeg doesn’t support $acodec encoder!"
+				grep -qE "\s.EA... .*encoders:.*$ffmpeg_acodec" \
+					<<<"$codec_list" || {
+					warn "FFmpeg doesn’t support $ffmpeg_acodec encoder."
 					missing_encoders=t
 				}
 				;;
 			subs)
 				grep -qE "\s.ES... ass" <<<"$codec_list" || {
-					warn "$ffmpeg doesn’t support encoding ASS subtitles!"
+					warn "FFmpeg doesn’t support encoding ASS subtitles."
 					missing_encoders=t
 				}
 				;;
 		esac
 	done
 	[ -v missing_encoders ] \
-		&& err "Support for requested encoders is missing in ffmpeg!"
+		&& err "FFmpeg doesn’t support requested encoder(s)."
 	return 0
 }
 
- # Cut a short video.
-#  Parameters:
-#  <source video file>
-#  <start time>
-#  <stop time>
-#  [nosub|nosubs] – if hardsub is not needed. Will save encoding time.
-#  [noaudio] – if audio isn’t needed. Will save bitrate for video.
-#  [<small>|<tiny>] to override max_size (see the RC file).
-#  [<vb|ab><bitrate>[kMG]] – force specified bitrate, ignoring the defaults
-#       and desired/minimal values from RC file.
-#       Example: vb2M, vb1700k, ab192k.
-#  [si] – override kilo=1024 from the RC file.
-#  [path where to place new file] – override placement in the directory,
-#       from which Nadeshiko is called.
-#  ^
-#  ╰­----The order is unimportant.
-#       Just throw the keys on the command line, Nadeshiko will do her best.
+ # Assigns start time, stop time, source video file
+#  and other stuff from command line parameters.
+#  $@ – see show_help()
 #
 parse_args() {
 	args=("$@")
@@ -268,9 +168,9 @@ parse_args() {
 			show_help
 		elif [[ "$arg" = @(-v|--version) ]]; then
 			show_version
-			#                /hours\       /minutes\      /seconds\    /mseconds\
+			#                 /hours\      /minutes\      /seconds\     /mseconds\
 		elif [[ "$arg" =~ ^(([0-9]{1,2}:|)([0-9]{1,2}:)|)([0-9]{1,2})(\.[0-9]{1,3}|)$ ]]; then
-			#                           ^           ^  ^          ^
+			#                             ^           ^  ^          ^
 			# These are only to extract faster. Remove them to see the regex clearer.
 			if [ -v time1 ]; then
 				time2_h="${BASH_REMATCH[2]%:}"
@@ -300,11 +200,10 @@ parse_args() {
 				#   against other problems like “what if the user didn’t
 				#   type in hours? time2_h will be empty then!”.
 				#
-				time2_total_ms=$((   ${time2_h#0}*3600000  \
-				                   + ${time2_m#0}*60000    \
-				                   + ${time2_s#0}*1000     \
-				                   + ${time2_ms##@(0|00)}  \
-				                ))
+				time2_total_ms=$((   ${time2_h#0}*3600000
+				                   + ${time2_m#0}*60000
+				                   + ${time2_s#0}*1000
+				                   + ${time2_ms##@(0|00)}  ))
 				time2="$time2_h:$time2_m:$time2_s.$time2_ms"
 			else
 				time1_h="${BASH_REMATCH[2]%:}"
@@ -316,72 +215,87 @@ parse_args() {
 					until [[ "$time" =~ ^..$ ]]; do time="0$time"; done
 				done
 				until [[ "$time1_ms" =~ ^...$ ]]; do time1_ms+='0'; done
-				time1_total_ms=$((   ${time1_h#0}*3600000  \
-				                   + ${time1_m#0}*60000    \
-				                   + ${time1_s#0}*1000     \
-				                   + ${time1_ms##@(0|00)}  \
-				                ))
+				time1_total_ms=$((   ${time1_h#0}*3600000
+				                   + ${time1_m#0}*60000
+				                   + ${time1_s#0}*1000
+				                   + ${time1_ms##@(0|00)}  ))
 				time1="$time1_h:$time1_m:$time1_s.$time1_ms"
 			fi
-		elif [[ "$arg" =~ ^nosubs?$ ]]; then
-			unset subs
-		elif [ "$arg" = noaudio ]; then
-			audio="-an"
-		elif [ "$arg" = si ]; then
+		elif [[ "$arg" =~ ^(no|)subs?$ ]]; then
+			case "${BASH_REMATCH[1]}" in
+				no) unset subs ;;
+				'')	subs=t ;;
+			esac
+		elif [[ "$arg" =~ ^(no|)audio$ ]]; then
+			case "${BASH_REMATCH[1]}" in
+				no) unset audio ;;
+				'')	audio=t ;;
+			esac
+		elif [[ "$arg" =~ ^(si|kilo=1000|k=1000)$ ]]; then
 			kilo=1000
 		elif [[ "$arg" =~ ^(360|480|576|720|1080)p$ ]]; then
-			# $res and $scale variables are quite similar,
-			#   but their purpose differs:
-			# $res maintains a value that tells what resolution we are
-			#   /currently/ aiming at – it may change during the process
-			#   of finding a winning bitrate/resolution combination.
-			# $scale serves as a flag, that we need ffmpeg’s “scale”
-			#   filter and copies value from res.
-			mode='forced'
-			res="${BASH_REMATCH[1]}"
-			declare -gn scale=res
-		elif [[ "$arg" =~ ^(tiny|small)$ ]]; then
+			scale="${BASH_REMATCH[1]}"
+		elif [[ "$arg" =~ ^(tiny|small|unlimited)$ ]]; then
 			declare -gn max_size="max_size_$arg"
 		elif [[ "$arg" =~ ^(vb|ab)([0-9]+[kMG])$ ]]; then
-			mode='forced'
-			[ "${BASH_REMATCH[1]}" = vb ] && {
-				vbitrate="${BASH_REMATCH[2]}"
-				forced_vbitrate=t
-			}
-			[ "${BASH_REMATCH[1]}" = ab ] && {
-				abitrate="${BASH_REMATCH[2]}"
-				forced_abitrate=t
-			}
+			[ "${BASH_REMATCH[1]}" = vb ] && vbitrate="${BASH_REMATCH[2]}"
+			[ "${BASH_REMATCH[1]}" = ab ] && abitrate="${BASH_REMATCH[2]}"
+		elif [[ "$arg" =~ ^crop=([0-9]+):([0-9]+):([0-9]+):([0-9]+)$ ]]; then
+			crop_w=${BASH_REMATCH[1]}
+			crop_h=${BASH_REMATCH[2]}
+			crop_x=${BASH_REMATCH[3]}
+			crop_y=${BASH_REMATCH[4]}
+			crop="crop=trunc($crop_w/2)*2:"
+			crop+="trunc($crop_h/2)*2:"
+			crop+="trunc($crop_x/2)*2:"
+			crop+="trunc($crop_y/2)*2"
 		elif [ -f "$arg" ]; then
 			video="$arg"
 		elif [ -d "$arg" ]; then
 			if [ -w "$arg" ]; then
 				where_to_place_new_file="$arg"
 			else
-				err "Command line specified directory “$arg” for the new file,
-				     but it is not writeable."
+				err "Cannot write to directory “$arg”."
 			fi
 		else
 			err "“$arg”: parameter unrecognised."
 		fi
 	done
-	[ "$mode" = forced ] && declare -gn max_size="max_size_unlimited"
 	[ -v video ] && [ -v time1 ] && [ -v time2 ] \
-	&& [ $time1_total_ms -ne $time2_total_ms ] \
+		&& [ $time1_total_ms -ne $time2_total_ms ] \
 		|| err "Set video file, start time and stop time!"
-	# [ -v scale ] || [ -v forced_vbitrate ] || [ -v forced_abitrate ] && {
-	# 	[ -v scale ] && [ -v forced_vbitrate -a -v forced_abitrate ] || {
-	# 		err "Forced mode requires all three settings to be set:
-	# 		     vb0000k – video bitrate
-	# 		     abXXXk – audio bitrate
-	# 		     XXXXp – scale"
-	# 	}
-	# }
 	return 0
 }
 
 set_vars() {
+	can_be_used_together=(
+		'mp4 libx264 libfdk_aac aac'
+		# 'mp4 libx264 libopus'  # libopus in mp4 is still experimental
+		# 'mkv libx264 libopus libfdk_aac aac' # browsers do not recognise mkv
+		'webm libvpx-vp9 libopus libvorbis '
+	)
+	[ "$container" = auto ] && case "$ffmpeg_vcodec" in
+		libx264) container=mp4;;
+		libvpx-vp9) container=webm;;
+	esac
+	for combination in "${can_be_used_together[@]}"; do
+		[[ "$combination" =~ ^.*$container.*$ ]] \
+			&& [[ "$combination" =~ ^.*$ffmpeg_vcodec.*$ ]] \
+			&& [[ "$combination" =~ ^.*$ffmpeg_acodec.*$ ]] \
+			&& combination_passes=t
+	done
+	[ -v combination_passes ] || {
+		warn "“$container”, “$ffmpeg_vcodec” and “$ffmpeg_acodec” cannot be used together.
+		      Possible combinations include:
+		      libx264 + libfdk_aac/aac in mp4
+		      libvpx-vp9 + libvorbis/libopus in webm"
+		err 'Incompatible container or A/V codecs.'
+	}
 	[ -v max_size ] || declare -g max_size=$max_size_default
+	[ -v abitrate  -a  ! -v audio ] \
+		&& err "“noaudio” cannot be used with forced audio bitrate."
+	[ -v crop  -a  -v scale ] \
+		&& err "crop and scale cannot be used at the same time."
 	if [ "$time2_total_ms" -gt "$time1_total_ms" ]; then
 		declare -gn start='time1' \
 		            start_h='time1_h' \
@@ -416,167 +330,334 @@ set_vars() {
 	duration_s=$(( (duration_total_s - duration_h*3600 - duration_m*60) ))
 	duration_hms="$duration_h:$duration_m:$duration_s"
 	# Getting the original video and audio bitrate.
-	orig_video_bitrate=$(
-		mediainfo "$video" \
-    		| sed -nr '/^Video$/,/^$/ {
-    	                                s/^Nominal bit rate\s+:\s([0-9 ]+).*/\1/
-	                                    T
-	                                    s/\s+//gp
-	                                  }'
-	    )
-	# Somewhere here we should check the units,
-	# that mediainfo uses. Is kbps used always?
+	orig_video_bitrate=$(get_mediainfo_attribute "$video" v 'Nominal bit rate')
+	[ "$orig_video_bitrate" ] \
+		|| orig_video_bitrate=$(get_mediainfo_attribute "$video" v 'Bit rate')
+	if [ "$orig_video_bitrate" != "${orig_video_bitrate%kb/s}" ]; then
+		orig_video_bitrate=${orig_video_bitrate%kb/s}
+		orig_video_bitrate=${orig_video_bitrate%.*}
+	elif [ "$orig_video_bitrate" != "${orig_video_bitrate%Mb/s}" ]; then
+		orig_video_bitrate=${orig_video_bitrate%Mb/s}
+		orig_video_bitrate=${orig_video_bitrate%.*}
+		orig_video_bitrate=$((orig_video_bitrate*1000))
+	fi
 	if [[ "$orig_video_bitrate" =~ ^[0-9]+$ ]]; then
 		orig_video_bitrate_bits=$((orig_video_bitrate*1000))
-		info "Original video bitrate: $orig_video_bitrate kbps"
 	else
+		# Unlike with the resolution, original bitrate
+		# is of less importance, as the source will most likely
+		# have bigger bit rate, and no bad things will happen
+		# from wasting (limited) space on quality.
 		warn 'Couldn’t retrieve bitrate of the original video.'
 		no_orig_video_bitrate=t
 	fi
 
-	info "Size to fit into: $max_size (kilo=$kilo)"
-	info "Duration: $duration_hms"
-
-	read -d '' orig_width orig_height \
-		< <( ffprobe -hide_banner -v error -select_streams v:0 \
-	                 -show_entries stream=width,height \
-	                 -of default=noprint_wrappers=1:nokey=1 \
-	                 "$video"; \
-	         echo -e '\0'  )
-	[[ "$orig_width" =~ ^[0-9]+$ && "$orig_height" =~ ^[0-9]+$ ]] && {
-		# Since in our tables desireable/minimal bitrates are given
-		# for 16:9 aspect ratio, 4:3 video would require on 25% less
-		# bitrate, as there’s 25% less pixels.
-		# 4÷3 ≈ 1.3333
-		# 16÷9 ≈ 1.7777
-		# Let’s hope there won’t be an ultra-wide 18×9.
-		# Actual sizes may vary, so even with bc we’d still
-		# have to fiddle with 1.333 ±0.15
-		[ $((orig_width % orig_height)) -lt 5 ] && {
-			dar_bitrate_correction='*3/4'
-			info "Applying bitrate multiplier 0.25 for 4:3 video."
-		}
+	# Original resolution is a prerequisite for the intelligent mode.
+	#   Dumb mode with some hardcoded default bitrates bears
+	#   little usefullness, so it was decided to flex it out.
+	#   Intelligent and forced modes (that overrides things in the former)
+	#   are the two modes now.
+	# Getting native video resolution is of utmost importance
+	#   to not do accidental upscale. It is also needed for knowing,
+	#   with which resolution to start scaling down, if needed.
+	orig_width=$(get_ffmpeg_attribute "$video" v width)
+	orig_height=$(get_ffmpeg_attribute "$video" v height)
+	if [[ "$orig_width" =~ ^[0-9]+$ && "$orig_height" =~ ^[0-9]+$ ]]; then
 		have_orig_res=t
-		# [ -v res ] || res=$orig_height
+	else
+		#  Files in which native resolution could not be obtained,
+		#  haven’t been met in the wild, but let’s try a different
+		#  way of obtaining it.
+		orig_width=$(get_mediainfo_attribute "$video" v Width)
+		orig_width="${orig_width%pixels}"
+		orig_height=$(get_mediainfo_attribute "$video" v Height)
+		orig_height="${orig_height%pixels}"
+		[[ "$orig_width" =~ ^[0-9]+$ && "$orig_height" =~ ^[0-9]+$ ]] \
+			&& have_orig_res=t
+	fi
+	#  If we couldn’t obtain original resolution or command line
+	#  parameter haven’t forced a specific scale, quit.
+	[ -v have_orig_res -o -v scale ] || {
+		# Without have_orig_res no resolution profile can be applied,
+		# hence no bitrate settings too. Unless there would be scale,
+		# that tells which profile to use.
+		vbitrate=$fallback_vbitrate
+		abitrate=$fallback_abitrate
+		warn "Can’t get native video resolution, hence no profile to apply."
+		warn-ns "Forcing fallback bitrates."
 	}
-	lower_res_list=( 1080 720 576 480 360 )  # for the intelligent mode.
+	#  Since in our tables desireable/minimal bitrates are given
+	#  for 16:9 aspect ratio, 4:3 video would require on 25% less
+	#  bitrate, as there’s 25% less pixels.
+	orig_ar=$(get_mediainfo_attribute "$video" v 'Display aspect ratio')
+	[ "$orig_ar" = '4:3' ] && ar_bitrate_correction='*3/4'
+	[ -v crop ] && {
+		orig_total_px=$(( $orig_width * $orig_height
+		                  ${ar_bitrate_correction:-}  ))
+			crop_total_px=$((crop_w * crop_h))
+			crop_to_orig_total_px_ratio=$((    crop_total_px
+			                                 * 100
+			                                 / orig_total_px  ))
+			# compensation for the lost fractional part
+			((crop_to_orig_total_px_ratio++, 1))
+			crop_bitrate_correction="*$crop_to_orig_total_px_ratio/100"
+			# juuust in caaase…
+			[ $crop_to_orig_total_px_ratio -eq 100 ] && unset crop
+	}
+	[ -v scale ] && [ $scale -eq $orig_height ] && {
+		warn "Disabling scale to ${scale}p – it is native resolution."
+		unset scale
+	}
+	[ -v scale ] && [ $scale -gt $orig_height ] && {
+		warn "Disabling scale to ${scale}p – would be an upscale."
+		unset scale
+	}
+	orig_writing_lib=$(get_mediainfo_attribute "$video" v 'Writing library')
+	[[ "$orig_writing_lib" =~ ^.*${ffmpeg_vcodec//lib/}.*$ ]] \
+		&& orig_codec_same_as_enc=t
+	lower_res_list=( 1080 720 576 480 360 )
+	closest_lowres_index=0
 	for ((i=0; i<${#lower_res_list}; i++ )); do
 		# If a table resolution is greater than or equal
 		#   to the source video height, such resolution isn’t
 		#   actually lower, and we don’t need upscales.
 		# If we intend to scale down the source and the desired
-		#   resolution if higher than table resolution,
+		#   resolution if higher than the table resolution,
 		#   again, it should be skipped.
-		[ -v orig_height ] \
-			&& [ ${lower_res_list[i]} -ge $orig_height ] \
-			&& ((closest_lowres_index++, 1))
-		[ -v res ] \
-			&& [ ${lower_res_list[i]} -gt $res ] \
-			&& ((closest_lowres_index++, 1))
+		(
+			[ -v orig_height ] && [ ${lower_res_list[i]} -ge $orig_height ]
+		)||(
+			[ -v scale ] && [ ${lower_res_list[i]} -gt $scale ]
+		) \
+		&& ((closest_lowres_index++, 1))
 	done
-	# Nadeshiko downscales the source video only if needed,
-	# and the first jump to a lower resolution happens further
-	# in the code. We don’t need to set that index now.
-	((closest_lowres_index--, 1))
+
+	 # If any of these variables are set by this time,
+	#  they are set forcefully.
+	[ -v vbitrate ] && forced_vbitrate=t
+	[ -v abitrate ] && forced_abitrate=t
+	# scale is special, it can be set in RC file.
+	[ -v scale  -a  ! -v rc_default_scale ] && forced_scale=t
+	return 0
+}
+
+display_settings(){
+	local sub_hl audio_hl crop_string sub_hl audio_hl
+	# The colours for all the output should be:
+	# - default colour for default/computed/retrieved data;
+	# - bright white colour indicates command line overrides;
+	# - bright yellow colour shows the changes, that the code applied itself.
+	#   This includes lowering bitrates for 4:3 videos, going downscale,
+	#   when the size doesn’t allow for encode at the native resolution etc.
+	info "$ffmpeg_vcodec + $ffmpeg_acodec → $container"
+	# Highlight only overrides of the defaults.
+	# The defaults are defined in $rc_file.
+	[ -v rc_default_subs -a -v subs ] \
+		&& sub_hl="${__g}" \
+		|| sub_hl="${__b}"
+	[ -v subs ] \
+		&& info "Subtitles are ${sub_hl}ON${__s}." \
+		|| info "Subtitles are ${sub_hl}OFF${__s}."
+	[ -v rc_default_audio -a -v audio ] \
+		&& audio_hl="${__g}" \
+		|| audio_hl="${__b}"
+	[ -v audio ] \
+		&& info "Audio is ${audio_hl}ON${__s}." \
+		|| info "Audio is ${audio_hl}OFF${__s}."
+	[ -v scale ] && {
+		[ "${rc_default_scale:-}" != "${scale:-}" ] && scale_hl=${__b}
+		$info "Scaling to ${scale_hl}${scale}p${__s}."
+	}
+	[ -v crop ] && {
+		crop_string="${__b}$crop_w×$crop_h${__s}, X:$crop_x, Y:$crop_y"
+		info "Cropping to: $crop_string."
+		info "Cropped range takes $crop_to_orig_total_px_ratio% of the cadre.
+		      Applying bitrate multiplier ${__b}${__y}0.$(
+		          [ $crop_to_orig_total_px_ratio -lt 10 ]     \
+				      && echo "0$crop_to_orig_total_px_ratio"  \
+		              || echo "$crop_to_orig_total_px_ratio"    )${__s}."
+	}
+	[ "$max_size" = "$max_size_default" ] \
+		&& info "Size to fit into: $max_size (kilo=$kilo)." \
+		|| info "Size to fit into: ${__b}$max_size${__s} (kilo=$kilo)."
+	info "Original video bitrate: $orig_video_bitrate kbps."
+	info "Duration: $duration_hms."
+	[ -v ar_bitrate_correction ] \
+		&& info "Detected 4:3 AR. Applying bitrate multiplier ${__b}${__y}0.75${__s}."
 	return 0
 }
 
 fit_bitrate_to_filesize() {
+	# As we may re-run, let’s operate on a local copy.
+	local closest_lowres_index=$closest_lowres_index res cannot_fit
 	info "Calculating, how we fit… "
 	max_size_in_bytes=$max_size
 	max_size_in_bytes=${max_size_in_bytes//k/*$kilo}
 	max_size_in_bytes=${max_size_in_bytes//M/*$kilo*$kilo}
 	max_size_in_bytes=${max_size_in_bytes//G/*$kilo*$kilo*$kilo}
 	max_size_in_bytes=$(($max_size_in_bytes))
-	max_size_in_bits=$(($max_size_in_bytes*8))
+	max_size_bits=$((max_size_in_bytes*8))
 	container_own_size_percents=${container_own_size%\%}
-	container_own_size_in_bits=$(( max_size_in_bits              \
-	                               * container_own_size_percents  \
-	                               / 100                          ))
-	 # Calculates the maximum amount of video bitrate,
-	#  that fits into max_size.
+	container_own_size_bits=$((    max_size_bits
+	                             * container_own_size_percents
+	                             / 100                          ))
+
+	 # Calculates the maximum amount of video bitrate, that fits
+	#  into max_size. Works only on $vbitrate_bits and $abitrate_bits, hence
+	#  no bitrate corrections, except for 100k decrement, should be
+	#  used here.
+	#  Returns: 0 if we found an appropriate video bitrate;
+	#           1 otherwise.
 	#
-	#  Works only on $vbitrate and $abitrate.
-	#
-	calc_max_fitting_vbitrate() {
-		vbitrate_in_bits=$vbitrate
-		vbitrate_in_bits=${vbitrate_in_bits//k/*1000}
-		vbitrate_in_bits=${vbitrate_in_bits//M/*1000*1000}
-		vbitrate_in_bits=$((  $vbitrate_in_bits       \
-		                      $dar_bitrate_correction  \
-		                      - ${decrement:-0}        ))
+	vbitrate_fits_max_size() {
+		local audio_info
+		[ -v audio ] && audio_info=" / $abitrate"
+		recalc_bitrate 'vbitrate' decrement100k
+		infon "Trying $vbitrate_pretty$audio_info @"
+		if [ -v scale ]; then
+			# Forced scale
+			echo -n "${scale}p.  "
+		elif [ -v crop ]; then
+			echo -n "Cropped.  "
+		elif [ -v res ]; then
+			# Going lowres
+			echo -n "${res}p.  "
+		else
+			echo -n 'Native.  '
+		fi
+		if [ -v audio ]; then
+			audio_track_size_bits=$((  duration_total_s * abitrate_bits  ))
+		else
+			audio_track_size_bits=0
+		fi
+		space_for_video_track=$((   max_size_bits
+		                          - audio_track_size_bits
+			                      - container_own_size_bits  ))
 
-		infon "Trying $((vbitrate_in_bits/1000))k / $abitrate @"
-		[ -v res ] && echo -n "${res}p.  " || echo -n 'Native.  '
-
-		[ "$audio" = '-an' ] \
-			&& audio_track_size_in_bits=0 \
-			|| audio_track_size_in_bits=$(( (duration_total_s+1) \
-			                                * abitrate_in_bits   ))
-
-		space_for_video_track=$(( max_size_in_bits            \
-		                          - audio_track_size_in_bits   \
-		                          - container_own_size_in_bits ))
-
-		max_fitting_video_bitrate=$((  space_for_video_track  \
-		                               / (duration_total_s+1) ))
-
-		 # Here is a temptation to make a shortcut:
-		#  assign max_fitting…bitrate to vbitrate, and we’ll jump
-		#  right ahead to the next resolution. Ha! No.
-		#  Making this shortcut properly needs more time,
-		#  which I don’t have atm.
-		#
-		# vbitrate_in_bits=$max_fitting_video_bitrate
-		# vbitrate=$((max_fitting_video_bitrate/1000))k
-		echo "Have space for $((max_fitting_video_bitrate/1000))k / $abitrate."
-		# If we know the bitrate of the original file,
-		# prevent exceeding its value.
-		[ "$mode" != forced ] && {
-			[ -v orig_video_bitrate_bits ] \
-				&& [ $max_fitting_video_bitrate \
-				     -gt $orig_video_bitrate_bits ] && {
-			  	info "Can fit original $orig_video_bitrate kbps!"
-			  	info "Restricting maximum video bitrate to $orig_video_bitrate kbps."
-			  	max_fitting_video_bitrate=$orig_video_bitrate_bits
-			  	vbitrate_in_bits=$orig_video_bitrate_bits
-			  	vbitrate=$((vbitrate_in_bits/1000))k
-			}
+		max_fitting_vbitrate_bits=$((    space_for_video_track
+		                               / duration_total_s       ))
+		echo "Have space for $((max_fitting_vbitrate_bits/1000))k$audio_info."
+		[ ! -v forced_vbitrate ] \
+		&& [ -v orig_video_bitrate_bits ] \
+		&& [ -v orig_codec_same_as_enc ] \
+		&& [ $max_fitting_vbitrate_bits -gt $orig_video_bitrate_bits ] && {
+			info "Can fit original $orig_video_bitrate kbps!"
+			vbitrate_bits=$orig_video_bitrate_bits
+			return 0
 		}
+		[ $vbitrate_bits -le $max_fitting_vbitrate_bits ] \
+		&& return 0 \
+		|| return 1
+	}
+
+	 # General function to do needed arithmetic and create representations
+	#  of the new value.
+	#  $1 – variable name for reference. The value may contain [kMG] suffix.
+	# [$2..n] – correction types: “aspect_ratio”, “crop”, “minimal_bitrate”
+	#           or “decrement100k”.
+	#  The variable, which name is passed as $1 is converted to bits,
+	#  and its suffix is expanded. Then arithmetic corrections are applied.
+	#  The result of this function is:
+	#    1) The variable, which name was passed as $1, after all calculations
+	#       are done, is returned back to the form with a “k” or “M” suffix.
+	#       This maintains precise value, so 2132 won’t become just 2k.
+	#    2) Another variable is created. To the name of the referenced vari-
+	#       able added “_bits” and this variable maintains its precise
+	#       numeric value. No suffix.
+	#    3) A variable with “_pretty” added to the name of the referenced
+	#       variable has a suffix form, but unlike the original variable,
+	#       which contains the precise value, here the value is rounded
+	#       to the nearest k or M suffix.
+	#  Thus, 1) and 2) are for calculations and 3) is for pretty output
+	#  to the user.
+	#
+	recalc_bitrate() {
+		local varname="$1" correction_type var_pretty var_bits
+		declare -n var=$varname
+		var=${var//k/*1000}
+		var=${var//M/*1000*1000}
+		var=$(( $var ))
+		shift  # positional parameters become correction types
+		for correction_type in "$@"; do
+			case "$correction_type" in
+				aspect_ratio)
+					var=$((var ${ar_bitrate_correction:-}))
+					;;
+				crop)
+					var=$((var ${crop_bitrate_correction:-}))
+					;;
+				minimal_bitrate)
+					var=$((var * ${minimal_bitrate_perc%\%} / 100 ))
+					;;
+				decrement100k)
+					var=$((var - ${decrement:-0}))
+					;;
+			esac
+		done
+		# Setting _bits variable
+		declare -g ${varname}_bits=$var
+		# Setting _pretty variable for user’s output
+		# M’s cut too much, seeing 2430 would be more pleasant, than “2M”.
+		# if [[ "$var" =~ .......$ ]]; then
+		# 	var_pretty="$((var/1000000))M"
+		# el
+		if [[ "$var" =~ ....$ ]]; then
+			var_pretty="$((var/1000))k"
+		else
+			var_pretty=$var
+		fi
+		declare -g ${varname}_pretty=$var_pretty
+		# Now we can return $var (actual variable passed by reference)
+		# to its suffix form.
+		if [[ "$var" =~ 000000$ ]]; then
+			var=${var%000000}M
+		elif [[ "$var" =~ 000$ ]]; then
+			var=${var%000}k
+		fi
 		return 0
 	}
 
-	 # Pick desired and minimal bitrates from the table.
-	#  $1 – resolution, ${res}, e.g. 1080, 720 576…
+	 # When resolution profile is set initially or changes afterwards,
+	#  this function is called to assign
+	#    - desired_vbitrate  \
+	#    - minimal_vbitrate  |_ to the values from the bitrate-resolution
+	#    - desired_abitrate  |  profile specified via $1.
+	#    - minimal_abitrate  /
+	#  After the desired values, vbitrate and abitrate are set. They are the
+	#  “working” values – max_fitting_vbitrate is calculated with them,
+	#  and it is vbitrate, that’s checked against max_fitting_vbitrate.
+	#  $1 – resolution, ${res}, e.g. 1080, 720, 576…
 	#
-	set_new_bitrates() {
-		local res="$1"
-		[ -v video_${res}p_desired_bitrate ] && {
-			declare -gn desired_vbitrate="video_${res}p_desired_bitrate"
-			info "${res}p: Setting desired vbitrate to $desired_vbitrate."
-			desired_vbitrate_in_bits=$desired_vbitrate
-			desired_vbitrate_in_bits=${desired_vbitrate_in_bits//k/*1000}
-			desired_vbitrate_in_bits=${desired_vbitrate_in_bits//M/*1000*1000}
-			desired_vbitrate_in_bits=$(( $desired_vbitrate_in_bits \
-			                             $dar_bitrate_correction   ))
+	set_bitrates() {
+		local res="$1" libname=${ffmpeg_vcodec//-vp9/}
+		# If vbitrate or abitrate are already set,
+		# that means they were forced though the command line.
+		[ -v ${libname}_${res}p_desired_bitrate ] \
+		&& [ ! -v forced_vbitrate ] \
+		&& {
+			declare -gn desired_vbitrate="${libname}_${res}p_desired_bitrate"
+			recalc_bitrate 'desired_vbitrate' aspect_ratio crop
+			info "${res}p: Setting desired vbitrate to $desired_vbitrate_pretty."
+			vbitrate=$desired_vbitrate
+			vbitrate_bits=$desired_vbitrate_bits
+			minimal_vbitrate=$desired_vbitrate
+			recalc_bitrate 'minimal_vbitrate' minimal_bitrate
+			info "${res}p: Setting minimal vbitrate to $minimal_vbitrate_pretty."
 		}
-		[ -v video_${res}p_minimal_bitrate ] && {
-			declare -gn minimal_vbitrate="video_${res}p_minimal_bitrate"
-			info "${res}p: Setting minimal vbitrate to $minimal_vbitrate."
-			minimal_vbitrate_in_bits=$minimal_vbitrate
-			minimal_vbitrate_in_bits=${minimal_vbitrate_in_bits//k/*1000}
-			minimal_vbitrate_in_bits=${minimal_vbitrate_in_bits//M/*1000*1000}
-			minimal_vbitrate_in_bits=$(( $minimal_vbitrate_in_bits \
-			                             $dar_bitrate_correction   ))
+		[ -v audio ] \
+		&& [ -v audio_${res}p_desired_bitrate ] \
+		&& [ ! -v forced_abitrate ] \
+		&& {
+			declare -gn desired_abitrate="audio_${res}p_desired_bitrate"
+			recalc_bitrate 'desired_abitrate'  # only to set _bits, actually
+			info "${res}p: Setting desired abitrate to $desired_abitrate_pretty."
+			abitrate=$desired_abitrate
+			abitrate_bits=$desired_abitrate_bits
 		}
-		[ -v audio_${res}p_bitrate ] && {
-			declare -gn abitrate="audio_${res}p_bitrate"
-			info "${res}p: Setting abitrate to $abitrate."
-			abitrate_in_bits=$abitrate
-			abitrate_in_bits=${abitrate_in_bits//k/*1000}
-			abitrate_in_bits=${abitrate_in_bits//M/*1000*1000}
-			abitrate_in_bits=$(($abitrate_in_bits))
-		}
+		# Forced bitrates are already set,
+		# we only need to calculate _bits variables for them.
+		[ -v forced_vbitrate ] && recalc_bitrate 'vbitrate'
+		[ -v forced_abitrate ] && recalc_bitrate 'abitrate'
 		return 0
 	}
 
@@ -588,129 +669,146 @@ fit_bitrate_to_filesize() {
 		return 0
 	}
 
-	if [ "$mode" = forced ]; then
-		# Nothing to do. $vbitrate and $abitrate are already set,
-		# $scale isn’t related to calculations and applies separately.
-		:
+
+	if [ -v scale ]; then
+		set_bitrates $scale
 	else
-		if [ -v have_orig_res ]; then
-			mode='intelligent'
-			# Enabling intelligent mode.
-			# Trying from the desired bitrate in the current resolution
-			# lowering it by 100k until it fits max_size or the minimal value
-			# is reached. Then if it’s allowed to go for a lower resolution,
-			# switch desirable and minimal resolutions to it and repeat.
-			set_new_bitrates $orig_height
-			vbitrate="$desired_vbitrate"
-		else
-			mode='dumb'
-			# Dumb mode.
-			# If ffprobe couldn’t get original resolution, Nadeshiko
-			# can only try to fit as much as possible, if only
-			# what’s possible is not below some sane range.
-			#
-			# Repeating the default here, vbitrate and abitrate at the top
-			# will probably be deleted in the future in favour of the table.
-			# This is probably the only case, when the default $abitrate
-			# in needed.
-			abitrate=98k
-			vbitrate=12000k
-		fi
+		set_bitrates $orig_height
 	fi
 	milinc
-	calc_max_fitting_vbitrate
 
-	# First resolution, then – bitrate.
-	# We want to find not some vbitrate, that would be lower than what fits
-	#   in the container. We know that max_fitting_vitrate and it doesn’t
-	#   change unless we scale down.
-	# We seek for a resolution, that would look adequately with the bitrate,
-	#   that we’re allowed in the file size.
-	until [ $vbitrate_in_bits -le $max_fitting_video_bitrate ]; do
-		case "$mode" in
-			forced)
-				# User forced these bitrates intentionally.
-				# Cannot do anything else.
-				cannot_fit=t
-				break
-				;;
-			intelligent)
-				# Can we lower a bitrate slightly, but remain in the span
-				# of minimal…desired bitrates for the current ${res}olution?
-				#
-				# While the bitrate we test can be lowered by 100k, lower it.
-				if [ $((vbitrate_in_bits-100000)) -ge $minimal_vbitrate_in_bits ]; then
-					let decrement+=100000
-					calc_max_fitting_vbitrate
-				else
-					# Go down one resolution lower
-					((closest_lowres_index++, 1))
-					if [ $closest_lowres_index -lt ${#lower_res_list[@]} ]; then
-						res=${lower_res_list[closest_lowres_index]}
-						declare -gn scale=res
-						mildrop
-						info "Trying lower resolution ${res}p… "
-						set_new_bitrates $res
-						vbitrate="$desired_vbitrate"
-						unset decrement
-						milinc
-						calc_max_fitting_vbitrate
-					else
-						# Lower resolutions are depleted.
-						cannot_fit=t
-						break
-					fi
+	 # What can be done, if bitrates × duration do not fit max_size.
+	#  I find this array a genius invention, the code was a mess without it.
+	#
+	declare -A our_options=(
+		[go_down_by_100k]=t  # until vbitrate hits minimal in the current
+		                     # resolution profile
+		[lower_resolution]=t  # change resolution profile
+	)
 
-				fi
-				;;
-			dumb)
-				[ $max_fitting_video_bitrate -lt 200000 ] && cannot_fit=t
-				break
-				;;
-		esac
+	 # Are we already good?
+	#  If not, can we scale to lower resolutions?
+	#
+	#  Note to myself: This should sound another way:
+	#    until maxfitting… -ge minimal… -a maxfitting -le desired…
+	#    and  “go down by 100k” could be thrown out.
+	#  But since there must be flexibility, i.e. forced scale, BITRATES,
+	#    and a forced bitrate _cannot_ have desired and minimal values
+	#    (I’m not going to untangle the mess, that will happen, if
+	#    the resolution profiles would clash with “forced” desired
+	#    and minimal values).
+	#  Thus, it’s made via an universal $vbitrate and $maxfitting…
+	#
+	until vbitrate_fits_max_size; do
+		[ -v forced_vbitrate ] && unset our_options[go_down_by_100k]
+		[ -v forced_scale ] && unset our_options[lower_resolution]
+		# The flexibility of this code is amazing – we can have fixed
+		#   audio bitrate set with, say, ab200k and still have vbitrate go
+		#   round and around until the overall size fits to max_size!
+
+		if [ -v our_options[go_down_by_100k] ]; then
+			if [ $((vbitrate_bits-100000)) \
+				-ge $minimal_vbitrate_bits ]; then
+				let decrement+=100000
+				continue
+			else
+				unset our_options[go_down_by_100k]
+			fi
+
+		elif [ -v our_options[lower_resolution] ]; then
+			if [ $closest_lowres_index -lt ${#lower_res_list[@]} ]; then
+				res=${lower_res_list[closest_lowres_index]}
+				mildrop
+				info "Trying lower resolution ${res}p… "
+				set_bitrates $res
+				((closest_lowres_index++, 1))
+				unset decrement
+				milinc
+				our_options[go_down_by_100k]=t
+			else
+				# Lower resolutions are depleted.
+				unset our_options[lower_resolution]
+			fi
+		else
+			cannot_fit=t
+		fi
 	done
+
 	mildrop
 	[ -v cannot_fit ] && err "Cannot fit $duration_hms into $max_size."
-	[ "$mode" = forced ] && max_fitting_video_bitrate="$vbitrate_in_bits"
-	#  In case the new file will come out bigger than $max_size,
+
+	 # If video bitrate isn’t forced, we’ll fit more data with
+	#  max_fitting_vbitrate_bits. When best video bitrate can be guessed,
+	#  $vbitrate serves only one purpose: to find,  to which resolution
+	#  profile max_fitting_vbitrate_bits falls.
+	#
+	#  DON’T DO THIS. YOU’LL JUST BLOW THE SIZE.
+	#
+	# [ -v forced_vbitrate ] \
+	# 	|| vbitrate_bits=$max_fitting_vbitrate_bits
+
+	 # $res and $scale hold same numbers, but the purposes
+	#  of these variables differ:
+	#  - scale is a global parameter. It indicates forced scale from the
+	#    command line. It passes through and goes straight to -vf key in
+	#    ffmpeg.
+	#  - res is a local variable. It lives only within the scope of this
+	#    function and its nested functions. In fact, of all nested functions
+	#    it is used only in calc_max_fitting_vbitrate() in the info() call.
+	#    local res sets global scale, if scale wasn’t set beforehand.
+	#
+	[ -v res ] && scale=$res
+
+	 # In case the new file will come out bigger than $max_size,
 	#  and this function will be called again to recalculate
-	#  $max_fitting_video_bitrate, increment $container_own_size,
+	#  $max_fitting_vbitrate_bits, increment $container_own_size,
 	#  so that next time it’ll be 1% bigger.
+	#
 	increment_container_own_size
 	return 0
 }
 
-
-encode() {
-	local encoding_info
-	declare -g new_file_name="${video%.*} $start–$stop.$container"
-	new_file_name="$where_to_place_new_file/${new_file_name##*/}"
-	encoding_info="Encoding with $((max_fitting_video_bitrate/1000))k "
-	encoding_info+="/ $abitrate @"
-	[[ "$res" =~ ^[0-9]+$ ]] \
-		&& encoding_info+="${res}p" \
-		|| encoding_info+='Native'
-	[ "$mode" = forced ] && encoding_info+=' (forced)'
+print_encoding_info() {
+	local encinfo
+	# Bright (bold) white for command line overrides.
+	# Yellow for automatic scaling.
+	encoding_info="Encoding with "
+	[ -v forced_vbitrate ] \
+		&& encoding_info+="${__b}$vbitrate${__s} " \
+		|| encoding_info+="$vbitrate_pretty "
+	encoding_info+='/ '
+	[ -v audio ] && {
+		[ -v forced_abitrate ] \
+			&& encoding_info+="${__b}$abitrate${__s} " \
+			|| encoding_info+="$abitrate "
+	}
+	encoding_info+='@'
+	if [ -v forced_scale ]; then
+		encoding_info+="${__b}${scale}p${__s}"
+	elif [ -v scale ]; then
+		encoding_info+="${__b}${__y}${scale}p${__s}"
+	elif [ -v crop ]; then
+		encoding_info+="Cropped"
+	else
+		encoding_info+='Native'
+	fi
+	[ -v subs ] || encoding_info+=", ${__b}nosubs${__s}"
+	[ -v audio ] || encoding_info+=", ${__b}noaudio${__s}"
 	encoding_info+='.'
 	info  "$encoding_info"
-	milinc
+	return 0
+}
 
-	set +f
-	rm -f "$LOGDIR/"ffmpeg*  "$LOGDIR/"mkvextract*  #  Remove old ffmpeg logs.
-	set -f
-
-	[ -v scale -o -v subs ] && {
-		# If we do hardsubbing or scaling, we need to assemble -vf string.
-		[ -v scale ] && {
-			filter_list="scale=-2:$scale"
-		}
+assemble_vf_string() {
+	local filter_list= id font_name
+	[ -v scale ] || [ -v subs ] || [ -v crop ] && {
 		[ -v subs ] && {
 			info "Extracting subs and fonts."
 			# Extracting subs and fonts.
 			# Let’s hope that the source is mkv and the subs are ass.
 			[ -d "$TMPDIR/fonts" ] || mkdir "$TMPDIR/fonts"
 			FFREPORT=file=$LOGDIR/ffmpeg-extraction-subs.log:level=32 \
-			$ffmpeg -hide_banner -i "$video" -map 0:s "$TMPDIR/subs.ass"
+			$ffmpeg -hide_banner -i "$video" -map 0:s:0 "$TMPDIR/subs.ass"
 			while read -r ; do
 				id=${REPLY%$'\t'*}
 				font_name=${REPLY#*$'\t'}
@@ -724,7 +822,89 @@ encode() {
 			filter_list+="subtitles=$TMPDIR/subs.ass:fontsdir=$TMPDIR/fonts,"
 			filter_list+='setpts=PTS-STARTPTS'
 		}
+		[ -v crop ] && {
+			filter_list="${filter_list:+$filter_list,}"
+			filter_list+="$crop"
+		}
+		[ -v scale ] && {
+			filter_list="${filter_list:+$filter_list,}"
+			filter_list+="scale=-2:$scale"
+		}
 		vf_string="-vf $filter_list"
+	}
+	return 0
+}
+
+encode-libx264() {
+	info 'PASS 1'
+	FFREPORT=file=$LOGDIR/ffmpeg-pass1.log:level=32 \
+	$ffmpeg -y  -ss "$start"  -to "$stop"  -i "$video" \
+	        $vf_string \
+	        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
+	            -b:v $vbitrate_bits \
+	            -maxrate $vbitrate_bits \
+	            -bufsize $((2*vbitrate_bits)) \
+	            -preset:v $libx264_preset -tune:v $libx264_tune \
+	            -profile:v $libx264_profile -level $libx264_level \
+	        -pass 1 -an \
+	        -f $container_format /dev/null
+
+	info 'PASS 2'
+	FFREPORT=file=$LOGDIR/ffmpeg-pass2.log:level=32 \
+	$ffmpeg -y  -ss "$start"  -to "$stop"  -i "$video" \
+	        $vf_string \
+	        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
+	            -b:v $vbitrate_bits \
+	            -maxrate $vbitrate_bits \
+	            -bufsize $((2*vbitrate_bits)) \
+	            -preset:v $libx264_preset -tune:v $libx264_tune \
+	            -profile:v $libx264_profile -level $libx264_level \
+	        -pass 2 \
+	        $audio \
+	        ${faststart:-} \
+	        "$new_file_name"
+
+	return 0
+}
+
+encode-libvpx-vp9() {
+	local encoding_res tile_column_min_width=256
+	log2() {
+		local x=$1 n=2 l=-1
+		while ((x)); do ((l+=1, x/=n, 1)); done
+		echo $l
+	}
+	[ -v libvpx_adaptive_tile_columns ] && {
+		if [ -v scale ]; then
+			encoding_res=$scale
+			if [ "$orig_ar" = '4:3' ]; then
+				scaled_width=$((  (scale*4/3)/2*2  ))
+				libvpx_tile_columns=$((    scaled_width
+				                         / tile_column_min_width  ))
+			elif [ "$orig_ar" = '16:9' ]; then
+				scaled_width=$((  (scale*16/9)/2*2  ))
+				libvpx_tile_columns=$((    scaled_width
+				                         / tile_column_min_width  ))
+			else
+				libvpx_tile_columns=1
+			fi
+		elif [ -v crop ]; then
+			libvpx_tile_columns=$((    crop_w
+				                     / tile_column_min_width  ))
+		else
+			# Native resolution
+			libvpx_tile_columns=$((    orig_width
+				                     / tile_column_min_width  ))
+		fi
+		# Docs on Google Devs count threads as tile-columns*2 for resolutions
+		# under 2160p, i.e. give a minimum of two threads per one tile.
+		libvpx_threads=$((libvpx_tile_columns*2))
+		# Videos with a width smaller than $tile_column_min_width
+		# as well as cropped ones will result in 0 tile-columns
+		# and log2(0) will return -1, while it should still return 0.
+		[ $libvpx_tile_columns -eq 0 ] && libvpx_tile_columns=1
+		# tile-columns should be a log2(actual number of tile-columns)
+		libvpx_tile_columns=$(log2 $libvpx_tile_columns)
 	}
 
 	info 'PASS 1'
@@ -733,13 +913,20 @@ encode() {
 	$ffmpeg -y  -ss "$start"  -to "$stop"  -i "$video" \
 	        $vf_string \
 	        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
-	            -b:v $max_fitting_video_bitrate \
-	            -maxrate $max_fitting_video_bitrate \
-	            -bufsize $((2*max_fitting_video_bitrate)) \
-	            -preset:v $ffmpeg_preset -tune:v $ffmpeg_tune \
-	            -profile:v $ffmpeg_profile -level $ffmpeg_level \
-	            -pass 1 -an \
-	        -f $container /dev/null
+	            -crf $libvpx_crf -b:v $vbitrate_bits \
+	                -minrate $((vbitrate_bits/2)) \
+	                -maxrate $vbitrate_bits \
+	            -overshoot-pct 0 \
+	            -threads $libvpx_threads \
+	                -tile-columns $libvpx_tile_columns \
+	                -frame-parallel $libvpx_frame_parallel \
+	            -deadline $libvpx_pass1_deadline \
+	                -cpu-used $libvpx_pass1_cpu_used \
+	            -auto-alt-ref $libvpx_auto_alt_ref \
+	                -lag-in-frames $libvpx_lag_in_frames \
+	            -g $libvpx_keyint_max \
+	        -pass 1 -an -sn \
+	        -f $container_format /dev/null
 
 	info 'PASS 2'
 
@@ -747,16 +934,55 @@ encode() {
 	$ffmpeg -y  -ss "$start"  -to "$stop"  -i "$video" \
 	        $vf_string \
 	        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
-	            -b:v $max_fitting_video_bitrate \
-	            -maxrate $max_fitting_video_bitrate \
-	            -bufsize $((2*max_fitting_video_bitrate)) \
-	            -preset:v $ffmpeg_preset -tune:v $ffmpeg_tune \
-	            -profile:v $ffmpeg_profile -level $ffmpeg_level \
-	            -pass 2 \
-	        ${audio:--c:a $ffmpeg_acodec -b:a $abitrate} \
-	        -movflags +faststart \
+	            -crf $libvpx_crf -b:v $vbitrate_bits \
+	                    -minrate $((vbitrate_bits/2)) \
+	                    -maxrate $vbitrate_bits \
+	            -overshoot-pct 0 \
+	            -threads $libvpx_threads \
+	                    -tile-columns $libvpx_tile_columns \
+	                    -frame-parallel $libvpx_frame_parallel \
+	            -deadline $libvpx_pass2_deadline \
+	                -cpu-used $libvpx_pass2_cpu_used \
+	            -auto-alt-ref $libvpx_auto_alt_ref \
+	                    -lag-in-frames $libvpx_lag_in_frames \
+	            -g $libvpx_keyint_max \
+	        -pass 2 \
+	        $audio \
+	        -sn \
 	        "$new_file_name"
+	return 0
+}
 
+encode() {
+	local vf_string encode_func faststart container_format
+	declare -g new_file_name="${video%.*} $start–$stop.$container"
+	new_file_name="$where_to_place_new_file/${new_file_name##*/}"
+	print_encoding_info
+	milinc
+	set +f
+	rm -f "$LOGDIR/"ffmpeg*  "$LOGDIR/"mkvextract*  #  Remove old ffmpeg logs.
+	set -f
+	assemble_vf_string
+	[ -v audio ] \
+		&& audio="-c:a $ffmpeg_acodec -b:a $abitrate" \
+		|| audio='-an'
+	case "$container" in
+		# mkv)
+		# 	# “webm” can be a container format, but “mkv” cannot. Weird.
+		# 	container_format='matroska'
+		#   novttsubs="-sn"
+		# 	;;
+		webm)
+			container_format=$container
+			;;
+		mp4)
+			container_format=$container
+			faststart='-movflags +faststart'
+			;;
+	esac
+	encode_func=$(type -t encode-$ffmpeg_vcodec)  \
+	&& [ "$encode_func" = 'function' ]  \
+	&& encode-$ffmpeg_vcodec
 	rm -f ffmpeg2pass-0.log ffmpeg2pass-0.log.mbtree
 	mildec
 	return 0
@@ -764,8 +990,9 @@ encode() {
 
 
 parse_args "$@"
-check_util_support common ${subs:+subs}
 set_vars
+check_util_support common ${subs:+subs}
+display_settings
 until [ $(stat --printf %s "${new_file_name:-/dev/null}") \
         -le ${max_size_in_bytes:--1} ]; \
 do
@@ -778,5 +1005,5 @@ which xclip &>/dev/null && {
 	echo -n "$new_file_name" | xclip
 	info 'Copied path to clipboard.'
 }
-
+[ -v pedantic ] && comme_il_faut_check "$new_file_name"
 exit 0

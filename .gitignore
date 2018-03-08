@@ -1,3 +1,12 @@
 *.mp4
+*.webm
+*.jpg
+*.jpeg
 nadeshiko_logs
 nadeshiko.rc.sh
+tests/container_ratios_data
+tests/new
+tests/old
+tests/sets
+tests/files_for_sets
+tests/*/*

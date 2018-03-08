@@ -93,12 +93,12 @@ err_colour=$__r
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
 	MYPATH=`realpath "$0"`
-	MYDIR=`dirname "$0"`
+	MYDIR=${MYPATH%/*}
 }
 CMDLINE="$0 $*"
 TERM_COLS=`tput cols`
 TERM_LINES=`tput lines`
-BHLLS_VERSION="20180303"
+BHLLS_VERSION="20180308"
 TMPDIR=`mktemp -d`
 
  # Unset after sourcing bhlls.sh to show full xtrace output
@@ -106,9 +106,19 @@ TMPDIR=`mktemp -d`
 #
 BHLLS_HIDE_FROM_XTRACE=t
 
+ # To clear screen each time menu() redraws its output.
+#  Clearing helps to focus, while leaving old screens
+#  allows to check the console output before menu() was called.
+#
+#BHLLS_MENU_CLEAR_SCREEN=t
+
+
 bhlls_on_exit() {
-	[ "$(type -t on_exit)" = function ] && on_exit  # run user’s on_exit().
+	[ "$(type -t on_exit)" = 'function' ] && on_exit  # run user’s on_exit().
 	rm -rf "$TMPDIR"
+	# Not actually necessary as it’s a trap on exit,
+	# the return code is frozen.
+	return 0
 }
 trap 'bhlls_on_exit' EXIT TERM INT QUIT KILL
 
@@ -116,10 +126,11 @@ bhlls_show_error() {
 	local file=$1 line=$2 lineno=$3
 	echo -e "${__b}${__r}$file: bash error.${__s}" >&2
 	echo -e "${__b}${__r}Line $lineno:${__s} ${__b}$line${__s}" >&2
-	notify-send "Bash error. See console."
+	bhlls_notify_send "Bash error. See console." error
 	[ "$LOG" = /dev/null ] && return 0
 	info "Log is written to
 	      $LOG"
+	echo -n "$LOG" | xclip ||:
 	return 0
 }
 
@@ -165,6 +176,19 @@ check_required_utils() {
 	return 0
 }
 
+if_true() {
+	declare -n var=$1
+	if [[ "$var" =~ ^(y|Y|[Yy]es|1|t|T|[Tt]rue|[Oo]n|[Ee]nable[d])$ ]]; then
+		return 0
+	elif [[ "$var" =~ ^(n|N|[Nn]o|0|f|F|[Ff]alse|[Oo]ff|[Dd]isable[d])$ ]]; then
+		return 1
+	else
+		err "Variable “$1” must have a boolean value (0/1, on/off, yes/no),
+		     but it has “$var”."
+	fi
+
+}
+
 # BHLLS offers keyword-based messages, which enables
 # to create localised programs.
 
@@ -176,7 +200,7 @@ declare -A BHLLS_INFO_MESSAGES=()
 #
 declare -A BHLLS_WARNING_MESSAGES=(
 	[no such msg]='Internal: No such message: ‘$failed_message’.'
-	[no util]='‘$util’ is required but wasn’t found on this system.'
+	[no util]='‘$util’ is required but wasn’t found.'
 )
 
  # List of error messages
@@ -188,7 +212,7 @@ declare -A BHLLS_WARNING_MESSAGES=(
 #
 declare -A BHLLS_ERROR_MESSAGES=(
 	[just quit]='Quitting.'
-	[old utillinux]='This script requires util-linux-2.20 or higher.'
+	[old utillinux]='Need util-linux-2.20 or higher.'
 	[missing deps]='Dependencies are not satisfied.'
 )
 
@@ -205,7 +229,7 @@ unset major minor
 #  of BHLLS own functions.
 #
 xtrace_off() {
-	[[ -v BHLLS_HIDE_FROM_XTRACE && "$-" =~ ^.*x.*$ ]] && {
+	[ -v BHLLS_HIDE_FROM_XTRACE  -a  -o xtrace ] && {
 		set +x
 		declare -g BHLLS_BRING_BACK_XTRACE=t
 	}
@@ -246,8 +270,7 @@ mi_assemble
 #
 milinc() {
 	xtrace_off
-	local count=$1 z mi_as_result
-	count=${count:-1}
+	local count=${1:-1} z mi_as_result
 	for ((z=0; z<count; z++)); do ((MI_LEVEL++, 1)); done
 	mi_assemble; mi_as_result=$?
 	xtrace_on
@@ -259,8 +282,7 @@ milinc() {
 #
 mildec() {
 	xtrace_off
-	local count=$1 z mi_as_result
-	count=${count:-1}
+	local count=${1:-1} z mi_as_result
 	if [ $MI_LEVEL -eq 0 ]; then
 		warn "No need to decrease indentation, it’s on the minimum."
 	else
@@ -317,7 +339,7 @@ infon() {
 	xtrace_on
 }
 
- # Like info() that has a higher rank than usual info(),
+ # Like info(), but has a higher rank than usual info(),
 #  which allows its message to be also shown on desktop.
 #  $1 – a message to be shown both in console and on desktop.
 #
@@ -356,6 +378,16 @@ infow() {
 
 #  Like info, but the output goes to stderr. Dimmed yellow asterisk.
 warn() {
+	xtrace_off
+	msg "$@"
+	xtrace_on
+}
+
+ # Like warn(), but has a higher rank than usual info(),
+#  which allows its message to be also shown on desktop.
+#  $1 – a message to be shown both in console and on desktop.
+#
+warn-ns() {
 	xtrace_off
 	msg "$@"
 	xtrace_on
@@ -401,33 +433,31 @@ plainmsg() {
 
  # Desktop notifications
 #
-#  Main script should only call info(), warn() and err() functions.
-#  Inside those functions messages will also be sent to desktop.
-#  Whether the notification will be sent is controlled
-#  by the following variables:
+#  To send a notification to both console and desktop, main script should
+#  call info-ns(), warn-ns() or err() function. As err() always ends the
+#  program, its messages can’t be of lower importance. Thus they are always
+#  sent to desktop (if only NO_DESKTOP_NOTIFICATIONS is set).
 #
-#  If set, disables all desktop notifications.
+ # If set, disables all desktop notifications.
+#  All message functions will print only to console.
 #  By default it is unset, and notifications are shown.
+#
 #NO_DESKTOP_NOTIFICATIONS=t
-#
-#  This array defines importance of messages.
-#  The ranks are as follows: 0=info, 1=info-ns, 2=warn, 3=err.
-NOTIFY_SEND_RANKS=( 'info' 'info-ns' 'warn' 'err')
-#
-#  A number, defines minimum rank of the message to be shown on desktop.
-#  Default value is 1, usual info() messages aren’t shown,
-#  info-ns(), warn() and err() are shown.
-NOTIFY_SEND_MINIMUM_RANK=1
 
  # Shows a desktop notification
-#  $1 – icon.
+#  $1 – message.
+#  $2 – icon type: empty, “information”, “warning” or “error”.
 #
 bhlls_notify_send() {
 	[ -v NO_DESKTOP_NOTIFICATIONS ] && return 0
-	local msg="$1" icon="$2"
+	local msg="$1" icon="$2" duration
+	case "$icon" in
+		warning|error) duration=5000;;  # warning, error: 5s
+		*) duration=3000;;  # info: 3s
+	esac
 	# The hint is for the message to not pile in the stack – it is limited.
 	# ||:  is for running safely under set -e.
-	notify-send --hint int:transient:1 -t 3000 \
+	notify-send --hint int:transient:1 -t $duration \
 	            "${MY_MSG_TITLE:-$MYNAME}" "$msg" \
 	            ${icon:+--icon=dialog-$icon}|| :
 	return 0
@@ -448,9 +478,9 @@ bhlls_notify_send() {
 #         $ warn  no   needed  file     found
 #       will use the same item in the WARNING_MESSAGES array.
 #  RETURNS:
-#    If called as an err* function, then quits the script with exit/return code 5
-#    or 5–∞, if ERROR_CODES is set.
-#    Returns with zero otherwise.
+#    If called as an err* function, then quits the script
+#    with exit/return code 5 or 5–∞, if ERROR_CODES is set.
+#    Returns zero otherwise.
 #
 msg() {
 	local msgtype c cs=$__s nonl asterisk='  ' message redir code=5 internal \
@@ -460,8 +490,6 @@ msg() {
 			msgtype=info
 			local -n  msg_array=INFO_MESSAGES
 			local -n  c=info_colour
-			notifysend_rank=0
-			notifysend_icon=
 			;;&
 		info|infon|info-ns)
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+INFO: }"
@@ -479,15 +507,17 @@ msg() {
 			local -n  msg_array=WARNING_MESSAGES
 			local -n  c=warn_colour
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+WARNING: }"
-			notifysend_rank=2
-			notifysend_icon='warning'
 		    ;;&
+		warn-ns)
+			notifysend_rank=1
+			notifysend_icon='warning'
+			;;
 		*err*)
 			msgtype=err redir='>&2'
 			local -n  msg_array=ERROR_MESSAGES
 			local -n  c=err_colour
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+ERROR: }"
-			notifysend_rank=3
+			notifysend_rank=1
 			notifysend_icon='error'
 			;;&
 		errw)
@@ -496,19 +526,16 @@ msg() {
 			;;
 		iwarn|ierr|iinfo)
 			internal=t
-			notifysend_rank=0
 			;;&
 		iwarn)
 			# For internal messages.
 			local -n  msg_array=BHLLS_WARNING_MESSAGES
-			notifysend_rank=2
+			notifysend_rank=1
 			notifysend_icon='warning'
 			;;
 		ierr)
 			# For internal messages.
 			local -n  msg_array=BHLLS_ERROR_MESSAGES
-			notifysend_rank=3
-			notifysend_icon='error'
 			;;
 	esac
 	[ -v nonl ] && nonl='-n'
@@ -541,11 +568,10 @@ msg() {
 	message=`sed -r 's/^\s*//; s/\n\t/\n/g' <<<"$message"`
 	# Both fold and fmt use smaller width,
 	# if they deal with non-Latin characters.
-	eval "echo -e $nonl \"$c$asterisk$cs$message$__s\" \
-	          | tee -a $LOG \
+	eval "echo -e ${nonl:-} \"$c$asterisk$cs$message$__s\" \
 	          | fold  -w $((TERM_COLS - MI_LEVEL*MI_SPACENUM -2)) -s \
-	          | sed -r \"1s/^/${MI#  }/; 1!s/^/$MI/g\" $redir"
-	[ ${notifysend_rank:--1} -ge $NOTIFY_SEND_MINIMUM_RANK ] \
+	          | sed -r \"1s/^/${MI#  }/; 1!s/^/$MI/g\" ${redir:-}"
+	[ ${notifysend_rank:--1} -ge 1 ] \
 		&& bhlls_notify_send "$message" ${notifysend_icon:-}
 	[ "$msgtype" = err ] && {
 		# If this is an error message, we must also quit
@@ -631,7 +657,7 @@ menu() {
 		return
 	}
 	until [ -v choice_is_confirmed ]; do
-		clear
+		[ -v BHLLS_MENU_CLEAR_SCREEN ] && clear
 		case "$mode" in
 			bivariant)
 				echo -en "$prompt ${left:+$__g}${options[0]}${left:+$__s <} ${right:+> $__g}${options[1]}${right:+$__s} "
@@ -722,7 +748,7 @@ LOG=/dev/null
 		set +f
 		bhlls_return_noglob=t
 	}
-	ls -r * | tail -n+$((${BHLLS_LOG_MAX_COUNT:=5}+1)) \
+	ls -r * | tail -n+$((${BHLLS_LOG_MAX_COUNT:=5})) \
 	        | xargs rm -v &>/dev/null || :
 	[ -v bhlls_return_noglob ] && {
 		set -f
@@ -731,7 +757,7 @@ LOG=/dev/null
 	cd - >/dev/null
 	echo "Log started at `date`." >"$LOG"
 	echo "Command line: $CMDLINE" >>"$LOG"
-	exec |& tee -a "$LOG"
+	exec &> >(tee -a $LOG)
 }
 
 show_path_to_log() {
