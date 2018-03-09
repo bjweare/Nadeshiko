@@ -179,10 +179,10 @@ parse_args() {
 			show_help
 		elif [[ "$arg" = @(-v|--version) ]]; then
 			show_version
-			#                 /hours\      /minutes\      /seconds\     /mseconds\
+		#                    /hours\      /minutes\      /seconds\     /mseconds\
 		elif [[ "$arg" =~ ^(([0-9]{1,2}:|)([0-9]{1,2}:)|)([0-9]{1,2})(\.[0-9]{1,3}|)$ ]]; then
-			#                             ^           ^  ^          ^
-			# These are only to extract faster. Remove them to see the regex clearer.
+		#                                 ^           ^  ^          ^
+		# These are only to extract faster. Remove them to see the regex clearer.
 			if [ -v time1 ]; then
 				time2_h="${BASH_REMATCH[2]%:}"
 				time2_m="${BASH_REMATCH[3]%:}"
@@ -482,7 +482,7 @@ display_settings(){
 		info "Cropped range takes $crop_to_orig_total_px_ratio% of the cadre.
 		      Applying bitrate multiplier ${__b}${__y}0.$(
 		          [ $crop_to_orig_total_px_ratio -lt 10 ]     \
-				      && echo "0$crop_to_orig_total_px_ratio"  \
+		              && echo "0$crop_to_orig_total_px_ratio"  \
 		              || echo "$crop_to_orig_total_px_ratio"    )${__s}."
 	}
 	[ "$max_size" = "$max_size_default" ] \
@@ -540,7 +540,7 @@ fit_bitrate_to_filesize() {
 		fi
 		space_for_video_track=$((   max_size_bits
 		                          - audio_track_size_bits
-			                      - container_own_size_bits  ))
+		                          - container_own_size_bits  ))
 
 		max_fitting_vbitrate_bits=$((    space_for_video_track
 		                               / duration_total_s       ))
@@ -900,11 +900,11 @@ encode-libvpx-vp9() {
 			fi
 		elif [ -v crop ]; then
 			libvpx_tile_columns=$((    crop_w
-				                     / tile_column_min_width  ))
+			                         / tile_column_min_width  ))
 		else
 			# Native resolution
 			libvpx_tile_columns=$((    orig_width
-				                     / tile_column_min_width  ))
+			                         / tile_column_min_width  ))
 		fi
 		# Videos with a width smaller than $tile_column_min_width
 		# as well as cropped ones will result in 0 tile-columns

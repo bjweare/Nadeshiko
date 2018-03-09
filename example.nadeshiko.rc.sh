@@ -214,6 +214,7 @@ libvpx_crf=23
 #  would only work on such enourmous videos? Something isn’t right here…
 #  Must be >0 in order for threads to work.
 #  6 is recommended by webmproject.org.
+#  The docs on Google Devs recommend to calculate it (see below).
 #  Maybe it makes sense assigning it to log2(threads).
 libvpx_tile_columns=6
 #
@@ -221,8 +222,8 @@ libvpx_tile_columns=6
 libvpx_threads=4
 #
 #  When enabled, Nadeshiko calculates the values for tile-columns and threads
-#  adaptively to the video resolution as recommended by Google.
-#  That is, 4 for 360p and 480p; 8 for 720p and 1080p
+#  adaptively to the video resolution as the docs on Google Devs recommend,
+#  that is 8 for 1080p and 720p, 4 for 480p and 360p and so on.
 libvpx_adaptive_tile_columns=t
 #
 #  Frame parallel decodability features
