@@ -307,7 +307,7 @@ set_vars() {
 		&& err "“noaudio” cannot be used with forced audio bitrate."
 	[ -v crop  -a  -v scale ] \
 		&& err "crop and scale cannot be used at the same time."
-	if [ "$time2_total_ms" -gt "$time1_total_ms" ]; then
+	if [ $time2_total_ms -gt $time1_total_ms ]; then
 		declare -gn start='time1' \
 		            start_h='time1_h' \
 		            start_m='time1_m' \
@@ -400,7 +400,7 @@ set_vars() {
 	orig_ar=$(get_mediainfo_attribute "$video" v 'Display aspect ratio')
 	[ "$orig_ar" = '4:3' ] && ar_bitrate_correction='*3/4'
 	[ -v crop ] && {
-		orig_total_px=$(( $orig_width * $orig_height
+		orig_total_px=$(( orig_width * orig_height
 		                  ${ar_bitrate_correction:-}  ))
 			crop_total_px=$((crop_w * crop_h))
 			crop_to_orig_total_px_ratio=$((    crop_total_px
@@ -517,10 +517,10 @@ fit_bitrate_to_filesize() {
 	#  Returns: 0 if we found an appropriate video bitrate;
 	#           1 otherwise.
 	#
-	vbitrate_fits_max_size() {
+	recalc_vbitrate_and_maxfitting() {
 		local audio_info
 		[ -v audio ] && audio_info=" / $abitrate"
-		recalc_bitrate 'vbitrate' decrement100k
+		recalc_bitrate 'vbitrate'
 		infon "Trying $vbitrate_pretty$audio_info @"
 		if [ -v scale ]; then
 			# Forced scale
@@ -553,16 +553,13 @@ fit_bitrate_to_filesize() {
 			vbitrate_bits=$orig_video_bitrate_bits
 			return 0
 		}
-		[ $vbitrate_bits -le $max_fitting_vbitrate_bits ] \
-		&& return 0 \
-		|| return 1
+		return 0
 	}
 
 	 # General function to do needed arithmetic and create representations
 	#  of the new value.
 	#  $1 – variable name for reference. The value may contain [kMG] suffix.
-	# [$2..n] – correction types: “aspect_ratio”, “crop”, “minimal_bitrate”
-	#           or “decrement100k”.
+	# [$2..n] – correction types: “aspect_ratio”, “crop” or “minimal_bitrate”.
 	#  The variable, which name is passed as $1 is converted to bits,
 	#  and its suffix is expanded. Then arithmetic corrections are applied.
 	#  The result of this function is:
@@ -596,9 +593,6 @@ fit_bitrate_to_filesize() {
 					;;
 				minimal_bitrate)
 					var=$((var * ${minimal_bitrate_perc%\%} / 100 ))
-					;;
-				decrement100k)
-					var=$((var - ${decrement:-0}))
 					;;
 			esac
 		done
@@ -686,12 +680,13 @@ fit_bitrate_to_filesize() {
 		set_bitrates $orig_height
 	fi
 	milinc
+	recalc_vbitrate_and_maxfitting
 
 	 # What can be done, if bitrates × duration do not fit max_size.
 	#  I find this array a genius invention, the code was a mess without it.
 	#
 	declare -A our_options=(
-		[go_down_by_100k]=t  # until vbitrate hits minimal in the current
+		[seek_maxfit_here]=t  # until vbitrate hits minimal in the current
 		                     # resolution profile
 		[lower_resolution]=t  # change resolution profile
 	)
@@ -699,32 +694,22 @@ fit_bitrate_to_filesize() {
 	 # Are we already good?
 	#  If not, can we scale to lower resolutions?
 	#
-	#  Note to myself: This should sound another way:
-	#    until maxfitting… -ge minimal… -a maxfitting -le desired…
-	#    and  “go down by 100k” could be thrown out.
-	#  But since there must be flexibility, i.e. forced scale, BITRATES,
-	#    and a forced bitrate _cannot_ have desired and minimal values
-	#    (I’m not going to untangle the mess, that will happen, if
-	#    the resolution profiles would clash with “forced” desired
-	#    and minimal values).
-	#  Thus, it’s made via an universal $vbitrate and $maxfitting…
-	#
-	until vbitrate_fits_max_size; do
-		[ -v forced_vbitrate ] && unset our_options[go_down_by_100k]
+	until [ $vbitrate_bits -le $max_fitting_vbitrate_bits ]; do
+		[ -v forced_vbitrate ] && unset our_options[seek_maxfit_here]
 		[ -v forced_scale ] && unset our_options[lower_resolution]
 		# The flexibility of this code is amazing – we can have fixed
 		#   audio bitrate set with, say, ab200k and still have vbitrate go
 		#   round and around until the overall size fits to max_size!
 
-		if [ -v our_options[go_down_by_100k] ]; then
-			if [ $((vbitrate_bits-100000)) \
-				-ge $minimal_vbitrate_bits ]; then
-				decrement=$((  ${decrement:-0} + 100000  ))
-				continue
+		if [ -v our_options[seek_maxfit_here] ]; then
+			if [    $max_fitting_vbitrate_bits -ge $minimal_vbitrate_bits  \
+			     -a $max_fitting_vbitrate_bits -le $desired_vbitrate_bits  ]
+			then
+			     vbitrate=$max_fitting_vbitrate_bits
+			     recalc_vbitrate_and_maxfitting
 			else
-				unset our_options[go_down_by_100k]
+				unset our_options[seek_maxfit_here]
 			fi
-
 		elif [ -v our_options[lower_resolution] ]; then
 			if [ $closest_lowres_index -lt ${#lower_res_list[@]} ]; then
 				res=${lower_res_list[closest_lowres_index]}
@@ -732,9 +717,9 @@ fit_bitrate_to_filesize() {
 				info "Trying lower resolution ${res}p… "
 				set_bitrates $res
 				((closest_lowres_index++, 1))
-				unset decrement
 				milinc
-				our_options[go_down_by_100k]=t
+				our_options[seek_maxfit_here]=t
+				recalc_vbitrate_and_maxfitting
 			else
 				# Lower resolutions are depleted.
 				unset our_options[lower_resolution]
@@ -746,16 +731,6 @@ fit_bitrate_to_filesize() {
 
 	mildrop
 	[ -v cannot_fit ] && err "Cannot fit $duration_hms into $max_size."
-
-	 # If video bitrate isn’t forced, we’ll fit more data with
-	#  max_fitting_vbitrate_bits. When best video bitrate can be guessed,
-	#  $vbitrate serves only one purpose: to find,  to which resolution
-	#  profile max_fitting_vbitrate_bits falls.
-	#
-	#  DON’T DO THIS. YOU’LL JUST BLOW THE SIZE.
-	#
-	# [ -v forced_vbitrate ] \
-	# 	|| vbitrate_bits=$max_fitting_vbitrate_bits
 
 	 # $res and $scale hold same numbers, but the purposes
 	#  of these variables differ:
