@@ -55,6 +55,10 @@ fallback_abitrate=98k
 #
 #pedantic=t
 
+ # Show time stats after encoding is done.
+#
+time_stats=t
+
 
  # FFmpeg
 #

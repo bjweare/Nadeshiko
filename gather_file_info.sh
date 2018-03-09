@@ -68,6 +68,43 @@ get_header_ratios() {
 	return 0
 }
 
+ # Takes total number of seconds, returns “Nh NNm NNs”,
+#  if hours or minutes are unset they are omitted.
+#  $1 – total number of seconds.
+#
+get_duration_pretty() {
+	local total_s="$1" h m s duration
+	total_s=${total_s%.*}  # strip milliseconds
+	h=$(( total_s/3600  ))
+	m=$(( (total_s - h*3600) /60))
+	s=$(( (total_s - h*3600 - m*60) ))
+	[ $h -ne 0 ] \
+		&& duration+="${h}h "
+	[ $m -ne 0 ] \
+		&& duration+="${m}m "
+	duration+="${s}s"
+	echo "$duration"
+	return 0
+}
+
+ # Takes total number of seconds, returns “N:NN:NN”,
+#  Always in three groups, values <0 are not padded.
+#  $1 – total number of seconds.
+# [$2] – set to “pad” if the output will come in a column one under another.
+#
+get_duration_hms() {
+	local total_s="$1" pad=${2:-} h m s duration
+	total_s=${total_s%.*}  # strip milliseconds
+	h=$(( total_s/3600  ))
+	[ "$pad" = pad  -a  $h -lt 10 ] && h="0$h"
+	m=$(( (total_s - h*3600) /60))
+	[ "$pad" = pad  -a  $m -lt 10 ] && m="0$m"
+	s=$(( (total_s - h*3600 - m*60) ))
+	[ "$pad" = pad  -a  $s -lt 10 ] && s="0$s"
+	echo "$h:$m:$s"
+	return 0
+}
+
 # $1 – file name
 # $2 – index
 gather_file_info() {
@@ -104,14 +141,7 @@ gather_file_info() {
 	duration_s="${duration_s%???}"
 	duration_ms="${duration_s/./}"
 	duration_total_s=$(( duration_ms /1000))
-	duration_h=$((duration_total_s/3600))
-	duration_m=$(( (duration_total_s - duration_h*3600) /60))
-	duration_s=$(( (duration_total_s - duration_h*3600 - duration_m*60) ))
-	[ $duration_h -ne 0 ] \
-		&& duration+="${duration_h}h "
-	[ $duration_m -ne 0 ] \
-		&& duration+="${duration_m}m "
-	duration+="${duration_s}s"
+	duration=$(get_pretty_duration $duration_total_s)
 
 	# video
 	width=$(get_ffmpeg_attribute "$file" v width)

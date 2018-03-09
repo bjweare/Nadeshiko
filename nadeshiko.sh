@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 
 # nadeshiko.sh
-#   A shell script to cut small videos with ffmpeg.
+#   A Linux tool to cut small videos with ffmpeg.
 #   deterenkelt © 2018
 
 # This program is free software; you can redistribute it and/or modify it
@@ -126,6 +126,13 @@ check_util_support() {
 					# (subtitles are needed for hardsubbing, and the hardsub
 					# will be poor without built-in fonts).
 					mkvextract
+				)
+				;;
+			time_stats)
+				required_utils+=(
+					# To output how many seconds the encoding took.
+					# Only pass1 and pass2, no fonts/subtitles extraction.
+					time
 				)
 				;;
 		esac
@@ -329,10 +336,7 @@ set_vars() {
 	fi
 	duration_total_ms=$((stop_total_ms - start_total_ms))
 	duration_total_s=$((duration_total_ms/1000))
-	duration_h=$((duration_total_s/3600))
-	duration_m=$(( (duration_total_s - duration_h*3600) /60))
-	duration_s=$(( (duration_total_s - duration_h*3600 - duration_m*60) ))
-	duration_hms="$duration_h:$duration_m:$duration_s"
+	duration_hms=$(get_duration_hms $duration_total_s)
 	# Getting the original video and audio bitrate.
 	orig_video_bitrate=$(get_mediainfo_attribute "$video" v 'Nominal bit rate')
 	[ "$orig_video_bitrate" ] \
@@ -715,7 +719,7 @@ fit_bitrate_to_filesize() {
 		if [ -v our_options[go_down_by_100k] ]; then
 			if [ $((vbitrate_bits-100000)) \
 				-ge $minimal_vbitrate_bits ]; then
-				let decrement+=100000
+				decrement=$((  ${decrement:-0} + 100000  ))
 				continue
 			else
 				unset our_options[go_down_by_100k]
@@ -906,11 +910,11 @@ encode-libvpx-vp9() {
 		# as well as cropped ones will result in 0 tile-columns
 		# and log2(0) will return -1, while it should still return 0.
 		[ $libvpx_tile_columns -eq 0 ] && libvpx_tile_columns=1
-		# Docs on Google Devs count threads as tile-columns*2 for resolutions
-		# under 2160p, i.e. give a minimum of two threads per one tile.
-		libvpx_threads=$((libvpx_tile_columns*2))
 		# tile-columns should be a log2(actual number of tile-columns)
 		libvpx_tile_columns=$(log2 $libvpx_tile_columns)
+		# Docs on Google Devs count threads as tile-columns*2 for resolutions
+		# under 2160p, i.e. give a minimum of two threads per one tile.
+		libvpx_threads=$((2**libvpx_tile_columns*2))
 	}
 
 	info 'PASS 1'
@@ -966,9 +970,15 @@ encode() {
 	print_encoding_info
 	milinc
 	set +f
-	rm -f "$LOGDIR/"ffmpeg*  "$LOGDIR/"mkvextract*  #  Remove old ffmpeg logs.
+	rm -f "$LOGDIR/"ffmpeg*  "$LOGDIR/"mkvextract*  "$LOGDIR/time_output"
 	set -f
 	assemble_vf_string
+	[ -v time_stats -a ! -v time_applied ] && {
+		# Could be put in set_vars, but time is better to be applied after
+		# $vf_string is assembled, or we get conditional third time.
+		ffmpeg="$(which time) -f %e -o $LOGDIR/time_output -a $ffmpeg"
+		time_applied=t
+	}
 	[ -v audio ] \
 		&& audio="-c:a $ffmpeg_acodec -b:a $abitrate" \
 		|| audio='-an'
@@ -994,6 +1004,28 @@ encode() {
 	return 0
 }
 
+print_stats() {
+	local stats  pass1_s    pass2_s    pass1_and_pass2_s \
+	             pass1_hms  pass2_hms  pass1_and_pass2_hms
+	read -d '' pass1_s pass2_s < <( cat "$LOGDIR/time_output"; echo -e '\0' )
+	pass1_s=${pass1_s%.*}  pass2_s=${pass2_s%.*}
+	[[ "$pass1_s" =~ ^[0-9]+$ && "$pass2_s" =~ ^[0-9]+$ ]] || {
+		warn "Couldn’t retrieve time spent on the 1st or 2nd pass."
+		return 0
+	}
+	pass1_and_pass2_s=$((  pass1_s + pass2_s  ))
+	pass1_hms=$(get_duration_hms $pass1_s pad)
+	pass2_hms=$(get_duration_hms $pass2_s pad)
+	pass1_and_pass2_hms=$(get_duration_hms $pass1_and_pass2_s pad)
+	speed_ratio=$(echo "scale=2; $pass1_and_pass2_s/$duration_total_s" | bc)
+	speed_ratio="${__b}${__y}$speed_ratio${__s}"
+	info "Stats:
+	      Pass 1 – $pass1_hms.
+	      Pass 2 – $pass2_hms.
+	       Total – $pass1_and_pass2_hms.
+	      Encoding took $speed_ratio× time of the file duration."
+	return 0
+}
 
 parse_args "$@"
 set_vars
@@ -1007,6 +1039,7 @@ do
 done
 info-ns "Encoded successfully."
 info "${new_file_name##*/}"
+[ -v time_stats ] && print_stats
 which xclip &>/dev/null && {
 	echo -n "$new_file_name" | xclip
 	info 'Copied path to clipboard.'
