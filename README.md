@@ -52,17 +52,17 @@ A Linux tool to cut short videos with ffmpeg.
 
 Cut first 1 minute 20 seconds
 
-	./nadeshiko.sh 'file.mkv' 0 1:20
+	$ ./nadeshiko.sh 'file.mkv' 0 1:20
 
 Cut with milliseconds
 
-	./nadeshiko.sh 'file.mkv' 17:21.01 18:00.652
+	$ ./nadeshiko.sh 'file.mkv' 17:21.01 18:00.652
 
 > .1 = 100 ms, .01 = 10 ms, .001 = 1 ms
 
 Fit the cut to 10 MiB instead of 20 MiB
 
-	./nadeshiko.sh 'file.mkv' 17:21.01 18:00.652 small
+	$ ./nadeshiko.sh 'file.mkv' 17:21.01 18:00.652 small
 
 Use Nadeshiko to archive something from home videos:
 * force 1080p resolution;
@@ -70,11 +70,11 @@ Use Nadeshiko to archive something from home videos:
 * force audio bitrate 192 kbit/s;
 * lift restriction on file size.
 
-	./nadeshiko.sh 'birthday.mp4' 0:10 47:22  1080p vb4000k ab192k unlimited
+    $ ./nadeshiko.sh 'birthday.mp4' 0:10 47:22  1080p vb4000k ab192k unlimited
 
 > This example illustrates overriding everything at once, however any combination of overrides may be applied. It may be only the video bitrate or file size with resolution.
 
-The order of options is not important. More options listed above.
+The order of options is not important. More options are listed above.
 
  
 
@@ -103,12 +103,21 @@ Audio bitrate remains constant and changes, only if a profile with a lower resol
 
 Pairs of *desired* and *minimal* bitrate bound to certain *resolutions* are the basis of automatic balance. You may want to shift the borders in `nadeshiko.rc.sh`.
 
+  
+  
+
 ![Don’t let Nadeshiko die!](https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/Nadeshiko.jpg)
 
 ***
 
-Nadeshiko uses ffmpeg (which in its turn includes libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass), mediainfo, mkvtoolnix, GNU grep, GNU sed, GNU time.
+<p align="center">
+Nadeshiko uses ffmpeg (which in its turn includes libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass), mediainfo, mkvtoolnix, GNU grep, GNU sed and GNU time.
+</p>
 
-> This program’s name is a reference to Kagamihara Nadeshiko, a character from [Yurucamp](https://en.wikipedia.org/wiki/Laid-Back_Camp). The original manga was drawn by あfろ for Houbunsha, and the anime television series is made by studio C-Station.
+<p align="center">
+<i>This program’s name is a reference to Kagamihara Nadeshiko, a character from <a href="https://en.wikipedia.org/wiki/Laid-Back_Camp">Yurucamp</a>. The original manga was drawn by あfろ for Houbunsha, and the anime television series is made by studio C-Station.</i>
+</p>
 
-> The ghosts on the picture above were taken from [Katanagatari](https://en.wikipedia.org/wiki/Katanagatari). It was originally written as a light novel by Nisio Isin for Kodansha and illustrated by Take. The light novel was animated by studio White Fox.
+<p align="center">
+<i>The ghosts on the picture above were taken from <a href="https://en.wikipedia.org/wiki/Katanagatari">Katanagatari</a>. It was originally written as a light novel by Nisio Isin for Kodansha and illustrated by Take. The light novel was animated by studio White Fox.</i>
+</p>
