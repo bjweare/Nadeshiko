@@ -72,7 +72,7 @@ Use Nadeshiko to archive something from home videos:
 
     $ ./nadeshiko.sh 'birthday.mp4' 0:10 47:22  1080p vb4000k ab192k unlimited
 
-> This example illustrates overriding everything at once, however any combination of overrides may be applied. It may be only the video bitrate or file size with resolution.
+*This example illustrates overriding everything at once, however any combination of overrides may be applied. It may be only the video bitrate or file size with resolution.*
 
 The order of options is not important. More options are listed above.
 
