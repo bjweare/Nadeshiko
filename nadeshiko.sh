@@ -550,7 +550,8 @@ fit_bitrate_to_filesize() {
 		&& [ -v orig_codec_same_as_enc ] \
 		&& [ $max_fitting_vbitrate_bits -gt $orig_video_bitrate_bits ] && {
 			info "Can fit original $orig_video_bitrate kbps!"
-			vbitrate_bits=$orig_video_bitrate_bits
+			vbitrate=$orig_video_bitrate_bits
+			recalc_bitrate 'vbitrate'
 			return 0
 		}
 		return 0
