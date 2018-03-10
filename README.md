@@ -8,8 +8,8 @@ A Linux tool to cut short videos with ffmpeg.
 * Optimises bitrate and resolution for size.
 * Three sizes, five resolutions with predefined bitrate settings.
 * Supports H264 and VP9:
-** **libx264** + **libfdk_aac**/**aac** in mp4;
-** or **libvpx-vp9** + **libopus**/**libvorbis** in webm.
+  * **libx264** + **libfdk_aac**/**aac** in mp4;
+  * or **libvpx-vp9** + **libopus**/**libvorbis** in webm.
 * Almost everything is customiseable!
 
 ## How to run it
@@ -27,10 +27,10 @@ A Linux tool to cut short videos with ffmpeg.
 	       source video – Path to the source videofile.
 
 	Other options
-	      nosub, nosubs – make a clean video, without hardsubs.
-	            noaudio – make a mute video.
-	                 si – when converting kMG suffixes of the maximum
-	                      file size, use powers 1000 instead of 1024.
+	            (no)sub – enable/disable hardsubs. Default is to do hardsub.
+	          (no)audio – use/throw away audio track. Default is to add sound.
+	         si, k=1000 – Only for maximum file size – when converting
+	                      [kMG] suffixes, use 1000 instead of 1024.
 	          <format>p – force encoding to the specified resolution,
 	                      <format> is one of: 1080, 720, 576, 480, 360.
 	       small | tiny – override the default maximum file size (20M).
@@ -40,7 +40,7 @@ A Linux tool to cut short videos with ffmpeg.
 	                      A suffix may be applied: vb300000, vb1200k, vb2M.
 	      ab<number>[k] – force audio bitrate the same way.
 	                      Example: ab128000, ab192k, ab88k.
-	       crop=W:H:X:Y – apply crop filter. Cancels scale.
+	       crop=W:H:X:Y – crop video. Cannot be used with scale.
 	           <folder> – place encoded file in the <folder>.
 
 	The order of options is unimportant. Throw them in,
@@ -58,15 +58,21 @@ Cut with milliseconds
 
 	./nadeshiko.sh 'file.mkv' 17:21.01 18:00.652
 
-(.1 = 100 ms, .01 = 10 ms, .001 = 1 ms)
+> .1 = 100 ms, .01 = 10 ms, .001 = 1 ms
 
 Fit the cut to 10 MiB instead of 20 MiB
 
 	./nadeshiko.sh 'file.mkv' 17:21.01 18:00.652 small
 
-Sacrifice audio and resolution to fit more minutes
+Use Nadeshiko to archive something from home videos:
+* force 1080p resolution;
+* force video bitrate 4000 kbit/s;
+* force audio bitrate 192 kbit/s;
+* lift restriction on file size.
 
-	./nadeshiko.sh 'file.mkv' 20:00 25:14 ab80k 480p
+	./nadeshiko.sh 'birthday.mp4' 0:10 47:22  1080p vb4000k ab192k unlimited
+
+> This example illustrates overriding everything at once, however any combination of overrides may be applied. It may be only the video bitrate or file size with resolution.
 
 The order of options is not important. More options listed above.
 
@@ -97,3 +103,12 @@ Audio bitrate remains constant and changes, only if a profile with a lower resol
 
 Pairs of *desired* and *minimal* bitrate bound to certain *resolutions* are the basis of automatic balance. You may want to shift the borders in `nadeshiko.rc.sh`.
 
+![Don’t let Nadeshiko die!](https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/Nadeshiko.jpg)
+
+***
+
+Nadeshiko uses ffmpeg (which in its turn includes libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass), mediainfo, mkvtoolnix, GNU grep, GNU sed, GNU time.
+
+> This program’s name is a reference to Kagamihara Nadeshiko, a character from [Yurucamp](https://en.wikipedia.org/wiki/Laid-Back_Camp). The original manga was drawn by あfろ for Houbunsha, and the anime television series is made by studio C-Station.
+
+> The ghosts on the picture above were taken from [Katanagatari](https://en.wikipedia.org/wiki/Katanagatari). It was originally written as a light novel by Nisio Isin for Kodansha and illustrated by Take. The light novel was animated by studio White Fox.
