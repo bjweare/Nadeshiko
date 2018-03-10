@@ -44,7 +44,7 @@ fi
 [ -v audio ] && rc_default_audio=t
 [ -v scale ] && {
 	[[ "$scale" =~ ^(360|480|576|720|1080)p$ ]] \
-		|| err "Scale should one of 1080p, 720p, 576p, 480p, 360p."
+		|| err "RC: scale should one of 1080p, 720p, 576p, 480p, 360p."
 	# NB Scale from RC doesn’t set force_scale!
 	scale=${scale%p} && rc_default_scale=$scale
 }
@@ -901,7 +901,7 @@ encode-libvpx-vp9() {
 	            -crf $libvpx_crf -b:v $vbitrate_bits \
 	                             -minrate $((vbitrate_bits/2)) \
 	                             -maxrate $vbitrate_bits \
-	            -overshoot-pct 0 \
+	            -undershoot-pct 0 -overshoot-pct 0 \
 	            -frame-parallel $libvpx_frame_parallel \
 	                -tile-columns $libvpx_tile_columns \
 	                    -threads $libvpx_threads \
@@ -922,7 +922,7 @@ encode-libvpx-vp9() {
 	            -crf $libvpx_crf -b:v $vbitrate_bits \
 	                             -minrate $((vbitrate_bits/2)) \
 	                             -maxrate $vbitrate_bits \
-	            -overshoot-pct 0 \
+	            -undershoot-pct 0 -overshoot-pct 0 \
 	            -frame-parallel $libvpx_frame_parallel \
 	                -tile-columns $libvpx_tile_columns \
 	                    -threads $libvpx_threads \
