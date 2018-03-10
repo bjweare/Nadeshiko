@@ -5,8 +5,8 @@ A Linux tool to cut short videos with ffmpeg.
 
 <p>
 Samples made on the gif above (allow raw.githubusercontent.com, if there’s no gif):<br>
-4 seconds, H264+AAC, 1.8 MiB: &lq;<a href="https://gs.smuglo.li/file/51b2af3f3eeafe259ab9a8e7cd03c36cac9eb7b79b287f65eacca67dd708d0dc.mp4">link</a>&rq;.<br>
-4 minutes, VP9+Opus, 8.9 MiB: &lq;<a href="https://gs.smuglo.li/file/6cd25df4cdff5f0d6fc84b4959a481883b31aa58e09ad05cb515029d917810ea.webm">link</a>&rq;.<br>
+4 seconds, H264+AAC, 1.8 MiB: &lt;<a href="https://gs.smuglo.li/file/51b2af3f3eeafe259ab9a8e7cd03c36cac9eb7b79b287f65eacca67dd708d0dc.mp4">link</a>&gt;.<br>
+4 minutes, VP9+Opus, 8.9 MiB: &lt;<a href="https://gs.smuglo.li/file/6cd25df4cdff5f0d6fc84b4959a481883b31aa58e09ad05cb515029d917810ea.webm">link</a>&gt;.<br>
 </p>
 
 ### Features
