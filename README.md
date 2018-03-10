@@ -105,7 +105,7 @@ max_size_small=10M
 max_size_tiny=2M
 ```
 
-The sizes can be changed there. Until `small`, `tiny` or `unlimited` passed via command line, Nadeshiko will use whatever is set to `max_size_default`. By default it’s set to 20 MiB.
+The sizes can be changed there. Until `small`, `tiny` or `unlimited` passed via command line, Nadeshiko will use whatever is set to `max_size_default`. By default it’s set to 20 MiB.
 
 Then Nadeshiko looks at the original file resolution, let’s take *1080p*, and looks for the corresponding bitrates in the RC file
 
@@ -117,13 +117,13 @@ audio_1080p_desired_bitrate=128k
 
 There are several blocks like this for each of the resolutions, that Nadeshiko can scale to: 1080p, 720p, 576p, 480p and 360p.
 
-― A-ha! ― Says Nadeshiko as she picks the audio bitrate and takes it to a calc.
+― A-ha! — Says Nadeshiko as she picks the audio bitrate and takes it to a calc.
 
-Now she multiplies all seconds, that need to be encoded, to the audio bitrate. Total space needed for the audio is summed with the space for the file container itself – and what remains is what’s left for the video. Nadeshiko is lost in thoughts about mount Fuji for a minute, then divides the remains of the free space to the seconds, which need to be encoded. Hooray, we now know what maximum video bitrate fits this size!
+Now she multiplies all seconds, that need to be encoded, to the audio bitrate. Total space needed for the audio is summed with the space for the file container itself – and what remains is what’s left for the video. Nadeshiko is lost in thoughts about mount Fuji for a minute, then divides the remains of the free space to the seconds, which need to be encoded. Hooray, we now know what maximum video bitrate fits this size!
 
-If the found bitrate falls between the desired and minimal (which is 45% of the desired) video bitrate, this resolution suits Nadeshiko and she calls FFmpeg ojii-san to encode our stuff. If what fits happens to be lower than the minimal bitrate, Nadeshiko will try a lower reolution, *720p* in this case, and repeat calculations until either found bitrate will fall to some resolution or until Nadeshiko would strike out all resolution and refuse to encode.
+If the found bitrate falls between the desired and minimal (which is 45% of the desired) video bitrate, this resolution suits Nadeshiko and she calls FFmpeg ojii-san to encode our stuff. If what fits happens to be lower than the minimal bitrate, Nadeshiko will try a lower reolution, *720p* in this case, and repeat calculations until either found bitrate will fall to some resolution or until Nadeshiko would strike out all resolutions and refuse to encode.
 
-Ah, one important moment is choosing a video codec. They are defined in the RC file again
+Ah, one important moment is choosing a video codec. They are defined in the RC file again
 
 ```bash
  # A/V codecs and containers
@@ -146,15 +146,15 @@ ffmpeg_vcodec='libx264'
 ffmpeg_acodec='aac'
 ```
 
-Nadeshiko can pick an appropriate container – mp4 or webm – herself, but the codecs must be correctly set in the RC file. You do not have to worry about configuring it, as Nadeshiko will create a standard RC file with a good configuration for you on the first run.
+Nadeshiko can pick an appropriate container – mp4 or webm – herself, but the codecs must be correctly set in the RC file. You do not have to worry about configuring it, as Nadeshiko will create a standard RC file with a good configuration for you on the first run.
 
 ### Subtitles, audio, default scale
 
-By default Nadeshiko renders subtitles on the clip. It sometimes called a “hardsub”. Command line options `sub` and `nosub` override what’s specified in the RC file.
+By default Nadeshiko renders subtitles on the clip. It’s sometimes called a “hardsub”. Command line options `sub` and `nosub` override what’s specified in the RC file.
 
-Same goes for audio, it can be enabled and disabled by default in the RC file and then overriden in command line – with `audio` and `noaudio`.
+Same goes for audio, it can be enabled and disabled by default in the RC file and then overriden in command line – with `audio` and `noaudio`.
 
-Default scale, if defined in the RC file, will remove any higher resolution – including the native one – from the list of resolutions, that Nadeshiko can scale to. This doesn’t force, i.e. fixate the resolution like `720p` or `480p` option, passed via command line, would do. It only sets an “upper bound” – Nadeshiko may still use lower resolutions, if needed.
+Default scale, if defined in the RC file, will remove any higher resolution – including the native one – from the list of resolutions, that Nadeshiko can scale to. This doesn’t force, i.e. fixate the resolution like a `720p` or `480p` option, passed via command line, would do. It only sets an “upper bound” – Nadeshiko may still use lower resolutions, if needed.
 
 ### Don’t look down
 
