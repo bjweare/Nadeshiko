@@ -265,5 +265,5 @@ Eeeh…;; Check the list of [known issues](https://github.com/deterenkelt/Nadesh
 </p>
 
 <p align="center">
-<i>Nadeshiko uses ffmpeg (which in its turn includes libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass…), mediainfo, mkvtoolnix, GNU grep, GNU sed and GNU time.</i>
+<i>Nadeshiko uses ffmpeg (which in its turn includes libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass…), mediainfo, mkvtoolnix, GNU grep, GNU sed and GNU time.<br><br>Let’s be grateful to them for their hard work.</i>
 </p>
