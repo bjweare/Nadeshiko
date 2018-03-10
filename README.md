@@ -1,7 +1,7 @@
 # Nadeshiko
 A Linux tool to cut short videos with ffmpeg.
 
-![](https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/short2.jpg)
+![Nadeshiko in terminal](https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/promo_cleaned.gif)
 
 ### Features
 
