@@ -3,8 +3,10 @@ A Linux tool to cut short videos with ffmpeg.
 
 ![Nadeshiko in terminal](https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/promo_cleaned.gif)
 
-Samples made on the gif above (allow raw.githubusercontent.com, if it doesn’t show):
+Samples made on the gif above (allow raw.githubusercontent.com, if there’s no gif):
+
 4 seconds, H264+AAC, 1.8 MiB: <[link](https://gs.smuglo.li/file/51b2af3f3eeafe259ab9a8e7cd03c36cac9eb7b79b287f65eacca67dd708d0dc.mp4)>.
+
 4 minutes, VP9+Opus, 8.9 MiB: <[link](https://gs.smuglo.li/file/6cd25df4cdff5f0d6fc84b4959a481883b31aa58e09ad05cb515029d917810ea.webm)>.
 
 ### Features
@@ -114,7 +116,9 @@ audio_1080p_desired_bitrate=128k
 ```
 
 There are several blocks like this for each of the resolutions, that Nadeshiko can scale to: 1080p, 720p, 576p, 480p and 360p.
+
 ― A-ha! ― Says Nadeshiko as she picks the audio bitrate and takes it to a calc.
+
 Now she multiplies all seconds, that need to be encoded, to the audio bitrate. Total space needed for the audio is summed with the space for the file container itself – and what remains is what’s left for the video. Nadeshiko is lost in thoughts about mount Fuji for a minute, then divides the remains of the free space to the seconds, which need to be encoded. Hooray, we now know what maximum video bitrate fits this size!
 
 If the found bitrate falls between the desired and minimal (which is 45% of the desired) video bitrate, this resolution suits Nadeshiko and she calls FFmpeg ojii-san to encode our stuff. If what fits happens to be lower than the minimal bitrate, Nadeshiko will try a lower reolution, *720p* in this case, and repeat calculations until either found bitrate will fall to some resolution or until Nadeshiko would strike out all resolution and refuse to encode.
