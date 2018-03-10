@@ -57,7 +57,7 @@ fallback_abitrate=98k
 
  # Show time stats after encoding is done.
 #
-time_stats=t
+#time_stats=t
 
 
  # FFmpeg
@@ -78,7 +78,7 @@ ffmpeg_pix_fmt='yuv420p'
 #  Video codec
 #  “libx264” – good quality, fast, options are well-known
 #  “libvpx-vp9” – better quality, but slower, options are weird and quirky.
-ffmpeg_vcodec='libvpx-vp9'
+ffmpeg_vcodec='libx264'
 #
 #  Audio codec
 #  If you don’t have libfdk_aac, use either “libvorbis” or “aac″.
@@ -87,7 +87,7 @@ ffmpeg_vcodec='libvpx-vp9'
 #  “libfdk_aac” – equally good, for mp4, hence libx264.
 #  “aac” – still good, but worse than libvorbis and libfdk_aac.
 #  “libmp3lame”, “ac3”… – it’s 2018, don’t use them.
-ffmpeg_acodec='libopus'
+ffmpeg_acodec='aac'
 #
 #
  # Container

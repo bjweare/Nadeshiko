@@ -3,6 +3,10 @@ A Linux tool to cut short videos with ffmpeg.
 
 ![Nadeshiko in terminal](https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/promo_cleaned.gif)
 
+Samples made on the gif above (allow raw.githubusercontent.com, if it doesn’t show):
+4 seconds, H264+AAC, 1.8 MiB: <[link](https://gs.smuglo.li/file/51b2af3f3eeafe259ab9a8e7cd03c36cac9eb7b79b287f65eacca67dd708d0dc.mp4)>.
+4 minutes, VP9+Opus, 8.9 MiB: <[link](https://gs.smuglo.li/file/6cd25df4cdff5f0d6fc84b4959a481883b31aa58e09ad05cb515029d917810ea.webm)>.
+
 ### Features
 
 * Optimises bitrate and resolution for size.
@@ -11,6 +15,8 @@ A Linux tool to cut short videos with ffmpeg.
   * **libx264** + **libfdk_aac**/**aac** in mp4;
   * or **libvpx-vp9** + **libopus**/**libvorbis** in webm.
 * Almost everything is customiseable!
+
+ 
 
 ## How to run it
 
@@ -64,15 +70,17 @@ Fit the cut to 10 MiB instead of 20 MiB
 
 	$ ./nadeshiko.sh 'file.mkv' 17:21.01 18:00.652 small
 
-Use Nadeshiko to archive something from home videos:
-* force 1080p resolution;
-* force video bitrate 4000 kbit/s;
-* force audio bitrate 192 kbit/s;
-* lift restriction on file size.
+Use Nadeshiko to archive something from home videos. For example:
+* to force 1080p resolution, pass `1080p`;
+* to force video bitrate 4000 kbit/s, pass `vb4000k` or `vb4M`;
+* to force audio bitrate 192 kbit/s, pass `ab192k`;
+* to lift restriction on file size, pass `unlimited`.
 
-    $ ./nadeshiko.sh 'birthday.mp4' 0:10 47:22  1080p vb4000k ab192k unlimited
+<pre>
+$ ./nadeshiko.sh 'birthday.mp4' 0:10 47:22  1080p vb4000k ab192k unlimited
+</pre>
 
-*This example illustrates overriding everything at once, however any combination of overrides may be applied. It may be only the video bitrate or file size with resolution.*
+> This example illustrates overriding everything at once, however any combination of overrides may be applied. It may be only the video bitrate or file size with resolution.*
 
 The order of options is not important. More options are listed above.
 
@@ -80,44 +88,178 @@ The order of options is not important. More options are listed above.
 
 ## How does it work
 
-Nadeshiko has three main concepts:
-* *maximum size* in which the new file must fit. Default size is 20 MiB;
-* *resolution* to which the resulting file would be encoded;
-* *bitrates* for video and audio (can be disabled) streams;
+First, Nadeshiko reads maximum allowed file sizes from nadeshiko.rc.sh, the config file:
 
-### Automatic balance between bitrate and resolution
+```bash
+ # Maximum size for encoded file
+#
+#  [kMG] suffixes use powers of 2, unless kilo is set to 1000.
+max_size_default=20M
+#
+#  Pass “small” to the command line to use this maximum size.
+max_size_small=10M
+#
+#  Pass “tiny” to the command line to use this maximum size.
+max_size_tiny=2M
+```
 
-By default Nadeshiko tries to associate the source file with an internal “profile”. For example, a 1080p profile defines three bitrates:
+The sizes can be changed there. Until `small`, `tiny` or `unlimited` passed via command line, Nadeshiko will use whatever is set to `max_size_default`. By default it’s set to 20 MiB.
 
-	video_1080p_desired_bitrate=3500k
-	video_1080p_minimal_bitrate=1500k
-	audio_1080p_bitrate=128k
+Then Nadeshiko looks at the original file resolution, let’s take *1080p*, and looks for the corresponding bitrates in the RC file
 
-Desired video bitrate for 1080p means the one we ideally would like to have. Minimal is the one on which we agree in the last place. Nadeshiko will go from desired to minimal, taking 100k per step, until either the calculated bitrate fits the *maximum size* or the minimal threshold is reached.
+```bash
+libx264_1080p_desired_bitrate=3500k
+libvpx_1080p_desired_bitrate=1800k
+audio_1080p_desired_bitrate=128k
+```
 
-> *If desired bitrate happens to be higher than the bitrate of the original file, Nadeshiko will limit the encode to the original. No upscales.*
+There are several blocks like this for each of the resolutions, that Nadeshiko can scale to: 1080p, 720p, 576p, 480p and 360p.
+― A-ha! ― Says Nadeshiko as she picks the audio bitrate and takes it to a calc.
+Now she multiplies all seconds, that need to be encoded, to the audio bitrate. Total space needed for the audio is summed with the space for the file container itself – and what remains is what’s left for the video. Nadeshiko is lost in thoughts about mount Fuji for a minute, then divides the remains of the free space to the seconds, which need to be encoded. Hooray, we now know what maximum video bitrate fits this size!
 
-If a fitting bitrate wasn’t found within the profile limits of the native resolution, Nadeshiko will switch to the next lower resolution. 720p in our example. This will reset *desired* and *minimal* bitrates and enable the *scale* filter in ffmpeg. Nadeshiko will go down by 100k again and switch resolution profiles until either a good match is found or no options left.
+If the found bitrate falls between the desired and minimal (which is 45% of the desired) video bitrate, this resolution suits Nadeshiko and she calls FFmpeg ojii-san to encode our stuff. If what fits happens to be lower than the minimal bitrate, Nadeshiko will try a lower reolution, *720p* in this case, and repeat calculations until either found bitrate will fall to some resolution or until Nadeshiko would strike out all resolution and refuse to encode.
 
-Audio bitrate remains constant and changes, only if a profile with a lower resolution is applied. The new profile would probably have a different (usually lower, as we go down) bitrate for the audio track.
+Ah, one important moment is choosing a video codec. They are defined in the RC file again
 
-Pairs of *desired* and *minimal* bitrate bound to certain *resolutions* are the basis of automatic balance. You may want to shift the borders in `nadeshiko.rc.sh`.
+```bash
+ # A/V codecs and containers
+#  Supported combinations:
+#  1) libx264 + libfdk_aac/aac in mp4 (Nadeshiko’s default)
+#  2) libvpx-vp9 + libopus/libvorbis in webm (Experimental!)
+#
+#  Video codec
+#  “libx264” – good quality, fast, options are well-known
+#  “libvpx-vp9” – better quality, but slower, options are weird and quirky.
+ffmpeg_vcodec='libx264'
+#
+#  Audio codec
+#  If you don’t have libfdk_aac, use either “libvorbis” or “aac″.
+#  “libopus” – best, but only for libvpx-vp9.
+#  “libvorbis” – good, but only for webm, hence libvpx-vp9.
+#  “libfdk_aac” – equally good, for mp4, hence libx264.
+#  “aac” – still good, but worse than libvorbis and libfdk_aac.
+#  “libmp3lame”, “ac3”… – it’s 2018, don’t use them.
+ffmpeg_acodec='aac'
+```
 
-  
-  
+Nadeshiko can pick an appropriate container – mp4 or webm – herself, but the codecs must be correctly set in the RC file. You do not have to worry about configuring it, as Nadeshiko will create a standard RC file with a good configuration for you on the first run.
 
-![Don’t let Nadeshiko die!](https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/Nadeshiko.jpg)
+### Subtitles, audio, default scale
 
-***
+By default Nadeshiko renders subtitles on the clip. It sometimes called a “hardsub”. Command line options `sub` and `nosub` override what’s specified in the RC file.
+
+Same goes for audio, it can be enabled and disabled by default in the RC file and then overriden in command line – with `audio` and `noaudio`.
+
+Default scale, if defined in the RC file, will remove any higher resolution – including the native one – from the list of resolutions, that Nadeshiko can scale to. This doesn’t force, i.e. fixate the resolution like `720p` or `480p` option, passed via command line, would do. It only sets an “upper bound” – Nadeshiko may still use lower resolutions, if needed.
+
+### Don’t look down
+
+Eeeh…;; Check the list of [known issues](https://github.com/deterenkelt/Nadeshiko/wiki/Known-issues) or [which codec should you use](https://github.com/deterenkelt/Nadeshiko/wiki#which-codec-set-to-use), d-don’t look down.
+
 
 <p align="center">
-Nadeshiko uses ffmpeg (which in its turn includes libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass), mediainfo, mkvtoolnix, GNU grep, GNU sed and GNU time.
+.
 </p>
 
 <p align="center">
-<i>This program’s name is a reference to Kagamihara Nadeshiko, a character from <a href="https://en.wikipedia.org/wiki/Laid-Back_Camp">Yurucamp</a>. The original manga was drawn by あfろ for Houbunsha, and the anime television series is made by studio C-Station.</i>
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+
+![Don’t let Nadeshiko die!](https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/Nadeshiko.jpg)
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+.
+</p>
+
+<p align="center">
+<i>This program’s name is a reference to Nadeshiko Kagamihara, a character from <a href="https://en.wikipedia.org/wiki/Laid-Back_Camp">Yurucamp</a>. The original manga was drawn by あfろ for Houbunsha, and the anime television series is made by studio C-Station.</i>
 </p>
 
 <p align="center">
 <i>The ghosts on the picture above were taken from <a href="https://en.wikipedia.org/wiki/Katanagatari">Katanagatari</a>. It was originally written as a light novel by Nisio Isin for Kodansha and illustrated by Take. The light novel was animated by studio White Fox.</i>
+</p>
+
+<p align="center">
+<i>Nadeshiko uses ffmpeg (which in its turn includes libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass…), mediainfo, mkvtoolnix, GNU grep, GNU sed and GNU time.</i>
 </p>
