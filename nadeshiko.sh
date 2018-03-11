@@ -794,7 +794,7 @@ assemble_vf_string() {
 			# Let’s hope that the source is mkv and the subs are ass.
 			[ -d "$TMPDIR/fonts" ] || mkdir "$TMPDIR/fonts"
 			FFREPORT=file=$LOGDIR/ffmpeg-extraction-subs.log:level=32 \
-			$ffmpeg -hide_banner -i "$video" -map 0:s:0 "$TMPDIR/subs.ass"
+			$ffmpeg -y -hide_banner -i "$video" -map 0:s:0 "$TMPDIR/subs.ass"
 			while read -r ; do
 				id=${REPLY%$'\t'*}
 				font_name=${REPLY#*$'\t'}

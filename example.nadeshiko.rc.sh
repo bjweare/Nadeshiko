@@ -100,7 +100,7 @@ container=auto
 #
 #  Space required for the container header and footer.
 #  The value is a percent of the maximum allowed file size, e.g. “1%”, “5%”.
-container_own_size=2%
+container_own_size=3%
 #
 #
  # Subtitles and audio
