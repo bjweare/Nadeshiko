@@ -2,7 +2,7 @@
 
  # Syntax
 #
-#  This RC file uses bash syntax:
+#  RC file uses bash syntax:
 #    key=value
 #  Quotes are not important, unless the string has spaces.
 #  The “equal” sign should stick to key and value. Stick means
@@ -57,7 +57,7 @@ fallback_abitrate=98k
 
  # Show time stats after encoding is done.
 #
-#time_stats=t
+#time_stat=t
 
 
  # FFmpeg
@@ -189,8 +189,12 @@ libx264_level='4.2'
 #
 #  Quantizer threshold
 #  vpxenc’s end-usage=cq, cq-level
-#  0–63. Default is 10, but what is good? Who knows…
-#  23 is recommended for CQ mode by webmproject.org
+#  0–63. Default is 10.
+#  Recommended values:
+#  ⋅ 23 for CQ mode by webmproject.org;
+#  ⋅ 15–35 in “Understanding rate control modes…”;
+#  ⋅ From 31 for 1080 to 36 for 360p on Google Devs (but lowering for 1–2
+#    per resolution downgrade looks like it was just plucked out of the air).
 libvpx_crf=23
 #
 #  Tile columns
@@ -295,13 +299,15 @@ libvpx_keyint_max=9999
 #  “psnr” (default)
 #  “ssim”
 #  Description in libvpx-vp9 codec doesn’t exist, because libvpx…
-#  doesn’t support it yet.
+#  doesn’t support it yet!
+#  > Failed to set VP8E_SET_TUNING codec control: Invalid parameter
+#  > Option --tune=ssim is not currently supported in VP9.
 #libvpx_tune=ssim
 #
 #  Enables row-multithreading.
 #  Allows use of up to 2× threads as tile columns. 0 = off, 1 = on.
 #  Haven’t seen this option enabled for CQ modes, only for realtime.
-#  That may mean, that is has an imact on quality.
+#  That may mean, that is has an impact on quality.
 #libvpx_row_mt=1
 
  # Some descriptions of libvpx-vp9 options are quoted from

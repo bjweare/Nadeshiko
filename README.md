@@ -158,7 +158,7 @@ Default scale, if defined in the RC file, will remove any higher resolution�
 
 ### Don’t look down
 
-Eeeh…;; Check the list of [known issues](https://github.com/deterenkelt/Nadeshiko/wiki/Known-issues) or [which codec should you use](https://github.com/deterenkelt/Nadeshiko/wiki#which-codec-set-to-use), d-don’t look down.
+Eeeh…;; Check the list of [known issues](https://github.com/deterenkelt/Nadeshiko/wiki/Known-issues) or [which codec should you use](https://github.com/deterenkelt/Nadeshiko/wiki/Tips#which-codec-set-to-use), d-don’t look down.
 
 
 <p align="center">

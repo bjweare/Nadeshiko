@@ -141,7 +141,7 @@ gather_file_info() {
 	duration_s="${duration_s%???}"
 	duration_ms="${duration_s/./}"
 	duration_total_s=$(( duration_ms /1000))
-	duration=$(get_pretty_duration $duration_total_s)
+	duration=$(get_duration_pretty $duration_total_s)
 
 	# video
 	width=$(get_ffmpeg_attribute "$file" v width)

@@ -1,10 +1,24 @@
-### Expected behaviour
+### What Nadeshiko was supposed to do
 
 
-### What actions led to the problem
+### What happened
 
 
-### Attached logs
+### What developer-san must do to simulate the problem on his side?
 
-Link to Nadeshiko’s log:
-Link to relevant ffmpeg log(s):
+
+### Logs
+
+<If it’s a Nadeshiko/bash issue, attach the relevant Nadeshiko log>
+<If it’s an ffmpeg issue, attach ffmpeg 1 and 2 pass logs too>
+
+### Software versions
+
+Video: ffmpeg, x264, libvpx.
+Audio: opus, libvorbis, fdk-aac.
+Subs: libass, mkvtoolnix.
+
+[ ] I’ve read https://github.com/deterenkelt/Nadeshiko/wiki/Known-issues,
+don’t roast me on a bonfire, please.
+
+[ ] (Mac users only) I’m on OS X and I have GNU grep/sed/time installed.

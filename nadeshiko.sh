@@ -23,7 +23,7 @@ declare -r BHLLS_LOGGING_ON=t
 
 declare -r rc_file="$MYDIR/nadeshiko.rc.sh"
 declare -r example_rc_file="$MYDIR/example.nadeshiko.rc.sh"
-declare -r version='20180308'
+declare -r version='20180311'
 declare -r MY_MSG_TITLE='Nadeshiko'
 where_to_place_new_file=$PWD
 
@@ -128,7 +128,7 @@ check_util_support() {
 					mkvextract
 				)
 				;;
-			time_stats)
+			time_stat)
 				required_utils+=(
 					# To output how many seconds the encoding took.
 					# Only pass1 and pass2, no fonts/subtitles extraction.
@@ -949,7 +949,7 @@ encode() {
 	rm -f "$LOGDIR/"ffmpeg*  "$LOGDIR/"mkvextract*  "$LOGDIR/time_output"
 	set -f
 	assemble_vf_string
-	[ -v time_stats -a ! -v time_applied ] && {
+	[ -v time_stat -a ! -v time_applied ] && {
 		# Could be put in set_vars, but time is better to be applied after
 		# $vf_string is assembled, or we get conditional third time.
 		ffmpeg="$(which time) -f %e -o $LOGDIR/time_output -a $ffmpeg"
@@ -1005,7 +1005,7 @@ print_stats() {
 
 parse_args "$@"
 set_vars
-check_util_support video ${audio:+audio} ${subs:+subs}
+check_util_support video ${audio:+audio} ${subs:+subs} ${time_stat:+time_stat}
 display_settings
 until [ $(stat --printf %s "${new_file_name:-/dev/null}") \
         -le ${max_size_in_bytes:--1} ]; \
@@ -1015,7 +1015,7 @@ do
 done
 info-ns "Encoded successfully."
 info "${new_file_name##*/}"
-[ -v time_stats ] && print_stats
+[ -v time_stat ] && print_stats
 which xclip &>/dev/null && {
 	echo -n "$new_file_name" | xclip
 	info 'Copied path to clipboard.'

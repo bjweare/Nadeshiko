@@ -152,6 +152,7 @@ print_values() {
 rm -rf "$MYDIR/container_ratios_data"
 mkdir container_ratios_data
 i=-1
+# set -x
 while IFS= read -r -d '' ; do
 	gather_file_info "$REPLY" $((++i)) || exit $?
 	for varname in ${!file*}; do
@@ -160,8 +161,10 @@ while IFS= read -r -d '' ; do
 			echo "${varname#file${i}_} = $val" >> container_ratios_data/$i
 		}
 	done
-done  < <(find -iname "*.mp4" -printf "%P\0")
+done  < <(find -maxdepth 1 -iname "*.mp4" -printf "%P\0")
 total_files=$i
+
+info "Total files: $total_files."
 
 for varname in ${!file*}; do
 	declare -n val=$varname
@@ -266,7 +269,6 @@ until [ -v quit ]; do
 	[ $((++mode_idx)) -eq ${#modes[@]} ] && mode_idx=0
 
 	echo -e "\n${__g}<${__s}Space${__g}>${__s} to switch mode, ${__g}<${__s}Q${__g}>${__s} to quit."
-	false
 	read -n1 -s
 	[[ "$REPLY" = @(q|Q) ]] && quit=t && echo
 done

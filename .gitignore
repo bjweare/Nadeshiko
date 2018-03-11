@@ -4,9 +4,8 @@
 *.jpeg
 nadeshiko_logs
 nadeshiko.rc.sh
-tests/container_ratios_data
+tests/*/*
 tests/new
 tests/old
 tests/sets
 tests/files_for_sets
-tests/*/*
