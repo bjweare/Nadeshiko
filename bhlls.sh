@@ -98,7 +98,7 @@ err_colour=$__r
 CMDLINE="$0 $*"
 TERM_COLS=`tput cols`
 TERM_LINES=`tput lines`
-BHLLS_VERSION="20180308"
+BHLLS_VERSION="20180311"
 TMPDIR=`mktemp -d`
 
  # Unset after sourcing bhlls.sh to show full xtrace output
@@ -576,7 +576,7 @@ msg() {
 	[ "$msgtype" = err ] && {
 		# If this is an error message, we must also quit
 		# with a certain exit/return code.
-		[ -v MSG_USE_ARRAYS -a ${#ERROR_CODES[@]} -ne 0 ] \
+		[ -v MSG_USE_ARRAYS ] && [ ${#ERROR_CODES[@]} -ne 0 ] \
 			&& code=${ERROR_CODES[$*]}
 		# BHLLS can be used in both sourced and standalone scripts
 		# code=5 by default.
