@@ -3,7 +3,10 @@
 *.jpg
 *.jpeg
 nadeshiko_logs
+nadeshiko-mpv_logs
+nadeshiko-mpv_data
 nadeshiko.rc.sh
+nadeshiko-mpv.rc.sh
 tests/*/*
 tests/new
 tests/old
