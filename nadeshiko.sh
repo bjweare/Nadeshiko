@@ -23,7 +23,7 @@ declare -r BHLLS_LOGGING_ON=t
 
 declare -r rc_file="$MYDIR/nadeshiko.rc.sh"
 declare -r example_rc_file="$MYDIR/example.nadeshiko.rc.sh"
-declare -r version='20180311'
+declare -r version='20180312'
 declare -r MY_MSG_TITLE='Nadeshiko'
 where_to_place_new_file=$PWD
 
@@ -187,6 +187,14 @@ parse_args() {
 				time2_h="${BASH_REMATCH[2]%:}"
 				time2_m="${BASH_REMATCH[3]%:}"
 				time2_s="${BASH_REMATCH[4]}"
+				[ $((10#$time2_s)) -gt 59 ] && {
+					 (( time2_h = ${time2_h:-0} + 10#$time2_s / 3600, 1))
+					 (( time2_m = ${time2_m:-0} + ( 10#$time2_s
+					 	                           -10#$time2_h*3600)/60, 1))
+					 (( time2_s = (  10#$time2_s
+					    	       - 10#$time2_h*3600
+					    	       - 10#$time2_m*60   )   , 1))
+				}
 				time2_ms="${BASH_REMATCH[5]#\.}"
 				# Guarantee, that HH MM SS are two digit numbers here
 				for var in time2_h time2_m time2_s; do
@@ -221,6 +229,14 @@ parse_args() {
 				time1_m="${BASH_REMATCH[3]%:}"
 				time1_s="${BASH_REMATCH[4]}"
 				time1_ms="${BASH_REMATCH[5]#\.}"
+				[ $((10#$time1_s)) -gt 59 ] && {
+					 (( time1_h = ${time1_h:-0} + 10#$time1_s / 3600, 1))
+					 (( time1_m = ${time1_m:-0} + ( 10#$time1_s
+					 	                           -10#$time1_h*3600)/60, 1))
+					 (( time1_s = (  10#$time1_s
+					    	       - 10#$time1_h*3600
+					    	       - 10#$time1_m*60   )   , 1))
+				}
 				for var in time1_h time1_m time1_s; do
 					declare -n time=$var
 					until [[ "$time" =~ ^..$ ]]; do time="0$time"; done
@@ -897,7 +913,7 @@ encode-libvpx-vp9() {
 
 	FFREPORT=file=$LOGDIR/ffmpeg-pass1.log:level=32 \
 	$ffmpeg -y  -ss "$start"  -to "$stop"  -i "$video" \
-	        $vf_string \
+	        ${vf_string:-} \
 	        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
 	            -crf $libvpx_crf -b:v $vbitrate_bits \
 	                             -minrate $((vbitrate_bits/2)) \
@@ -918,7 +934,7 @@ encode-libvpx-vp9() {
 
 	FFREPORT=file=$LOGDIR/ffmpeg-pass2.log:level=32 \
 	$ffmpeg -y  -ss "$start"  -to "$stop"  -i "$video" \
-	        $vf_string \
+	        ${vf_string:-} \
 	        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
 	            -crf $libvpx_crf -b:v $vbitrate_bits \
 	                             -minrate $((vbitrate_bits/2)) \

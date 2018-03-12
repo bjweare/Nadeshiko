@@ -98,7 +98,7 @@ err_colour=$__r
 CMDLINE="$0 $*"
 TERM_COLS=`tput cols`
 TERM_LINES=`tput lines`
-BHLLS_VERSION="20180311"
+BHLLS_VERSION="20180312"
 TMPDIR=`mktemp -d`
 
  # Unset after sourcing bhlls.sh to show full xtrace output
@@ -568,9 +568,14 @@ msg() {
 	message=`sed -r 's/^\s*//; s/\n\t/\n/g' <<<"$message"`
 	# Both fold and fmt use smaller width,
 	# if they deal with non-Latin characters.
-	eval "echo -e ${nonl:-} \"$c$asterisk$cs$message$__s\" \
-	          | fold  -w $((TERM_COLS - MI_LEVEL*MI_SPACENUM -2)) -s \
+	if [ -v BHLLS_FOLD_MESSAGES ]; then
+		eval "echo -e ${nonl:-} \"$c$asterisk$cs$message$__s\" \
+		      | fold  -w $((TERM_COLS - MI_LEVEL*MI_SPACENUM -2)) -s \
+		      | sed -r \"1s/^/${MI#  }/; 1!s/^/$MI/g\" ${redir:-}"
+	else
+		eval "echo -e ${nonl:-} \"$c$asterisk$cs$message$__s\" \
 	          | sed -r \"1s/^/${MI#  }/; 1!s/^/$MI/g\" ${redir:-}"
+	fi
 	[ ${notifysend_rank:--1} -ge 1 ] \
 		&& bhlls_notify_send "$message" ${notifysend_icon:-}
 	[ "$msgtype" = err ] && {
