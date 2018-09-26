@@ -37,10 +37,10 @@ set -f
 set_exampleconfdir
 prepare_confdir
 
-declare -r version='2.0'
+declare -r version='2.0.1'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES.md"
-declare -r rcfile_minver='2.0'
+declare -r rcfile_minver='2.0.1'
 #  [0]=ffmpeg own full version (not compared, because it may be a commit hash)
 #  [1]=libavutil version
 #  [2]=libavcodec version
@@ -68,7 +68,7 @@ RCFILE_BOOLEAN_VARS+=(
 	pedantic
 	time_stat
 	crop_uses_profile_vbitrate
-	use_windows_friendly_timestamps_in_filenames
+	create_windows_friendly_filenames
 )
 
 

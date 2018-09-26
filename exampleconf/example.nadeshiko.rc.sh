@@ -1,4 +1,4 @@
-#  nadeshiko.rc.sh v2.0
+#  nadeshiko.rc.sh v2.0.1
 
  # Syntax
 #
@@ -79,13 +79,14 @@ pedantic=no
 time_stat=no
 
 
- # Save the encoded file with colons (:) replaced with dots (.)
-#  in the filename. This way windows programs could be able to download
-#  the file from the internet wihtout renaming it (in Windows™ a colon is
-#  an invalid character for a file name). If you’re dualbooting, then
-#  enabling this option will allow to launch the videos from the drive.
+ # Save the encoded file with colons (:) and other windows-unfriendly
+#  characters replaced with dots (.) in the filename. This way windows
+#  programs could be able to download the file from the internet without
+#  renaming it (in Windows™ a colon is an invalid character for a file name).
+#  If you’re dualbooting, then enabling this option will allow to launch
+#  the videos from the drive.
 #  Default value: no
-use_windows_friendly_timestamps_in_filenames=no
+create_windows_friendly_filenames=no
 
 
  # FFmpeg binary

@@ -11,7 +11,7 @@ Command line tool. Smart. Configurable. Extensible.
 
 ![GIF: Using Nadeshiko in terminal](https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/nadeshiko_in_a_terminal.gif)
 
-[Why it is best](Why-Nadeshiko-is-best)  ⋅  [How to use](Nadeshiko)  ⋅  [Tips](Tips-for-Nadeshiko)
+[Why it is best](https://github.com/deterenkelt/Nadeshiko/wiki/Why-Nadeshiko-is-best)  ⋅  [How to use](https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko)  ⋅  [Tips](https://github.com/deterenkelt/Nadeshiko/wiki/Tips-for-Nadeshiko)
 
  
 
@@ -42,7 +42,7 @@ Wrapper to be used with mpv player.
 
 ## Don’t look down
 
-Check the list of [known issues](Known-issues-for-Nadeshiko) or [which codec should you use](Tips#----differences-between-codec-sets), you d-don’t need to know the scary truth… Don’t look down.
+Check the list of [known issues](https://github.com/deterenkelt/Nadeshiko/wiki/Known-issues-for-Nadeshiko) or [which codec should you use](https://github.com/deterenkelt/Nadeshiko/wiki/Tips#----differences-between-codec-sets), you d-don’t need to know the scary truth… Don’t look down.
 
 
 <p align="center">
