@@ -1,4 +1,10 @@
-# nadeshiko-mpv.rc.sh
+# nadeshiko-mpv.rc.sh v2.0
+
+
+ # The command to launch mpv.
+#
+mpv="mpv"
+
 
  # Absolute path to the mpv IPC socket.
 #  Before placing it here you need to confirm, that you’ve set it up
@@ -10,14 +16,30 @@
 #      $ mpv --input-ipc-server=/tmp/mpv-socket
 #  After assigning mpv path to its socket, place it here.
 #
-mpv_socket="/tmp/mpv-watchsh-socket"
+mpv_sockets=(
+	[Usual]='/tmp/mpv-socket'
+)
 
- # Comment to skip previewing the clip BEFORE encoding it.
+
+ # Set to “no” to skip previewing the clip before encoding it.
 #  This plays the source file, as it will be clipped.
 #
-show_preview=t
+show_preview=yes
 
- # Comment to skip playing the encoded clip.
+
+ # Set to “no” to skip playing the encoded clip.
 #  This plays an actually encoded file.
 #
-show_post_preview=t
+show_encoded_file=yes
+
+
+ # Nadeshiko configs
+#  Add an alternative config file, and before the encoding starts,
+#  Nadeshiko-mpv will display a menu, which will let to choose a particular
+#  configuration file for Nadeshiko.
+#  See also:
+#
+nadeshiko_configs=(
+	'nadeshiko.rc.sh'
+	# 'my-custom-config-for-mp4.rc.sh'
+)

@@ -1,43 +1,75 @@
-# should be sourced
+#  Should be sourced.
 
-# gather_file_info.sh
-#   A set of functions to get information with ffmpeg and mediainfo
-#   deterenkelt © 2018
+#  gather_file_info.sh
+#  A set of functions to get information with ffmpeg and mediainfo.
+#  deterenkelt © 2018
+#
+#  For licence see nadeshiko.sh
 
-# WTFPL
 
-# $1 – video
-# $2 – group (General, Video, Audio)
-# $3 – how the key starts
+
+#   $1 – video
+#   $2 – group (General, Video, Audio)
+#   $3 – how the key starts
+#  [$4] – if set to “raw”, then doesn’t strip spaces from attribute value.
 get_mediainfo_attribute() {
-	local video="$1" group="$2" key="$3"
+	local video="$1" group="$2" key="$3" raw  sed_expr  mediainfo_full_output
+	[ "${4:-}" ] && {
+		[ "$4" = raw ] \
+			&& raw=';' \
+			|| err "Fourth parameter to $FUNCNAME should be “raw” or not set."
+	}
+	sed_expr="/^$group$/,/^$/  {
+	                             s/^$key[^:]+:\s?(.+)$/\1/
+	                             T
+	                             ${raw:-s/\\s+//g}p
+	                           }"
 	case "$group" in
 		g) group=General;;
 		v) group=Video;;
 		a) group=Audio;;
 	esac
-	mediainfo "$video" \
-    	| sed -nr "/^$group$/,/^$/ {
-    	                             s/^$key[^:]+:(.+)$/\1/
-	                                 T
-	                                 s/\s+//gp
-	                               }"
+
+	[ "$key" = Duration ] && {
+		sed_expr="/$group/,// {
+		               s/Duration\s+:\s([0-9]+:[0-9]{2}:[0-9]{2}.[0-9]{3})/\1/p
+		          }"
+		mediainfo_full_output='-f'
+	}
+
+	set -o pipefail
+	mediainfo ${mediainfo_full_output:-} "$video" | sed -nr  "$sed_expr" \
+		|| err "Cannot retrieve “$group” property “$key”: mediainfo error."
+	set +o pipefail
+	return 0
 }
 
-# $1 – video
-# $2 – stream type (v, a, s)
-# $3 – key name
+
+#  $1 – video
+#  $2 – stream type (v, a, s)
+#  $3 – key name
 get_ffmpeg_attribute() {
-	local video="$1" stype="$2" key="$3"
-	ffprobe -hide_banner -v error -select_streams $stype:0 \
+	local  video="$1"  stype="$2"  key="$3"
+	#  If the stream number isn’t set, assume the first one.
+	[[ "$stype" =~ ^[vas]:[0-9]+$ ]] || stype+=':0'
+	set -o pipefail
+	#  For BDMV ffprobe will return duplicated strings, because
+	#  there are secondary stream entries in the [PROGRAM] section.
+	#  We leave only the [STREAM] part by reading the last line only.
+	ffprobe -hide_banner -v error -select_streams $stype \
 	        -show_entries stream=$key \
 	        -of default=noprint_wrappers=1:nokey=1 \
-	        "$video"
+	        "$video"  \
+		| sed -n '$p'  \
+		|| err "Cannot retrieve “$stream” property “$key”: ffmpeg error."
+	set +o pipefail
+	return 0
 }
 
-# $1 – video
-# $2 – one_second_of_playback_size
-# Returns: "container_to_ovsize_ratio<newline>container_to_1sec_ratio"
+
+#  $1 – video
+#  $2 – one_second_of_playback_size
+#  Returns: "container_to_ovsize_ratio<newline>container_to_1sec_ratio"
 get_header_ratios() {
 	local video="$1" one_second_of_playback_size="$2" \
 	      header data footer containers_own_weight overall_size \
@@ -68,6 +100,7 @@ get_header_ratios() {
 	return 0
 }
 
+
  # Takes total number of seconds, returns “Nh NNm NNs”,
 #  if hours or minutes are unset they are omitted.
 #  $1 – total number of seconds.
@@ -87,26 +120,9 @@ get_duration_pretty() {
 	return 0
 }
 
- # Takes total number of seconds, returns “N:NN:NN”,
-#  Always in three groups, values <0 are not padded.
-#  $1 – total number of seconds.
-# [$2] – set to “pad” if the output will come in a column one under another.
-#
-get_duration_hms() {
-	local total_s="$1" pad=${2:-} h m s duration
-	total_s=${total_s%.*}  # strip milliseconds
-	h=$(( total_s/3600  ))
-	[ "$pad" = pad  -a  $h -lt 10 ] && h="0$h"
-	m=$(( (total_s - h*3600) /60))
-	[ "$pad" = pad  -a  $m -lt 10 ] && m="0$m"
-	s=$(( (total_s - h*3600 - m*60) ))
-	[ "$pad" = pad  -a  $s -lt 10 ] && s="0$s"
-	echo "$h:$m:$s"
-	return 0
-}
 
-# $1 – file name
-# $2 – index
+#  $1 – file name
+#  $2 – index
 gather_file_info() {
 	local file="$1" i="$2"
 	local fsize_B fsize_real_MiB fsize_MiB within_2M within_10M within_20M \
@@ -243,7 +259,8 @@ gather_file_info() {
 	return 0
 }
 
-# $1 – file name
+
+#  $1 – file name
 comme_il_faut_check() {
 	local new_file_name="$1" profile_name profile_level height_ok mbw
 	info "Running validity and compatibility checks."
@@ -299,3 +316,6 @@ comme_il_faut_check() {
 	}
 	return 0
 }
+
+
+return 0

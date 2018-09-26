@@ -2,13 +2,20 @@
 *.webm
 *.jpg
 *.jpeg
-nadeshiko_logs
-nadeshiko-mpv_logs
+*.png
+*.txt
+
+*_logs
 nadeshiko-mpv_data
-nadeshiko.rc.sh
-nadeshiko-mpv.rc.sh
-tests/*/*
-tests/new
-tests/old
-tests/sets
-tests/files_for_sets
+nadeshiko*.rc.sh
+updater_timestamp
+postponed
+# Manual running of ffmpeg leaves a log,
+# if interrupted.
+ffmpeg2pass-0.log
+
+tests/*
+!tests/nadeshiko_tests.sh
+!tests/calc_sizes.sh
+!tests/container_ratios.sh
+!tests/take_screens.sh

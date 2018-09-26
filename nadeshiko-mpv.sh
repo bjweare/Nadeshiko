@@ -1,329 +1,113 @@
 #! /usr/bin/env bash
 
-# nadeshiko-mpv.sh
-#   Wrapper for Nadeshiko to provide IPC with mpv.
-#   deterenkelt © 2018
+#  nadeshiko-mpv.sh
+#  Wrapper for Nadeshiko to provide IPC with mpv.
+#  deterenkelt © 2018
+#
+#  For licence see nadeshiko.sh
 
-# This program is free software; you can redistribute it and/or modify it
-#   under the terms of the GNU General Public License as published
-#   by the Free Software Foundation; either version 3 of the License,
-#   or (at your option) any later version.
-# This program is distributed in the hope that it will be useful,
-#   but without any warranty; without even the implied warranty
-#   of merchantability or fitness for a particular purpose.
-#   See the GNU General Public License for more details.
-
-set -feEu
-declare -r BHLLS_LOGGING_ON=t
-. "$(dirname "$0")/bhlls.sh"
-declare -r MY_MSG_TITLE='Nadeshiko-mpv'
-required_utils+=(
+set -feEuT
+. "$(dirname "$0")/lib/bahelite/bahelite.sh"
+prepare_cachedir 'nadeshiko'
+start_log
+set_libdir 'nadeshiko'
+. "$LIBDIR/mpv_ipc.sh"
+REQUIRED_UTILS+=(
 	Xdialog  # To show a confirmation window that also sets max. file size.
+	find     # To find and delete possible leftover data files.
+	lsof     # To check, that there is an mpv process listening to socket.
+	jq       # To parse JSON.
+	pgrep
+	wc
+	socat
 )
 check_required_utils
+set_exampleconfdir 'nadeshiko'
+prepare_confdir 'nadeshiko'
 
 
-declare -r rc_file="$MYDIR/nadeshiko-mpv.rc.sh"
-declare -r example_rc_file="$MYDIR/example.nadeshiko-mpv.rc.sh"
-declare -r version="20180312"
+declare -r rcfile_minver='2.0'
+declare -r version="2.0"
+#  Defining it here, so that the definition in RC would be shorter
+#  and didn’t confuse users with “declare -gA …”.
+declare -A mpv_sockets
+declare -r datadir="$CACHEDIR/nadeshiko-mpv_data"
+declare -r postponed_commands="$CACHEDIR/postponed_commands"
 
- # Reading the RC file.
-#
-if [ -r "$rc_file" ]; then
-	. "$rc_file"
-else
-	if [ -r "$example_rc_file" ]; then
-		cp "$example_rc_file" "$rc_file" || err "Couldn’t create RC file!"
-		. "$rc_file"
-	else
-		err "No RC file or example RC file was found!"
-	fi
-fi
+our_processes=$(pgrep -u $USER -afx "bash $0" -s 0 | wc -l)
+total_processes=$(pgrep -u $USER -afx "bash $0" | wc -l)
+(( our_processes < total_processes )) && err 'Still running.'
 
-declare -r datadir="$MYDIR/nadeshiko-mpv_data"
+on_error() {
+	# Wipe the data directory, so that after a stop caused by an error
+	# we wouldn’t read the old data, but tried to create new ones.
+	# The data per se probably won’t break the script, but those data
+	# could be just stale.
+	touch "$datadir/wipe_me"
+}
 [ -d "$datadir" ] || mkdir "$datadir"
 cd "$datadir"
-# Delete files older than one hour.
-find -type f -mmin +60 -delete
+if [ -e wipe_me ]; then
+	set +f
+	rm -rf ./*
+	set -f
+else
+	# Delete files older than one hour.
+	find -type f -mmin +60  -delete
+fi
 
- # mpv properties
-#  Functions use this array for two things:
-#  - to confirm, that the property name exists,
-#    i.e. that there’s no mistake in the name;
-#  - to validate the values retrieved from mpv.
-#
-declare -A properties=(
-	# The syntax is:
-	# [property_name]="good_value_test"$'\n'"bad_value_test"
-	#                                    ^^------------------newline separates
-	#
-	# “Good value” test and “Bad value” test are eval’ed, and whichever
-	# of them passes first, assigns the value to <property_name>.
-	# If neither of them passes, <property_name> is considered failed
-	# to retrieve and the program gets aborted.
-	#
-	# If “Good value” test passes, then a new variable set with a name like
-	# “<property_name>_true”. For boolean properties (yes/no, on/off, 0/1)
-	# checking on the existence of *_true variable provides an universal way
-	# to determine, whether the property has true/1/on/yes… thus leaving all
-	# the differences on the retrieving stage. For non-boolean variables
-	# absence of this *_true variable would mean, that it has no value, e.g.
-	# when it may have a path, but mpv returned an empty string (still okay).
-	#
-	# There are properties, that return not a boolean value, but a path for
-	# example. Or a file name. Such properties should use a test for non-empty
-	# string as “good value” test or a check for file existence. Killing two
-	# hares with one shot.
-	#
-	# Mpv also has properties, which may have no value – neither boolean,
-	# nor a string at all. Nevertheless an empty value for them is normal and
-	# shouldn’t trigger program exit. For these put simple command “true”
-	# as “Bad value” test.
 
-	# To test connection.
-	[mpv-version]='[[ "$propval" =~ ^mpv\\ .*$ ]]'$'\n'
-
-	# File name, that mpv is playing.
-	[filename]='[[ "$propval" =~ .+ ]]'$'\n'
-
-	# Full path to that file.
-	[path]='[ -e "$propval" ]'$'\n'
-
-	# Title from metadata.
-	[media-title]='[[ "$propval" =~ .+ ]]'$'\n''true'  # <— May be unset
-
-	# Current time.
-	[time-pos]='[[ "$propval" =~ ^[0-9]+.[0-9]{6}$ ]]'$'\n'
-
-	# OS volume
-	# [ao-volume]='[[ "$propval" =~ .* ]]'$'\n'
-
-	# OS mute
-	# [ao-mute]='[[ "$propval" =~ .* ]]'$'\n'  # may be unimplemented
-
-	# Video size as integers, with no aspect correction applied.
-	# [video-params/w]
-	# [video-params/h]
-
-	# Video size as integers, scaled for correct aspect ratio.
-	# [video-params/dw]
-	# [video-params/dh]
-
-	# Video aspect ratio.
-	# [video-params/aspect]
-
-	# If window is minimised.
-	# [window-minimized]='[[ "$propval" =~ .* ]]'$'\n'
-
-	# Audio track ID
-	# [aid]
-
-	# Subtitle track ID
-	# [sid]
-
-	# If muted
-	[mute]='[ "$propval" = yes ]'$'\n''[ "$propval" = no ]'
-
-	# Current line in subtitles, that’s being displayed.
-	# [sub-text]=
-
-	# Path where mpv seeks for subtitles.
-	# [sub-file-paths]='[[ "$propval" =~ .* ]]'$'\n'
-
-	# Are subtitles shown or hidden.
-	[sub-visibility]='[ "$propval" = yes ]'$'\n''[ "$propval" = no ]'
-
-	# If mpv is in fullscreen mode.
-	[fullscreen]='[ "$propval" = yes ]'$'\n''[ "$propval" = no ]'
-
-	# Don’t close until…(?).
-	# [keep-open]=
-
-	# mpv’s screenshot directory.
-	[screenshot-directory]='[ -d "$propval" ]'$'\n''true'  # <— May be unset
-
-	# mpv’s current working directory.
-	[working-directory]='[ -d "$propval" ]'$'\n'
-
-	# It can only be set.
-	[show-text]='[[ "$propval" =~ .+ ]]'$'\n''true'  # <— May be unset
-
-	# Window geometry W:H:X:Y.
-	# [geometry]=
-
-	# Is WM border on or off.
-	# [no-border]=
-
-	# Is mpv window above all other windows?
-	# [ontop]=
-
-	# Set an option locally, i.e. for the current file only.
-	# file-local-options/<name>
-
-	# Request choices
-	# option-info/<name>/choices
-)
 
 show_help() {
 	cat <<-EOF
 	Usage:
-	./nadeshiko-mpv.sh
+	./nadeshiko-mpv.sh [postpone]
 
-	This program automatically connects to mpv socket (set the path to it
+	This program automatically connects to an mpv socket (set the path to it
 	in $rc_file). On the first run it sets Time1, on the second run –
-	Time2 and goes further to preview, encode and post-preview.
+	Time2 and goes further to preview, encode and playing the encoded file.
 
-	This script should be bound to a hotkey in the window manager,
-	mpv itself doesn’t send any commands to it.
+	“postpone”, the only possible and optional parameter, tells this script
+	to not run Nadeshiko, and store the command calling her in a file
+	named “postponed_commands”. Call nadeshiko-do-postponed.sh to read
+	and execute those commands.
+
+	Bind this script to a hotkey in the window manager – mpv itself
+	doesn’t send any commands to it.
 	EOF
 }
+
 
 show_version() {
 	cat <<-EOF
 	nadeshiko-mpv.sh $version
 	© deterenkelt 2018.
-	Licence GPLv3+: GNU GPL ver. 3 or later <http://gnu.org/licenses/gpl.html>
+	Licence GPLv3+: GNU GPL ver. 3  <http://gnu.org/licenses/gpl.html>
 	This is free software: you are free to change and redistribute it.
 	There is no warranty, to the extent permitted by law.
 	EOF
 }
 
-check_socket() {
-	[ -S "$mpv_socket" ] || {
-		if [ -e "$mpv_socket" ]; then
-			[ -r "$mpv_socket" ] || err "“$mpv_socket” isn’t readeable."
-		else
-			err "“$mpv_socket” doesn’t exist."
-		fi
-		err "“$mpv_socket” isn’t a socket file."
-	}
-	return 0
-}
 
-check_prop_name() {
-	local propname_to_test="$1" found
-	for propname in ${!properties[@]}; do
-		[ "$propname" = "$propname_to_test" ] && found=t && break
+post_read_rcfile() {
+	local varname
+	#  Unsetting variables with a negative value
+	for varname in  show_preview  show_encoded_file;  do
+		is_true $varname --unset-if-not
 	done
-	[ -v found ] || err "No such property: “$propname_to_test”."
 	return 0
 }
 
-internal_set_prop() {
-	local propname="$1" propval="$2" prop_true_test prop_false_test
-	IFS=$'\n' read -d '' prop_true_test prop_false_test \
-		< <( echo -n "${properties[$propname]}"; echo -en '\0' )
-	eval ${prop_true_test:-false} \
-		&& declare -g ${propname//-/_}="$propval" \
-		&& declare -g ${propname//-/_}_true=t \
-		&& return 0
-	eval ${prop_false_test:-false} \
-		&& declare -g ${propname//-/_}="$propval" \
-		&& return 0
-
-	# Undefined
-	unset ${propname//-/_}
-	return 1
-}
-
-get_prop() {
-	local propname="$1" mpv_answer propval
-	check_socket
-	check_prop_name "$propname"
-	mpv_answer=$(
-		cat <<-EOF | socat - "$mpv_socket"
-		{ "command": ["get_property_string", "$propname"] }
-		EOF
-	)
-	# {"data":"326.994000","error":"success"}
-	# {"data":"no","error":"success"}
-	# {"data":null,"error":"success"}  # NB properties that may only be set,
-	#                                  # return not a string, but null!
-	[[ "$mpv_answer" =~ ^\{\"data\":(null|\"(.*)\"),\"error\":\"(.*)\"\}$ ]] \
-		|| { err "Cannot get property $propname: JSON error."; }
-	propval=${BASH_REMATCH[2]}
-	status=${BASH_REMATCH[3]}
-	[ "$status" != success ] && err "get_prop $propname: bad status “$status”."
-	internal_set_prop "$propname" "$propval" \
-		|| err "get_prop: unknown value for $propname: “$propval”"
-	return 0
-	# Would be good to implement check on request id – any string that
-	# should be returned as it was passed.
-	#
-	# { "command": ["get_property", "time-pos"], "request_id": 100 }
-	# { "error": "success", "data": 1.468135, "request_id": 100 }
-}
-
-get_props() {
-	local propname
-	for propname in "$@"; do get_prop "$propname" || return $?; done
-	return 0
-}
-
-set_prop() {
-	local propname="$1" propval="$2" mpv_answer status
-	check_socket
-	check_prop_name "$propname"
-	mpv_answer=$(
-		cat <<-EOF | socat - "$mpv_socket"
-		{ "command": ["set_property", "$propname", "$propval"] }
-		EOF
-	)
-	# {"error":"success"}
-	# {"error":"property not found"}
-	[[ "$mpv_answer" =~ ^\{\"error\":\"(.*)\"\}$ ]] \
-		|| err "set_prop: “$propname” = “$propval”: JSON error"
-	status=${BASH_REMATCH[1]}
-	[ "$status" != success ] && err "set_prop: “$propname” = “$propval”: bad_status: “$status”."
-	return 0
-}
-
-send_command() {
-	local command="$1" command_args mpv_answer data status
-	shift
-	check_socket
-	# check_command "$command"
-	for arg in "$@"; do
-		command_args+=", \"$arg\""
-	done
-	mpv_answer=$(
-		cat <<-EOF | socat - "$mpv_socket"
-		{ "command": ["$command"${command_args:-}] }
-		EOF
-	)
-	# {"data":null,"error":"success"}
-	# {"error":"invalid parameter"}
-	[ "$mpv_answer" = '{"error":"invalid parameter"}' ] \
-		&& err "send_command: “$command $*”: invalid parameter."
-	[[ "$mpv_answer" =~ ^\{\"data\":(.*),\"error\":\"(.*)\"\}$ ]] \
-		|| err "send_command: “$command $*”: JSON error"
-	data=${BASH_REMATCH[1]}
-	status=${BASH_REMATCH[2]}
-	[ "$status" != success ] && err "set_prop: bad_status: “$status”."
-	return 0
-}
-
-retrieve_properties() {
-	for prop in ${!properties[@]}; do
-		get_prop "$prop"
-		declare -n propval=${prop//-/_}
-		declare -n propval_if_true=${prop//-/_}_true
-		echo -e "$prop\t$propval\t${propval_if_true:-f}"
-	done | column -t -s $'\t'
-	return 0
-}
-
-
-#-----------------------------------------------------------------------------
 
 write_var_to_datafile() {
 	local varname="$1" varval="$2"
-	info "Setting $varname to “$varval”."
+	info "Setting $varname and appending it to ${data_file##*/}."
 	declare -g $varname="$varval"
 	sed -ri "/^$varname=/d" "$data_file"
-	echo "$varname='$varval'" >> "$data_file"
+	printf "$varname=%q\n" "$varval" >> "$data_file"
 	return 0
 }
+
 
 del_var_from_datafile() {
 	local varname="$1"
@@ -333,6 +117,106 @@ del_var_from_datafile() {
 	return 0
 }
 
+
+populate_data_file() {
+	local i tr_type tr_is_selected tr_id ff_index \
+	      tr_is_external external_filename
+	#  NB path must come after working directory!
+	#  path must be a valid file, but path *may be* relative
+	#  to $working_directory, thus the latter becomes a part of the path’s
+	#  “good value” test.
+	write_var_to_datafile mpv_socket "$mpv_socket"
+	get_props working-directory \
+	          screenshot-directory \
+	          path \
+	          mute \
+	          sub-visibility \
+	          track-list \
+	          track-list/count \
+	    || exit $?
+	write_var_to_datafile working_directory "$working_directory"
+	write_var_to_datafile screenshot_directory "$screenshot_directory"
+	if [ -e "$path" ]; then
+		write_var_to_datafile path "$path"
+	elif [ -e "$working_directory/$path" ]; then
+		write_var_to_datafile path "$working_directory/$path"
+	fi
+	write_var_to_datafile mute $mute
+	write_var_to_datafile sub_visibility $sub_visibility
+	[ -v sub_visibility_true ] && {
+		# Finding subtitles
+		# It’s either an index of an internal stream
+		# or a path to an external file
+		for ((i=0; i<track_list_count; i++)); do
+			IFS=$'\n' read -d '' tr_type \
+			                     tr_is_selected \
+			                     tr_id  ff_index \
+			                     tr_is_external  external_filename \
+				< <( echo "$track_list" \
+				     | jq -r ".[$i].type, \
+				              .[$i].selected,  \
+				              .[$i].id,  .[$i].\"ff-index\", \
+				              .[$i].external,  .[$i].\"external-filename\""; \
+				     echo -en '\0'
+				   )
+			[ "$tr_is_selected" = true ] && {
+				if [ "$tr_type" = sub ]; then
+					case "$tr_is_external" in
+						true)
+							if [ -f "$external_filename" ]; then
+								ffmpeg_ext_subs="$external_filename"
+							elif [ -f "$working_directory/$external_filename" ]; then
+								ffmpeg_ext_subs="$working_directory/$external_filename"
+							else
+								ffmpeg_ext_subs="$FUNCNAME: mpv’s “$external_filename” is not a valid path."
+							fi
+							write_var_to_datafile ffmpeg_ext_subs "$ffmpeg_ext_subs"
+							;;
+						false)
+							# man mpv says:
+							# “Note that ff-index can be potentially wrong if a
+							#    demuxer other than libavformat (--demuxer=lavf)
+							#    is used. For mkv files, the index will usually
+							#    match even if the default (builtin) demuxer is
+							#    used, but there is no hard guarantee.”
+							# Note the difference between tr_id and ff_index:
+							#   - ‘ff_index’ is the number of a *stream* by order,
+							#     this includes all video, audio, subtitle streams
+							#     and also fonts. ffmpeg -map would use syntax
+							#     0:<stream_id> to refer to the stream.
+							#   - ‘tr_id’ is the number of this stream among
+							#     the other streams of *this same type*.
+							#     ffmpeg -map uses syntax 0:s:<subtitle_stream_id>
+							#     for these – that’s exactly what we need.
+							#     It’s necessary to decrement it by one, as mpv
+							#     counts them from 1 and ffmpeg – from 0.
+							ffmpeg_subs_tr_id=$((  tr_id - 1  ))
+							write_var_to_datafile ffmpeg_subs_tr_id "$ffmpeg_subs_tr_id"
+							;;
+					esac
+					# ffmpeg_subtitles now contains either a track id,
+					# an absolute path or an error message (Nadeshiko handles all).
+				elif [ "$tr_type" =  audio ]; then
+					case "$tr_is_external" in
+						true)
+							err 'External audio tracks aren’t supported yet.
+							     Please post an issue on the project page to accelerate the work!'
+							;;
+						false)
+							#  See the note at the similar place above.
+							ffmpeg_audio_tr_id=$((  tr_id - 1  ))
+							write_var_to_datafile ffmpeg_audio_tr_id "$ffmpeg_audio_tr_id"
+							;;
+					esac
+				fi
+			}
+		done
+	}
+	cat "$data_file"
+	return 0
+}
+
+
  # This function verifies, that all the necessary variables
 #  are set at the current stage. For that it has a list of
 #  variable names for each caller function.
@@ -340,31 +224,52 @@ del_var_from_datafile() {
 check_needed_vars() {
 	declare -A vars_needed=(
 		[arrange_times]='time1 time2'
-		[preview]='time1 time2 mute sub_visibility'
-		[confirm]=''
+		[play_preview]='time1 time2 mute sub_visibility'
+		[pick_max_size]=''
 		[encode]='time1 time2 mute sub_visibility max_size screenshot_directory working_directory'
-		[post_preview]=''
+		[play_encoded_file]='screenshot_directory working_directory'
 	)
 	for var in ${vars_needed[${FUNCNAME[1]}]}; do
-		[ -v $var ] || err "func ${FUNCNAME[1]} needs variable “$var”, but it is not set."
+		[ -v $var ] \
+			|| err "func ${FUNCNAME[1]} needs variable “$var”, but it is not set."
 	done
 	return 0
 }
 
+
 put_time() {
-	get_prop time-pos
+	local mute_text subvis_text
+	get_prop time-pos || exit $?
 	time_pos=${time_pos%???}
 	if [ ! -v time1 -o -v time2 ]; then
 		write_var_to_datafile time1 "$time_pos"
-		send_command show-text "Time1 set"
+		get_props sub-visibility mute || exit $?
+		[ -v sub_visibility_true ] \
+			&& subvis_text='Subs: ON' \
+			|| subvis_text='Subs: OFF'
+		[ -v mute_true ] \
+			&& mute_text='Sound: OFF' \
+			|| mute_text='Sound: ON'
+		send_command show-text "Time1 set\n$subvis_text\n$mute_text" "3000" \
+			|| exit $?
 		unset time2
 		del_var_from_datafile time2
+
 	elif [ -v time1 -a ! -v time2 ]; then
 		write_var_to_datafile time2 "$time_pos"
-		send_command show-text "Time2 set"
+		populate_data_file
+		[ -v sub_visibility_true ] \
+			&& subvis_text='Subs: ON' \
+			|| subvis_text='Subs: OFF'
+		[ -v mute_true ] \
+			&& mute_text='Sound: OFF' \
+			|| mute_text='Sound: ON'
+		send_command show-text "Time2 set\n$subvis_text\n$mute_text" "3000" \
+			|| exit $?
 	fi
 	return 0
 }
+
 
 arrange_times() {
 	check_needed_vars
@@ -378,30 +283,97 @@ arrange_times() {
 	return 0
 }
 
-preview() {
-	[ -v show_preview ] || return 0
-	check_needed_vars
-	mpv --x11-name mpv-nadeshiko-preview \
-	    --start="$time1" \
-	    --ab-loop-a="$time1" --ab-loop-b="$time2" \
-	    --mute=$mute \
-	    --sub-visibility=$sub_visibility \
-	    --osd-msg1="Preview" \
-	    "$path"
+
+unfullscreen_and_rewind() {
+	local  rewind_to_time_pos
+	#  Calculating time-pos to rewind to later.
+	#  Doing it beforehand to avoid lags on socket connection.
+	get_props 'time-pos' 'fullscreen'
+	rewind_to_time_pos=${time_pos%.*}
+	let "rewind_to_time_pos-=2 ,1"
+	(( rewind_to_time_pos < 0 )) && rewind_to_time_pos=0
+	set_prop 'pause' 'yes'
+
+	if  (
+			[ "${FUNCNAME[1]}" = play_preview ] \
+			|| [ "${FUNCNAME[1]}" = play_encoded_file  -a  ! -v postpone ]
+		) \
+		&& [ -v fullscreen_true ]
+	then
+		#  If the player was in fullscreen, return it back to window mode,
+		#  or the preview will be playing somewhere in the background.
+		#
+		#  When in fullscreen mode, sleep for 1.7 seconds, so that
+		#  before we turn off fullscreen to show the encoded file,
+		#  the use would notice, that the encoding is done, and would
+		#  expect to see another file.
+		#
+		#  Sleeping in paused state while “Encoding is done” is shown.
+		[ "$(type -t sleep)" = file ] \
+			&& sleep 1.700 \
+			|| sleep 2
+		set_prop 'fullscreen' 'no'
+		#  Rewind the file two seconds back, so that continuing wouldn’t
+		#  be from an abrupt moment for the user.
+		set_prop 'time-pos' "$rewind_to_time_pos"
+	fi
+	#  When the encoding is postponed,
+	#  pause only for the time notification is shown, and then unpause.
+	[ "${FUNCNAME[1]}" = play_encoded_file  -a  -v postpone ] && {
+		#  Sleeping in paused state while “Command to encode saved for later.”
+		#  is shown. The notification is shown for exectly two seconds, and
+		#  due to a small lag it will probably take a bit longer, so sleeping
+		#  for two full seconds here.
+		sleep 2
+		set_prop 'pause' 'no'
+		#  We didn’t go off of fullscreen, so no need to rewind.
+	}
 	return 0
 }
 
-confirm() {
+
+play_preview() {
+	[ -v show_preview ] || return 0
+	local  temp_sock="$(mktemp -u)"  sub_file  ff_sid  ff_aid
+	check_needed_vars  'sub-file'
+	unfullscreen_and_rewind
+
+	[ "$sub_visibility" = yes ] && {
+		[ -v ffmpeg_ext_subs ] && sub_file="--sub-file=\"$ffmpeg_ext_subs\""
+		[ -v ffmpeg_subs_tr_id ] && ff_sid="--ff-sid=$ffmpeg_subs_tr_id"
+	}
+	[ -v mute ] || ff_aid="--ff-aid=$ffmpeg_audio_tr_id"
+
+	$mpv --x11-name mpv-nadeshiko-preview \
+	     --title "Preview – $MY_DESKTOP_NAME" \
+	     --input-ipc-server="$temp_sock" \
+	     --start="$time1" \
+	     --ab-loop-a="$time1" --ab-loop-b="$time2" \
+	     --mute=$mute \
+	     --sub-visibility=$sub_visibility \
+	         ${sub_file:-} \
+	         ${ff_sid:-} \
+	     ${ff_aid:-} \
+	     --osd-msg1="Preview" \
+	     "$path"
+	rm "$temp_sock"
+	return 0
+}
+
+
+pick_max_size() {
 	check_needed_vars
-	local max_size_default max_size_small max_size_tiny kilo \
-	      xdialog_retval
-	eval $(sed -rn '/^\s*(max_size_|kilo)/p' "$MYDIR/nadeshiko.rc.sh")
+	local  max_size_default  max_size_small  max_size_tiny  kilo \
+	       xdialog_output  xdialog_retval  fsize  fsize_val  variants  \
+	       default_name  set_fname_pfx
+	eval $(sed -rn '/^\s*(max_size_|kilo)/p' "$CONFDIR/$nadeshiko_config")
 	[ -v max_size_default ] \
-		&& [ -v max_size_small ] \
-		&& [ -v max_size_tiny ] \
-		&& [ -v kilo ] \
-		|| err "Can’t retrieve max. file sizes from nadeshiko.rc.sh."
-	for fsize in max_size_default max_size_small max_size_tiny; do
+	&& [ -v max_size_normal ] \
+	&& [ -v max_size_small ] \
+	&& [ -v max_size_tiny ] \
+	&& [ -v kilo ] \
+		|| err "Can’t retrieve max. file sizes from $nadeshiko_config."
+	for fsize in max_size_default max_size_normal max_size_small max_size_tiny; do
 		declare -n fsize_val=$fsize
 		if [ "$kilo" = '1000' ]; then
 			fsize_val=${fsize_val/k/ kB}
@@ -415,110 +387,283 @@ confirm() {
 			err "kilo is set to “$kilo”, should be either 1000 or 1024."
 		fi
 	done
-	set +eE
-	traponerr unset
-	max_size=$(Xdialog --stdout \
-	                   --title "$MY_MSG_TITLE" \
-	                   --ok-label "Create" \
-	                   --cancel-label="Cancel" \
-	                   --buttons-style default \
-	                   --radiolist "Create clip?\n\nPick size" \
-	                               324x200 0 \
-	                               tiny "$max_size_tiny" off \
-	                               small "$max_size_small" off \
-	                               default "$max_size_default" on \
-	          )
+	errexit_off
+	[[ "$max_size_default" =~ ^[0-9] ]] || {
+		#  Saving the name
+		default_real_var_name=max_size_$max_size_default
+		declare -n default_real_var_val=$default_real_var_name
+		#  Dereferencing the name, now max_size_default=normal becomes =20M,
+		#  for example.
+		max_size_default="$default_real_var_val"
+		#  Removing the variable containing the default value to avoid
+		#  the confusing duplication.
+		unset $default_real_var_name
+	}
+	for fsize in ${!max_size_*}; do
+		declare -n fsize_val=$fsize
+		if [ "$fsize" = max_size_default ]; then
+			variants+=( "${fsize#max_size_}"
+			            "$fsize_val – default"
+			            on )
+		elif [ "$fsize" = max_size_unlimited ]; then
+			variants+=( "${fsize#max_size_}"
+			            "unlimited"
+			            off )
+		else
+			variants+=( "${fsize#max_size_}"
+			            "$fsize_val"
+			            off )
+		fi
+	done
+	xdialog_output=$(
+		Xdialog --stdout --no-tags \
+		        --title 'Create clip' \
+		        --check "Set a custom name" \
+		        --ok-label "Create" \
+		        --cancel-label="Cancel" \
+		        --buttons-style default \
+		        --radiolist "Create clip?\n\nPick maximum size:" \
+		        324x272 0 \
+		        "${variants[@]}"
+		)
 	xdialog_retval=$?
-	set -e
-	[ $xdialog_retval -ne 0 ] && rm "$data_file" && return 1
+	errexit_on
+	mpv_pid=$(get_main_playback_mpv_pid)
+	[ $xdialog_retval -eq 0 ] || {
+		rm "$data_file"
+		abort 'Cancelled.'
+	}
+
+	IFS=$'\n' read -d ''  max_size  set_fname_pfx < \
+		<(echo -e "$xdialog_output\0");
 	write_var_to_datafile max_size "$max_size"
+
+	[ "$set_fname_pfx" = checked ] && {
+		xdialog_output=$(
+			Xdialog --stdout --no-cancel --no-tags \
+			        --title 'Set a name' \
+			        --ok-label 'OK' \
+			        --buttons-style text \
+			        --inputbox "Enter a string to add to the encoded file name\n(will be added at the beginning)" \
+			        400x155
+		) ||:
+
+		! [[ "$xdialog_output" =~ ^[[:space:]]*$ ]] && {
+			fname_pfx="$xdialog_output"
+			write_var_to_datafile fname_pfx "$xdialog_output"
+		}
+	}
+
 	return 0
 }
+
+
+set_nadeshiko_config() {
+	#  Nadeshiko-mpv only lets to choose an entry from nadeshiko_configs
+	#  array, that must be present in Nadeshiko-mpv config. Whether
+	#  the config really exists, is checked by Nadeshiko.
+	declare -g  nadeshiko_config
+	local  i  xdialog_configs_list  xdialog_window_height  xdialog_retval
+
+	if  (( ${#nadeshiko_configs[*]} == 0 ));  then
+		nadeshiko_config="nadeshiko.rc.sh"
+		return 0
+
+	elif  (( ${#nadeshiko_configs[*]} == 1 ));  then
+		nadeshiko_config="$nadeshiko_configs"
+		return 0
+	else
+		for ((i=0; i<${#nadeshiko_configs[*]}; i++)); do
+			xdialog_configs_list+=( "${nadeshiko_configs[i]}" )
+			xdialog_configs_list+=( "${nadeshiko_configs[i]}" )
+			(( i == 0 )) \
+				&& xdialog_configs_list+=( on  ) \
+				|| xdialog_configs_list+=( off )
+		done
+		xdialog_window_height=$((  116+27*${#nadeshiko_configs[*]}  ))
+		errexit_off
+		nadeshiko_config=$(
+			Xdialog --stdout --no-tags \
+			        --title 'Choose config' \
+		            --ok-label "Choose" \
+		            --cancel-label "Cancel" \
+		            --buttons-style default \
+		            --radiolist "Select a Nadeshiko configuration file:\n" \
+		            324x$xdialog_window_height 0  \
+		            "${xdialog_configs_list[@]}"
+		)
+		xdialog_retval=$?
+		errexit_on
+		[ $xdialog_retval -eq 0 ] || abort 'Cancelled.'
+	fi
+
+	return 0
+}
+
 
 encode() {
 	check_needed_vars
-	local audio subs nadeshiko_retval
-	[ $mute = yes ] \
+	local  audio  subs  nadeshiko_retval  command
+
+	[ "$mute" = yes ] \
 		&& audio=noaudio \
-		|| audio=audio
-	[ $sub_visibility = yes ] \
-		&& subs=subs \
-		|| subs=nosubs
-	send_command show-text "Encoding" "3000"
-	# Nadeshiko is a good girl and catches all errors herself.
-	set +e
-	"$MYDIR/nadeshiko.sh" "$time1" "$time2" "$path" \
-	                      "$audio" "$subs" "$max_size" \
-	                      "${screenshot_directory:-$working_directory}"
-	nadeshiko_retval=$?
-	set -e
-	rm "$data_file"
-	[ $nadeshiko_retval -eq 0 ] \
-		&& send_command show-text "Encoding done." "2000" \
-		|| send_command show-text "Encoding failed." "3000"
+		|| audio=audio:$ffmpeg_audio_tr_id
+
+	 # Never rely on “sub_visibility” property, as it is on by default:
+	#  even when there’s no subtitles at all.
+	if [ -v ffmpeg_ext_subs ];  then
+		subs="subs=$ffmpeg_ext_subs"
+	elif [ -v ffmpeg_subs_tr_id ];  then
+		subs="subs:$ffmpeg_subs_tr_id"
+	else
+		subs='nosubs'
+	fi
+
+	if [ -e "/proc/${mpv_pid:-not exists}" ]; then
+		send_command show-text 'Encoding' '2000' || exit $?
+	else
+		: warn-ns "Not sending anything to mpv: it was closed."
+	fi
+
+
+	 # “postpone” passed to nadeshiko-mpv.sh forks the process in a paused
+	#    state in the background. When nadeshiko.sh (not …-mpv.sh!) is called
+	#    with a single parameter “unpause”, it unfreezes the processes
+	#    one by one and then quits.
+	#  This allows to free the watching from humming/heating and probably,
+	#    even glitchy playback, if you attempt to continue watching after
+	#    firing up the encode, especially, if it’s the 2nd, the 3rd or the 15th.
+	#
+	nadeshiko_command=(
+		"$MYDIR/nadeshiko.sh"  "$time1" "$time2" "$path"
+		                       "$audio" "$subs" "$max_size"
+		                       "${screenshot_directory:-$working_directory}"
+		                       ${fname_pfx:+"fname_pfx=$fname_pfx"}
+		                       "$nadeshiko_config"
+	)
+	if [ -v postpone ]; then
+		for str in "${nadeshiko_command[@]}"; do
+			set -x
+			echo "$str" >>"$postponed_commands"
+			set +x
+		done
+		echo >>"$postponed_commands"
+		rm "$data_file"
+		if [ -e "/proc/${mpv_pid:-not exists}" ]; then
+			send_command  show-text \
+			              "Command to encode saved for later."  \
+			              '2000' \
+				|| exit $?
+		fi
+		exit 0
+	else
+		errexit_off
+		set -x
+		"${nadeshiko_command[@]}"
+		nadeshiko_retval=$?
+		set +x
+		errexit_on
+		rm "$data_file"
+		if [ -e "/proc/${mpv_pid:-not exists}" ]; then
+			if [ $nadeshiko_retval -eq 0 ]; then
+				send_command show-text 'Encoding done.'  '2000' || exit $?
+			else
+				send_command show-text 'Encoding failed.'  '3000' || exit $?
+				#  Don’t display a desktop notification with an error here –
+				#  nadeshiko.sh does this.
+				# err 'Encoding failed.'
+			fi
+		else
+			: warn-ns "Not sending anything to mpv: it was closed."
+		fi
+	fi
 	return $nadeshiko_retval
 }
 
-post_preview() {
-	[ -v show_post_preview ] || return 0
+
+play_encoded_file() {
+	[ -v show_encoded_file ] || return 0
+
+	local  last_log  last_file  temp_sock="$(mktemp -u)"
 	check_needed_vars
-	local last_log last_file
-	pushd "$MYDIR/nadeshiko_logs" >/dev/null
-	last_log=$(ls -tr | tail -n1)
-	[ -r "$last_log" ] || {
+	last_log=$(get_last_log nadeshiko) || {
 		warn "Cannot get last log."
 		return 1
 	}
+	info "last_log: $last_log"
 	last_file=$(
-		sed -rn '/Encoded successfully/,/Copied path to/ {
-			                                                n
-			                                                s/^.{11}//
-			                                                s/.{4}$//p  }' \
+		sed -rn '/Encoded successfully/ {  n
+		                                   s/^.{11}//
+		                                   s/.{4}$//p
+		                                }' \
 		        "$last_log"
 	)
-	popd >/dev/null
+	info "last_file: $last_file"
 
-	mpv --x11-name mpv-nadeshiko-preview \
-	    --loop-file=inf \
-	    --mute=no \
-	    --sub-visibility=yes \
-	    --osd-msg1="Encoded file" \
-	    "${screenshot_directory:-$working_directory}/$last_file"
+	[ -e "/proc/${mpv_pid:-not exists}" ] && unfullscreen_and_rewind
+
+	$mpv --x11-name mpv-nadeshiko-preview \
+	     --title "Encoded file – $MY_DESKTOP_NAME" \
+	     --input-ipc-server="$temp_sock" \
+	     --loop-file=inf \
+	     --mute=no \
+	     --sub-visibility=yes \
+	     --osd-msg1="Encoded file" \
+	     "${screenshot_directory:-$working_directory}/$last_file"
+	rm -f "$temp_sock"
 	return 0
 }
 
+
+read_rcfile  "$rcfile_minver"
+post_read_rcfile
+
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && show_help && exit 0
 [[ "${1:-}" =~ ^(-v|--version)$ ]] && show_version && exit 0
-[ $# -ne 0 ] && show_help && exit 5
+#  Can be passed to set both Time1 and Time2,
+#  acts only when the time to encode comes.
+[ "${1:-}" ] && [ "${1:-}" = postpone ] && postpone=t
+[ "$*" -a ! -v postpone ] && {
+	show_help
+	err 'The only parameter may be “postpone”!'
+}
 
  # Test, that all the entries from our properties array
 #  can be retrieved.
 #
 # retrieve_properties
 
-# Check connection.
-get_props mpv-version path
+ # Check connection and get us filename to serve as an ID for the playing file,
+#    as for getting path we’d need working-directory. Not taking path for ID
+#    to not do the job twice.
+#  filename= is to be sourced well, otherwise we would have to eval.
+#
+get_props mpv-version filename || exit $?
 
-data_file=$(grep -rlF "$path" |& head -n1)
+data_file=$(grep -rlF "filename=$(printf '%q' "$filename")" |& head -n1)
 if [ -e "$data_file" ]; then
 	# Read properties.
-	eval $( sed '1d' "$data_file" )
+	. "$data_file"
 else
-	# Dump file path there.
 	data_file=$(mktemp --tmpdir='.'  mpvfile.XXXX)
-	echo "$path" > "$data_file"
-	# Populate data_file
-	get_props mute sub-visibility screenshot-directory working-directory
-	write_var_to_datafile mute $mute
-	write_var_to_datafile sub_visibility $sub_visibility
-	write_var_to_datafile screenshot_directory "$screenshot_directory"
-	write_var_to_datafile working_directory "$working_directory"
+	printf "filename=%q\n" "$filename" > "$data_file"
 fi
 
-put_time          \
-&& [ -v time2 ]   \
-&& arrange_times  \
-&& preview        \
-&& confirm        \
-&& encode         \
-&& post_preview
+#  If this is the first run, set time1 and quit.
+#  On the second run (time2 is set) do the rest.
+put_time && [ -v time2 ] && {
+	#  Check the order of time values.
+	arrange_times
+	#  Show in a separate mpv instance, what will get in the clip.
+	play_preview
+	#  Choose the default or an alternative config file.
+	set_nadeshiko_config
+	#  Ask if the preview was what is wanted and also ask for max size.
+	pick_max_size
+	#  Call Nadeshiko.
+	encode || exit $?
+	#  Show the encoded file.
+	play_encoded_file
+}
+
+exit 0

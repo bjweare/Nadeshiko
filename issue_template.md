@@ -4,21 +4,19 @@
 ### What happened
 
 
-### What developer-san must do to simulate the problem on his side?
+### Steps for developer-san to reproduce the problem
 
 
 ### Logs
 
-<If it’s a Nadeshiko/bash issue, attach the relevant Nadeshiko log>
-<If it’s an ffmpeg issue, attach ffmpeg 1 and 2 pass logs too>
+(Usually they reside in `$HOME/.cache/nadeshiko/logs/`.)
 
 ### Software versions
 
-Video: ffmpeg, x264, libvpx.
-Audio: opus, libvorbis, fdk-aac.
-Subs: libass, mkvtoolnix.
+Post the output of `ffmpeg -version`. Provide versions of the following packages:
 
-[ ] I’ve read https://github.com/deterenkelt/Nadeshiko/wiki/Known-issues,
-don’t roast me on a bonfire, please.
+Video related issues: `x264` or `libvpx`.
 
-[ ] (Mac users only) I’m on OS X and I have GNU grep/sed/time installed.
+Audio: `opus`, `libvorbis`, `fdk-aac`.
+
+Subs: `libass`, `mkvtoolnix`.

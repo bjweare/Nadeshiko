@@ -1,0 +1,66 @@
+——— v 2.0  ———————————————————————————————————————————————————————————————————
+
+
+1. Configuration, logs and temporary files moved to user’s home directory.
+2. RC files format changed, it became more user-friendly with options
+   taking “yes” or “no” and bash-specific declarations moved from there
+   to their respective scripts.
+3. Changed dependency from bhlls.sh to bahelite.sh for bugfixes
+   and better error handling, RC files, logs etc.
+4. Proper versioning for Nadeshiko, Nadeshiko-mpv and their RC files.
+5. Nadeshiko and Nadeshiko-mpv can add a prefix to file name.
+
+
+Nadeshiko
+
+6. Better FFmpeg compatibility checks – now works with older, stable FFmpeg.
+7. WebVTT/SRT, VobSub and PGS subtitles support.
+8. External subtitles support for ASS and SRT/WebVTT.
+9. Internal check for updates.
+10. Encoding modules are taken into separate files, so that
+   they served as examples for other codecs (e.g. hardware ones).
+11. Time1 and Time2 are now optional parameters.
+12. Audio track can be selected. (Before only the default track worked.)
+13. max_size_default is now a link to one of the predefined sizes,
+    i.e. “normal”, “small”, “tiny” or “unlimited”.
+14. Writing metadata to containers.
+15. Subtitle and fonts are prepared earlier, so if an error happens on this
+    stage, one could notice it faster.
+16. Processing of Time and Time2 is reworked and draws closer the time, when
+    it would be possible to set multiple time marks and encode a video from
+    several fragments.
+17. Nadeshiko determines scene complexity.
+18. Refactored the code finding optimal bitrate and resolution.
+19. Better handling of overshooting.
+20. Cleaned work with FFmpeg filters from unnecessary stuff: subtitles and
+    fonts processing moved to preparation, this allowed to handle overlaying
+    and allow for burning VobSub and PGS.
+21. Refactored encoding modules, unified 1 and 2 pass, added more variables.
+22. Added more codec-specific variables in the RC file, with descriptions.
+23. Added the ability to add custom output options for 1 and 2 passes
+    for both libx264 and libvpx-vp9.
+24. Can strip “:” and other characters to create Windows-friendly filenames.
+
+
+Nadeshiko-mpv
+
+25. Menu choosing file sizes uses real values, default value isn’t present,
+    added as a mark instead.
+26. Can choose presets (nadeshiko.sh configuration files).
+27. IPC code moved to separate library.
+28. Multiple mpv sockets can be monitored.
+29. Better handling of running preview windows with mpv, including the cases,
+    when mpv runs in fullscreen.
+
+
+Bugs fixed
+
+1. VP9 tuning settings are reworked, and now using it provides more or less
+   predictable behaviour.
+2. Incorrectly passed format for Time1 and Time2 fixed.
+3. Fixed several issues with conflicting settings.
+4. Fixed wrong `${newarr[total_s]}` due to `$ms` not being converted properly.
+5. Nadeshiko-mpv handles errors better, duplicate errors removed.
+
+
+26 September 2018

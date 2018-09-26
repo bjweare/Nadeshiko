@@ -1,8 +1,8 @@
 #! /usr/bin/env bash
 
 set -feE
-. "$(dirname "$0")/../bhlls.sh"
-. "$(dirname "$0")/../gather_file_info.sh"
+. "$(dirname "$0")/../lib/bahelite/bahelite.sh"
+. "$(dirname "$0")/../lib/gather_file_info.sh"
 
  # As in nadeshiko.sh, the units are
 #  bit rates: kbps
