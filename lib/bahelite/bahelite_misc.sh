@@ -13,7 +13,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MISC_VER='1.6'
+BAHELITE_MODULE_MISC_VER='1.6.1'
 
 
 #  It is *highly* recommended to use “set -eE” in whatever script
@@ -38,7 +38,7 @@ set_required_dir() {
 	whats_the_dir="${varname,,}"
 	whats_the_dir=${whats_the_dir%dir}  # LIBDIR → libdir → lib
 	[ "${2:-}" ] \
-		&& own_subdir="$1" \
+		&& own_subdir="$2" \
 		|| own_subdir="${MYNAME%.*}"
 	for dir in "/usr/share/$own_subdir/$whats_the_dir" \
 	           "/usr/local/share/$own_subdir/$whats_the_dir" \

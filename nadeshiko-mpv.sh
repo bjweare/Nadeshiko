@@ -27,7 +27,7 @@ prepare_confdir 'nadeshiko'
 
 
 declare -r rcfile_minver='2.0'
-declare -r version="2.0"
+declare -r version="2.0.1"
 #  Defining it here, so that the definition in RC would be shorter
 #  and didn’t confuse users with “declare -gA …”.
 declare -A mpv_sockets
@@ -334,15 +334,17 @@ unfullscreen_and_rewind() {
 
 play_preview() {
 	[ -v show_preview ] || return 0
-	local  temp_sock="$(mktemp -u)"  sub_file  ff_sid  ff_aid
+	local  temp_sock="$(mktemp -u)"  sub_file  sid  aid
 	check_needed_vars  'sub-file'
 	unfullscreen_and_rewind
-
+	#  --ff-sid and --ff-aid, that take track numbers in FFmpeg order,
+	#  i.e. starting from zero within their type, do not work with
+	#  certain files.
 	[ "$sub_visibility" = yes ] && {
 		[ -v ffmpeg_ext_subs ] && sub_file="--sub-file=\"$ffmpeg_ext_subs\""
-		[ -v ffmpeg_subs_tr_id ] && ff_sid="--ff-sid=$ffmpeg_subs_tr_id"
+		[ -v ffmpeg_subs_tr_id ] && sid="--sid=$(( ffmpeg_subs_tr_id +1 ))"
 	}
-	[ -v mute ] || ff_aid="--ff-aid=$ffmpeg_audio_tr_id"
+	[ -v mute ] || aid="--aid=$(( ffmpeg_audio_tr_id +1 ))"
 
 	$mpv --x11-name mpv-nadeshiko-preview \
 	     --title "Preview – $MY_DESKTOP_NAME" \
@@ -352,8 +354,8 @@ play_preview() {
 	     --mute=$mute \
 	     --sub-visibility=$sub_visibility \
 	         ${sub_file:-} \
-	         ${ff_sid:-} \
-	     ${ff_aid:-} \
+	         ${sid:-} \
+	     ${aid:-} \
 	     --osd-msg1="Preview" \
 	     "$path"
 	rm "$temp_sock"
@@ -467,11 +469,10 @@ set_nadeshiko_config() {
 
 	if  (( ${#nadeshiko_configs[*]} == 0 ));  then
 		nadeshiko_config="nadeshiko.rc.sh"
-		return 0
 
 	elif  (( ${#nadeshiko_configs[*]} == 1 ));  then
 		nadeshiko_config="$nadeshiko_configs"
-		return 0
+
 	else
 		for ((i=0; i<${#nadeshiko_configs[*]}; i++)); do
 			xdialog_configs_list+=( "${nadeshiko_configs[i]}" )
@@ -496,6 +497,12 @@ set_nadeshiko_config() {
 		errexit_on
 		[ $xdialog_retval -eq 0 ] || abort 'Cancelled.'
 	fi
+
+	#  Though Nadeshiko has checks for config existence, we must do it
+	#  here ourselves, because we parse max_size_* variables in pick_max_size()
+	#  and the config must be readable, or there will be a sed error.
+	[ -e "$CONFDIR/$nadeshiko_config"  -a  -r "$CONFDIR/$nadeshiko_config" ] \
+		|| err "$nadeshiko_config doesn’t exist or not readable."
 
 	return 0
 }

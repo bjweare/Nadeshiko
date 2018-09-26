@@ -47,15 +47,35 @@ print_encoding_info() {
 #
 assemble_vf_string() {
 	declare -g vf_string
-	local  filter_list
+	local  filter_list  overlay_subs_w  overlay_subs_h  xcorr=0  ycorr=0
 	[ -v scale ] || [ -v subs ] || [ -v crop ] && {
 		[ -v subs ] && {
 			#  Let’s hope that the source is an mkv and the subs are ass.
 			[ -d "$TMPDIR/fonts" ] || mkdir "$TMPDIR/fonts"
 			if [ -v subs_need_overlay ]; then
 				#  Internal VobSub or PGS
+				#  Subs may need to be centered, if their resolution doesn’t
+				#  match with the video’s.
+				overlay_subs_w=$( get_ffmpeg_attribute "$video"  \
+				                                       "s:$subs_track_id"  \
+				                                       width  )
+				overlay_subs_h=$( get_ffmpeg_attribute "$video"  \
+				                                       "s:$subs_track_id"  \
+				                                       height  )
+				[ "$overlay_subs_w" -ne "$orig_width" ] && {
+					#  Need to center by X
+					[ "$overlay_subs_w" -gt "$orig_width" ] \
+						&& xcorr="-(overlay_w-main_w)/2" \
+						|| xcorr="(main_w-overlay_w)/2"
+				}
+				[ "$overlay_subs_h" -ne "$orig_height" ] && {
+					#  Need to center by Y
+					[ "$overlay_subs_h" -gt "$orig_height" ] \
+						&& ycorr="-(overlay_h-main_h)/2" \
+						|| ycorr="(main_h-overlay_h)/2"
+				}
 				filter_list="${filter_list:+$filter_list,}"
-				filter_list+="[0:v][0:s:$subs_track_id]overlay"
+				filter_list+="[0:v][0:s:$subs_track_id]overlay=$xcorr:$ycorr"
 			else
 				#  Former internal ASS/SSA, SRT/WebVTT, VobSub/PGS
 				#  or initially external ASS/SSA or SRT/WebVTT.

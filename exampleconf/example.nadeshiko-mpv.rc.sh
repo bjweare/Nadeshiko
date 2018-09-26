@@ -37,7 +37,8 @@ show_encoded_file=yes
 #  Add an alternative config file, and before the encoding starts,
 #  Nadeshiko-mpv will display a menu, which will let to choose a particular
 #  configuration file for Nadeshiko.
-#  See also:
+#  See “Multiple configs and switching on the fly”
+#  in the wiki: https://github.com/deterenkelt/Nadeshiko/wiki/Tips
 #
 nadeshiko_configs=(
 	'nadeshiko.rc.sh'

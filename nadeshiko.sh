@@ -37,7 +37,7 @@ set -f
 set_exampleconfdir
 prepare_confdir
 
-declare -r version='2.0.1'
+declare -r version='2.1'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES.md"
 declare -r rcfile_minver='2.0.1'

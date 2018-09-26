@@ -1,3 +1,26 @@
+——— v 2.1  ———————————————————————————————————————————————————————————————————
+
+Nadeshiko-2.1
+
+1. Added centering of overlay subtitles which dimensions mismatch
+   with video.
+
+Nadeshiko-mpv-2.0.1
+
+2. Since --ff-sid and --ff-aid are found to be broken for E-D releases,
+   preview mpv now uses --sid and --aid again.
+3. Fixed bug when removed nadeshiko.rc.sh prevented Nadeshiko-mpv from run-
+   ning.
+
+
+
+——— v 2.0.1  —————————————————————————————————————————————————————————————————
+
+Nadeshiko-2.0.1
+
+Hotfix for `create_windows_friendly_filenames` config option.
+
+
 ——— v 2.0  ———————————————————————————————————————————————————————————————————
 
 
