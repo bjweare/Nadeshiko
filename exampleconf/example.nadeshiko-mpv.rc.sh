@@ -1,10 +1,21 @@
-# nadeshiko-mpv.rc.sh v2.0
+# nadeshiko-mpv.rc.sh v2.1
 
 
  # The command to launch mpv.
 #
 mpv="mpv"
 
+ # Dialog program to use
+#  Either “Xdialog” or “kdialog”.
+#  Default value: Xdialog
+#
+dialog='Xdialog'
+
+ # Hide the dialogue asking for a custom video name.
+#  Only for dialog=kdialog. Because kdialog cannot ask subtly,
+#  and this gets annoying.
+#
+show_name_setting_dialog=yes
 
  # Absolute path to the mpv IPC socket.
 #  Before placing it here you need to confirm, that you’ve set it up

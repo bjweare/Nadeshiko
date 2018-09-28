@@ -315,27 +315,35 @@ check_times() {
 
 
 check_subtitles() {
-	declare -g subs_need_extraction  subs_need_conversion
+	declare -g subs_need_extraction  subs_need_conversion  prepped_ext_subs
 	local  codec_name  such  known_sub_codecs_list  ext_subtitle_type
 
 	if  [ -v subs_external_file ]; then
 		#  If “subs” is set, and the subtitles are in the external file,
 		#  let’s verify, that it’s in the ASS/SSA format, or a format
 		#  conversible to it.
-		cp "$subs_external_file" "$TMPDIR/ext.subs"
-		ext_subtitle_type="$(rtype -L -b -d "$TMPDIR/ext.subs")"
+		ext_subtitle_type="$(mimetype -L -b -d "$subs_external_file")"
 		case "$ext_subtitle_type" in
 			'SSA subtitles')
 				;&
 			'ASS subtitles')
-				#  ASS/SSA – just rename
-				mv "$TMPDIR/ext.subs" "$TMPDIR/subs.ass"
+				#  Nothing to do, but to rename – on the last stage.
 				subs_source_format='ASS/SSA'
+				prepped_ext_subs="$TMPDIR/subs.ass"
+				cp "$subs_external_file" "$prepped_ext_subs"
 				;;
 			'WebVTT subtitles')
-				;&
+				subs_source_format='SubRip/WebVTT'
+				prepped_ext_subs="$TMPDIR/subs.vtt"
+				cp "$subs_external_file" "$prepped_ext_subs"
+				#  WebVTT and SRT need to be converted before use.
+				#  Proceeding to prepare_subtitles().
+				subs_need_conversion=t
+				;;
 			'SubRip subtitles')
 				subs_source_format='SubRip/WebVTT'
+				prepped_ext_subs="$TMPDIR/subs.srt"
+				cp "$subs_external_file" "$prepped_ext_subs"
 				#  WebVTT and SRT need to be converted before use.
 				#  Proceeding to prepare_subtitles().
 				subs_need_conversion=t
@@ -390,10 +398,18 @@ check_subtitles() {
 			|| err "Cannot add subtitles: “$codec_name” is not supported. Add “nosub”?"
 		if [[ "$codec_name" =~ ^(ass|ssa)$ ]]; then
 			subs_source_format='ASS/SSA'
+			prepped_ext_subs="$TMPDIR/subs.ass"
 			#  For now extract every type of subtitles, even ASS.
 			subs_need_extraction=t
-		elif [[ "$codec_name" =~ ^(srt|vtt|webvtt)$ ]]; then
+		elif [[ "$codec_name" =~ ^(subrip|srt)$ ]]; then
 			subs_source_format='SubRip/WebVTT'
+			prepped_ext_subs="$TMPDIR/ext.srt"
+			subs_need_extraction=t
+			subs_need_conversion=t
+		elif [[ "$codec_name" =~ ^(vtt|webvtt)$ ]]; then
+			subs_source_format='SubRip/WebVTT'
+			#  FFmpeg differentiates between srt and vtt formats.
+			prepped_ext_subs="$TMPDIR/ext.vtt"
 			subs_need_extraction=t
 			subs_need_conversion=t
 		elif [[ "$codec_name" =~ ^(dvd_subtitle)$ ]]; then
@@ -433,29 +449,35 @@ prepare_subtitles() {
 		$ffmpeg -y -hide_banner \
 		        -i "$video" \
 		        -map 0:s:$subs_track_id \
-		        "$TMPDIR/subs.ass" \
+		        "$prepped_ext_subs" \
 			|| err "Cannot extract subtitle stream $subs_track_id: ffmpeg error."
 
-		# Built-in fonts for built-in subs
-		mkvmerge_output=$(mkvmerge -i "$video") \
-			|| err "Cannot get the list of attachments: mkvmerge error."
-		while read -r ; do
-			id=${REPLY%$'\t'*}
-			font_name=${REPLY#*$'\t'}
-			mkvextract attachments \
-			           "$video" $id:"$TMPDIR/fonts/$font_name" \
-			           &>"$LOGDIR/mkvextract.log" \
-				|| err "Cannot extract attachment font $id “$font_name”: mkvextract error."
-		done < <(
-			echo "$mkvmerge_output" \
-				| sed -rn "s/Attachment ID ([0-9]+):.*\s+'(.*)(ttf|TTF|otf|OTF)'$/\1\t\2\3/p"
-		)
+		#  Extracting built-in fonts for built-in subs
+		#  MKV may be reported as \n\n\n\nMatroska video,
+		#  so we don’t match for a literal string ^Mastroska\ video$
+		if [[ "$source_video_container" =~ 'Matroska video' ]]; then  # sic!
+			mkvmerge_output=$(mkvmerge -i "$video") \
+				|| err "Cannot get the list of attachments: mkvmerge error."
+			while read -r ; do
+				id=${REPLY%$'\t'*}
+				font_name=${REPLY#*$'\t'}
+				mkvextract attachments \
+				           "$video" $id:"$TMPDIR/fonts/$font_name" \
+				           &>"$LOGDIR/mkvextract.log" \
+					|| err "Cannot extract attachment font $id “$font_name”: mkvextract error."
+			done < <(
+				echo "$mkvmerge_output" \
+					| sed -rn "s/Attachment ID ([0-9]+):.*\s+'(.*)(ttf|TTF|otf|OTF)'$/\1\t\2\3/p"
+			)
+		else
+			warn-ns "Font extraction from “$source_video_container” is not implemented yet."
+		fi
 	}
 	[ -v subs_need_conversion ] && {
 		#  If external file was in ASS/SSA format, it was already placed
 		#  in $TMPDIR as subs.ass.
 		FFREPORT=file=$LOGDIR/ffmpeg-subs-conversion.log:level=32 \
-		ffmpeg -i "$TMPDIR/ext.subs"  "$TMPDIR/subs.ass" \
+		$ffmpeg -hide_banner -i "$prepped_ext_subs"  "$TMPDIR/subs.ass" \
 			|| err "Cannot convert subtitles to ASS: ffmpeg error."
 	}
 	return 0
@@ -572,6 +594,7 @@ determine_scene_complexity() {
 #
 set_vars() {
 	local  i  is_16_9
+	declare -g source_video_container=$(mimetype -L -b -d "$video")
 
 	check_container_and_codec_set
 	[ -v max_size ] || declare -g max_size=$max_size_default

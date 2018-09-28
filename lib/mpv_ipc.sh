@@ -191,9 +191,10 @@ test_time_pos() {
 #    listening to socket B, a dialogue window spawns to choose socket.
 #
 check_socket() {
+	declare -g mpv_socket
 	local sockets_that_work=()  socket_name  socket  sockets_occupied=() \
-	      sockets_unused=() bad_sockets=() xdialog_socket_list=() \
-	      xdialog_retval  i  err_message
+	      sockets_unused=() bad_sockets=() dialog_socket_list=() \
+	      i  err_message
 	[ ${#mpv_sockets[@]} -eq 0 ] && err 'Error: no sockets defined.'
 	#  To avoid get_prop annoying the user with “Choose a socket” 50 times
 	#  during the same run, limit the socket list to already chosen socket
@@ -246,26 +247,14 @@ check_socket() {
 			;;
 		*)
 			for ((i=0; i<${#sockets_that_work[@]}; i++)); do
-				xdialog_socket_list+=($i)
-				xdialog_socket_list+=("${sockets_that_work[i]}")
+				dialog_socket_list+=($i)
+				dialog_socket_list+=("${sockets_that_work[i]}")
 				(( i == 0 )) \
-					&& xdialog_socket_list+=( on  ) \
-					|| xdialog_socket_list+=( off )
+					&& dialog_socket_list+=( on  ) \
+					|| dialog_socket_list+=( off )
 			done
-			xdialog_window_height=$((  170+27*(${#sockets_that_work[@]}-2)  ))
-			errexit_off
-			mpv_socket=$(
-				Xdialog --stdout --no-tags \
-				        --ok-label "Choose" \
-				        --cancel-label "Cancel" \
-				        --buttons-style default \
-				        --radiolist "Choose an mpv socket:\n" \
-				        324x$xdialog_window_height 0  \
-				        "${xdialog_socket_list[@]}"
-			)
-			xdialog_retval=$?
-			errexit_on
-			[ $xdialog_retval -eq 0 ] || abort 'Cancelled.'
+			dialog_window_height=$((  170+27*(${#sockets_that_work[@]}-2)  ))
+			show_dialogue_choose_mpv_socket_$dialog
 			mpv_socket=${sockets_that_work[mpv_socket]}
 			mpv_socket=${mpv_sockets[$mpv_socket]}
 			;;

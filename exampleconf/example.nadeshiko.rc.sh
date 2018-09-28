@@ -1,4 +1,4 @@
-#  nadeshiko.rc.sh v2.0.1
+#  nadeshiko.rc.sh v2.1.1
 
  # Syntax
 #
@@ -611,8 +611,12 @@ can_be_used_together=(
  # This list is used, when Nadeshiko needs to render subtitles, and the
 #  source subtitles are a stream, that is built in the source video file.
 #
-known_sub_codecs=(ass ssa srt webvtt vtt  dvd_subtitle  hdmv_pgs_subtitle)
-
+known_sub_codecs=(
+	ass ssa
+	srt subrip webvtt vtt
+	dvd_subtitle
+	hdmv_pgs_subtitle
+)
 
  # Some descriptions of libvpx-vp9 options are quoted from
 #  https://sites.google.com/a/webmproject.org/wiki/ffmpeg/vp9-encoding-guide

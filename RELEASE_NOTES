@@ -1,3 +1,26 @@
+——— v 2.1.1  —————————————————————————————————————————————————————————————————
+
+1. Keeping an entire config is not necessary any more – it may contain only
+   overrides.
+
+Nadeshiko-2.1.1
+
+2. Fixed a bug with one type of SubRip subtitles not being recognised
+3. Fixed another bug with external subtitles not being added properly.
+4. Fixed overly verbose output for the ffmpeg instance, that does
+   subtitle conversion.
+5. Fixed a bug when audio track didn’t add, because subtitles were turned off.
+
+Nadeshiko-mpv-2.1
+
+6. Added support for kdialog in parallel to Xdialog. Update the configuration
+   file!
+   Why the choice didn’t fall upon zenity read the new entry in the wiki:
+   https://github.com/deterenkelt/Nadeshiko/wiki/Known-issues-for-Nadeshiko%E2%80%91mpv#----xdialog--kdialog-problems
+7. Fixed a bug in preview playback, due to which external subtitles
+   weren’t shown on the preview (but still rendered on the encoded video).
+
+
 ——— v 2.1  ———————————————————————————————————————————————————————————————————
 
 Nadeshiko-2.1

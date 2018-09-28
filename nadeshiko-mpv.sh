@@ -12,22 +12,22 @@ prepare_cachedir 'nadeshiko'
 start_log
 set_libdir 'nadeshiko'
 . "$LIBDIR/mpv_ipc.sh"
-REQUIRED_UTILS+=(
-	Xdialog  # To show a confirmation window that also sets max. file size.
-	find     # To find and delete possible leftover data files.
-	lsof     # To check, that there is an mpv process listening to socket.
-	jq       # To parse JSON.
-	pgrep
-	wc
-	socat
-)
-check_required_utils
+set_modulesdir 'nadeshiko'
+set +f
+for module in "$MODULESDIR"/nadeshiko-mpv_*.sh ; do
+	. "$module" || err "Couldn’t source module $module."
+done
+set -f
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-
+declare -r version="2.1"
 declare -r rcfile_minver='2.0'
-declare -r version="2.0.1"
+RCFILE_BOOLEAN_VARS=(
+	show_preview
+	show_encoded_file
+	show_name_setting_dialog
+)
 #  Defining it here, so that the definition in RC would be shorter
 #  and didn’t confuse users with “declare -gA …”.
 declare -A mpv_sockets
@@ -90,11 +90,8 @@ show_version() {
 
 
 post_read_rcfile() {
-	local varname
-	#  Unsetting variables with a negative value
-	for varname in  show_preview  show_encoded_file;  do
-		is_true $varname --unset-if-not
-	done
+	dialog=${dialog,,}
+	[ "$dialog" = xdialog ] && dialog="Xdialog"
 	return 0
 }
 
@@ -143,75 +140,84 @@ populate_data_file() {
 	fi
 	write_var_to_datafile mute $mute
 	write_var_to_datafile sub_visibility $sub_visibility
-	[ -v sub_visibility_true ] && {
-		# Finding subtitles
-		# It’s either an index of an internal stream
-		# or a path to an external file
-		for ((i=0; i<track_list_count; i++)); do
-			IFS=$'\n' read -d '' tr_type \
-			                     tr_is_selected \
-			                     tr_id  ff_index \
-			                     tr_is_external  external_filename \
-				< <( echo "$track_list" \
-				     | jq -r ".[$i].type, \
-				              .[$i].selected,  \
-				              .[$i].id,  .[$i].\"ff-index\", \
-				              .[$i].external,  .[$i].\"external-filename\""; \
-				     echo -en '\0'
-				   )
-			[ "$tr_is_selected" = true ] && {
-				if [ "$tr_type" = sub ]; then
-					case "$tr_is_external" in
-						true)
-							if [ -f "$external_filename" ]; then
-								ffmpeg_ext_subs="$external_filename"
-							elif [ -f "$working_directory/$external_filename" ]; then
-								ffmpeg_ext_subs="$working_directory/$external_filename"
-							else
-								ffmpeg_ext_subs="$FUNCNAME: mpv’s “$external_filename” is not a valid path."
-							fi
-							write_var_to_datafile ffmpeg_ext_subs "$ffmpeg_ext_subs"
-							;;
-						false)
-							# man mpv says:
-							# “Note that ff-index can be potentially wrong if a
-							#    demuxer other than libavformat (--demuxer=lavf)
-							#    is used. For mkv files, the index will usually
-							#    match even if the default (builtin) demuxer is
-							#    used, but there is no hard guarantee.”
-							# Note the difference between tr_id and ff_index:
-							#   - ‘ff_index’ is the number of a *stream* by order,
-							#     this includes all video, audio, subtitle streams
-							#     and also fonts. ffmpeg -map would use syntax
-							#     0:<stream_id> to refer to the stream.
-							#   - ‘tr_id’ is the number of this stream among
-							#     the other streams of *this same type*.
-							#     ffmpeg -map uses syntax 0:s:<subtitle_stream_id>
-							#     for these – that’s exactly what we need.
-							#     It’s necessary to decrement it by one, as mpv
-							#     counts them from 1 and ffmpeg – from 0.
-							ffmpeg_subs_tr_id=$((  tr_id - 1  ))
-							write_var_to_datafile ffmpeg_subs_tr_id "$ffmpeg_subs_tr_id"
-							;;
-					esac
-					# ffmpeg_subtitles now contains either a track id,
-					# an absolute path or an error message (Nadeshiko handles all).
-				elif [ "$tr_type" =  audio ]; then
-					case "$tr_is_external" in
-						true)
-							err 'External audio tracks aren’t supported yet.
-							     Please post an issue on the project page to accelerate the work!'
-							;;
-						false)
-							#  See the note at the similar place above.
-							ffmpeg_audio_tr_id=$((  tr_id - 1  ))
-							write_var_to_datafile ffmpeg_audio_tr_id "$ffmpeg_audio_tr_id"
-							;;
-					esac
-				fi
-			}
-		done
-	}
+
+	#  Subtitle and audio tracks are either an index of an internal stream
+	#  or a path to an external file.
+	for ((i=0; i<track_list_count; i++)); do
+		IFS=$'\n' read -d '' tr_type \
+		                     tr_is_selected \
+		                     tr_id  ff_index \
+		                     tr_is_external  external_filename \
+			< <( echo "$track_list" \
+			     | jq -r ".[$i].type, \
+			              .[$i].selected,  \
+			              .[$i].id,  .[$i].\"ff-index\", \
+			              .[$i].external,  .[$i].\"external-filename\""; \
+			     echo -en '\0'
+			   )
+		info "Track $i
+		      Type: $tr_type
+		      Selected: $tr_is_selected
+		      ID: $tr_id
+		      FFmpeg index: $ff_index
+		      External: $tr_is_external
+		      External filename: $external_filename"
+		[ "$tr_is_selected" = true ] && {
+			#  ffmpeg_subs_tr_id  and  ffmpeg_audio_tr_id  are to become
+			#  “subs” and “audio” parameters for Nadeshiko, thus, they must be
+			#  set only subtitles are enabled and audio is on.
+			if [ "$tr_type" = sub  -a  -v sub_visibility_true ]; then
+				case "$tr_is_external" in
+					true)
+						if [ -f "$external_filename" ]; then
+							ffmpeg_ext_subs="$external_filename"
+						elif [ -f "$working_directory/$external_filename" ]; then
+							ffmpeg_ext_subs="$working_directory/$external_filename"
+						else
+							ffmpeg_ext_subs="$FUNCNAME: mpv’s “$external_filename” is not a valid path."
+						fi
+						write_var_to_datafile ffmpeg_ext_subs "$ffmpeg_ext_subs"
+						;;
+					false)
+						# man mpv says:
+						# “Note that ff-index can be potentially wrong if a
+						#    demuxer other than libavformat (--demuxer=lavf)
+						#    is used. For mkv files, the index will usually
+						#    match even if the default (builtin) demuxer is
+						#    used, but there is no hard guarantee.”
+						# Note the difference between tr_id and ff_index:
+						#   - ‘ff_index’ is the number of a *stream* by order,
+						#     this includes all video, audio, subtitle streams
+						#     and also fonts. ffmpeg -map would use syntax
+						#     0:<stream_id> to refer to the stream.
+						#   - ‘tr_id’ is the number of this stream among
+						#     the other streams of *this same type*.
+						#     ffmpeg -map uses syntax 0:s:<subtitle_stream_id>
+						#     for these – that’s exactly what we need.
+						#     It’s necessary to decrement it by one, as mpv
+						#     counts them from 1 and ffmpeg – from 0.
+						ffmpeg_subs_tr_id=$((  tr_id - 1  ))
+						write_var_to_datafile ffmpeg_subs_tr_id "$ffmpeg_subs_tr_id"
+						;;
+				esac
+				#  ffmpeg_subtitles now contains either a track id,
+				#  an absolute path or an error message (Nadeshiko handles all).
+			elif [ "$tr_type" = audio   -a  ! -v mute_true ]; then
+				case "$tr_is_external" in
+					true)
+						err 'External audio tracks aren’t supported yet.
+						     Please post an issue on the project page to speed up the work!'
+						;;
+					false)
+						#  See the note at the similar place above.
+						ffmpeg_audio_tr_id=$((  tr_id - 1  ))
+						write_var_to_datafile ffmpeg_audio_tr_id "$ffmpeg_audio_tr_id"
+						;;
+				esac
+			fi
+		}
+	done
+
 	cat "$data_file"
 	return 0
 }
@@ -341,7 +347,8 @@ play_preview() {
 	#  i.e. starting from zero within their type, do not work with
 	#  certain files.
 	[ "$sub_visibility" = yes ] && {
-		[ -v ffmpeg_ext_subs ] && sub_file="--sub-file=\"$ffmpeg_ext_subs\""
+		[ -v ffmpeg_ext_subs ] \
+			&& sub_file=(--sub-file "$ffmpeg_ext_subs")  # sic!
 		[ -v ffmpeg_subs_tr_id ] && sid="--sid=$(( ffmpeg_subs_tr_id +1 ))"
 	}
 	[ -v mute ] || aid="--aid=$(( ffmpeg_audio_tr_id +1 ))"
@@ -353,7 +360,7 @@ play_preview() {
 	     --ab-loop-a="$time1" --ab-loop-b="$time2" \
 	     --mute=$mute \
 	     --sub-visibility=$sub_visibility \
-	         ${sub_file:-} \
+	         "${sub_file[@]}" \
 	         ${sid:-} \
 	     ${aid:-} \
 	     --osd-msg1="Preview" \
@@ -366,8 +373,7 @@ play_preview() {
 pick_max_size() {
 	check_needed_vars
 	local  max_size_default  max_size_small  max_size_tiny  kilo \
-	       xdialog_output  xdialog_retval  fsize  fsize_val  variants  \
-	       default_name  set_fname_pfx
+	       fsize  fsize_val  variants
 	eval $(sed -rn '/^\s*(max_size_|kilo)/p' "$CONFDIR/$nadeshiko_config")
 	[ -v max_size_default ] \
 	&& [ -v max_size_normal ] \
@@ -389,7 +395,7 @@ pick_max_size() {
 			err "kilo is set to “$kilo”, should be either 1000 or 1024."
 		fi
 	done
-	errexit_off
+
 	[[ "$max_size_default" =~ ^[0-9] ]] || {
 		#  Saving the name
 		default_real_var_name=max_size_$max_size_default
@@ -417,45 +423,10 @@ pick_max_size() {
 			            off )
 		fi
 	done
-	xdialog_output=$(
-		Xdialog --stdout --no-tags \
-		        --title 'Create clip' \
-		        --check "Set a custom name" \
-		        --ok-label "Create" \
-		        --cancel-label="Cancel" \
-		        --buttons-style default \
-		        --radiolist "Create clip?\n\nPick maximum size:" \
-		        324x272 0 \
-		        "${variants[@]}"
-		)
-	xdialog_retval=$?
-	errexit_on
+
 	mpv_pid=$(get_main_playback_mpv_pid)
-	[ $xdialog_retval -eq 0 ] || {
-		rm "$data_file"
-		abort 'Cancelled.'
-	}
-
-	IFS=$'\n' read -d ''  max_size  set_fname_pfx < \
-		<(echo -e "$xdialog_output\0");
-	write_var_to_datafile max_size "$max_size"
-
-	[ "$set_fname_pfx" = checked ] && {
-		xdialog_output=$(
-			Xdialog --stdout --no-cancel --no-tags \
-			        --title 'Set a name' \
-			        --ok-label 'OK' \
-			        --buttons-style text \
-			        --inputbox "Enter a string to add to the encoded file name\n(will be added at the beginning)" \
-			        400x155
-		) ||:
-
-		! [[ "$xdialog_output" =~ ^[[:space:]]*$ ]] && {
-			fname_pfx="$xdialog_output"
-			write_var_to_datafile fname_pfx "$xdialog_output"
-		}
-	}
-
+	show_dialogue_pick_size_$dialog
+	show_dialogue_set_name_$dialog
 	return 0
 }
 
@@ -465,7 +436,7 @@ set_nadeshiko_config() {
 	#  array, that must be present in Nadeshiko-mpv config. Whether
 	#  the config really exists, is checked by Nadeshiko.
 	declare -g  nadeshiko_config
-	local  i  xdialog_configs_list  xdialog_window_height  xdialog_retval
+	local  i  dialog_configs_list  dialog_window_height
 
 	if  (( ${#nadeshiko_configs[*]} == 0 ));  then
 		nadeshiko_config="nadeshiko.rc.sh"
@@ -475,27 +446,14 @@ set_nadeshiko_config() {
 
 	else
 		for ((i=0; i<${#nadeshiko_configs[*]}; i++)); do
-			xdialog_configs_list+=( "${nadeshiko_configs[i]}" )
-			xdialog_configs_list+=( "${nadeshiko_configs[i]}" )
+			dialog_configs_list+=( "${nadeshiko_configs[i]}" )
+			dialog_configs_list+=( "${nadeshiko_configs[i]}" )
 			(( i == 0 )) \
-				&& xdialog_configs_list+=( on  ) \
-				|| xdialog_configs_list+=( off )
+				&& dialog_configs_list+=( on  ) \
+				|| dialog_configs_list+=( off )
 		done
-		xdialog_window_height=$((  116+27*${#nadeshiko_configs[*]}  ))
-		errexit_off
-		nadeshiko_config=$(
-			Xdialog --stdout --no-tags \
-			        --title 'Choose config' \
-		            --ok-label "Choose" \
-		            --cancel-label "Cancel" \
-		            --buttons-style default \
-		            --radiolist "Select a Nadeshiko configuration file:\n" \
-		            324x$xdialog_window_height 0  \
-		            "${xdialog_configs_list[@]}"
-		)
-		xdialog_retval=$?
-		errexit_on
-		[ $xdialog_retval -eq 0 ] || abort 'Cancelled.'
+		dialog_window_height=$((  116+27*${#nadeshiko_configs[*]}  ))
+		show_dialogue_choose_config_file_$dialog "$dialog_window_height"
 	fi
 
 	#  Though Nadeshiko has checks for config existence, we must do it
@@ -622,8 +580,19 @@ play_encoded_file() {
 }
 
 
+
 read_rcfile  "$rcfile_minver"
 post_read_rcfile
+REQUIRED_UTILS+=(
+	$dialog  # To show a confirmation window that also sets max. file size.
+	find     # To find and delete possible leftover data files.
+	lsof     # To check, that there is an mpv process listening to socket.
+	jq       # To parse JSON from mpv.
+	pgrep
+	wc
+	socat
+)
+check_required_utils
 
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && show_help && exit 0
 [[ "${1:-}" =~ ^(-v|--version)$ ]] && show_version && exit 0

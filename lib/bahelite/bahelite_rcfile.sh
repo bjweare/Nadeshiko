@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_RCFILE_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_RCFILE_VER='1.4.1'
+BAHELITE_MODULE_RCFILE_VER='1.4.2'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -199,7 +199,8 @@ set_rcfile_from_args() {
 read_rcfile() {
 	xtrace_off && trap xtrace_on RETURN
 	local  rcfile_min_ver="$1"  rcfile  example_rcfile  which_is_newer \
-	       rcfile_ver  varname  missing_variable_list=()  plural_s  verb
+	       rcfile_ver  varname  old_vars  new_vars  missing_variable_list=() \
+	       plural_s  verb
 
 	if [ "${2:-}" ]; then
 		rcfile="$2"
@@ -217,6 +218,7 @@ read_rcfile() {
 		            Did you forget to run prepare_confdir?"
 		example_rcfile="$EXAMPLE_RCFILE"
 	fi
+	. "$example_rcfile"
 
 	if [ -r "$rcfile" ]; then
 		#  Verifying RC file version
@@ -239,27 +241,31 @@ read_rcfile() {
 		fi
 	fi
 
-	#  Verifying, that all the variables, which are specified in the example
+	 # Verifying, that all the variables, which are specified in the example
 	#  config file, are present in the one, that the main script uses.
-	[ -r "$example_rcfile" ] && {
-		for varname in \
-			$(
-				old_vars="$(compgen -A variable)"
-				. "$example_rcfile"
-				new_vars="$(compgen -A variable)"
-				echo "$old_vars"$'\n'"${new_vars//old_vars/}" | sort | uniq -u
-			)
-		do
-			[ -v "$varname" ] || missing_variable_list+=( "$varname" )
-		done
-		[ ${#missing_variable_list[*]} -gt 0 ] && {
-			verb='is'
-			[ ${#missing_variable_list[*]} -gt 1 ] && plural_s='s' verb='are'
-			err "Config variable${plural_s:-} $verb missing: $(
-			        sed -r 's/ /, /g'<<<"${missing_variable_list[*]}"
-			    )"
-		}
-	}
+	#  (Too strict. Now we just source exampleconf and let the user’s config
+	#   file to place overrides. RC version check is left for the cases when
+	#   option names change)
+	#
+	# [ -r "$example_rcfile" ] && {
+	# 	for varname in \
+	# 		$(
+	# 			old_vars="$(compgen -A variable)"
+	# 			. "$example_rcfile"
+	# 			new_vars="$(compgen -A variable)"
+	# 			echo "$old_vars"$'\n'"${new_vars//old_vars/}" | sort | uniq -u
+	# 		)
+	# 	do
+	# 		[ -v "$varname" ] || missing_variable_list+=( "$varname" )
+	# 	done
+	# 	[ ${#missing_variable_list[*]} -gt 0 ] && {
+	# 		verb='is'
+	# 		[ ${#missing_variable_list[*]} -gt 1 ] && plural_s='s' verb='are'
+	# 		err "Config variable${plural_s:-} $verb missing: $(
+	# 		        sed -r 's/ /, /g'<<<"${missing_variable_list[*]}"
+	# 		    )"
+	# 	}
+	# }
 
 	#  Unsetting variables with a negative value
 	for varname in "${RCFILE_BOOLEAN_VARS[@]}"; do
