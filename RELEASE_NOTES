@@ -1,3 +1,11 @@
+——— v 2.1.3  —————————————————————————————————————————————————————————————————
+
+Nadeshiko-mpv-2.1.1
+
+1. Fixed an error with videos not having any audio track, that prevented these
+   files from being encoded.
+
+
 ——— v 2.1.2  —————————————————————————————————————————————————————————————————
 
 Nadeshiko-2.1.2

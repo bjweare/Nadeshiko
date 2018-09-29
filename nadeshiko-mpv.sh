@@ -21,7 +21,7 @@ set -f
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.1"
+declare -r version="2.1.1"
 declare -r rcfile_minver='2.0'
 RCFILE_BOOLEAN_VARS=(
 	show_preview
@@ -482,9 +482,9 @@ encode() {
 	check_needed_vars
 	local  audio  subs  nadeshiko_retval  command
 
-	[ "$mute" = yes ] \
-		&& audio=noaudio \
-		|| audio=audio:$ffmpeg_audio_tr_id
+	[ -v ffmpeg_audio_tr_id ]  \
+		&& audio=audio:$ffmpeg_audio_tr_id  \
+		|| audio=noaudio
 
 	 # Never rely on “sub_visibility” property, as it is on by default:
 	#  even when there’s no subtitles at all.
