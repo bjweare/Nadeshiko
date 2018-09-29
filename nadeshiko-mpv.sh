@@ -34,9 +34,19 @@ declare -A mpv_sockets
 declare -r datadir="$CACHEDIR/nadeshiko-mpv_data"
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 
-our_processes=$(pgrep -u $USER -afx "bash $0" -s 0 | wc -l)
-total_processes=$(pgrep -u $USER -afx "bash $0" | wc -l)
-(( our_processes < total_processes )) && err 'Still running.'
+our_processes=$(pgrep -u $USER -afx "bash $0" -s 0)
+total_processes=$(pgrep -u $USER -afx "bash $0")
+our_processes_count=$(echo "$our_processes" | wc -l)
+total_processes_count=$(echo "$total_processes" | wc -l)
+(( our_processes_count < total_processes_count )) && {
+	warn "Processes: our: $our_processes_count, total: $total_processes_count.
+	      Our processes are:
+	      $our_processes
+	      Our and foreign processes are:
+	      $total_processes"
+	err 'Still running.'
+}
+
 
 on_error() {
 	# Wipe the data directory, so that after a stop caused by an error
@@ -116,6 +126,7 @@ del_var_from_datafile() {
 
 
 populate_data_file() {
+	declare -g  ffmpeg_ext_subs  ffmpeg_subs_tr_id  ffmpeg_audio_tr_id
 	local i tr_type tr_is_selected tr_id ff_index \
 	      tr_is_external external_filename
 	#  NB path must come after working directory!
@@ -372,8 +383,9 @@ play_preview() {
 
 pick_max_size() {
 	check_needed_vars
-	local  max_size_default  max_size_small  max_size_tiny  kilo \
-	       fsize  fsize_val  variants
+	local  max_size_default  max_size_small  max_size_tiny  kilo  \
+	       fsize  fsize_val  variants  default_real_var_name  \
+	       default_real_var_val
 	eval $(sed -rn '/^\s*(max_size_|kilo)/p' "$CONFDIR/$nadeshiko_config")
 	[ -v max_size_default ] \
 	&& [ -v max_size_normal ] \

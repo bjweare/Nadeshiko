@@ -15,7 +15,7 @@
 #
 parse_args() {
 	declare -g  subs  subs_explicitly_requested  subs_external_file  \
-	            subs_track_id \
+	            subs_track_id  \
 	            audio  audio_explicitly_requested  audio_track_id  \
 	            kilo  scale  crop  video  where_to_place_new_file  \
 	            new_filename_user_prefix  max_size  vbitrate  abitrate
@@ -91,7 +91,7 @@ parse_args() {
 			scale="${BASH_REMATCH[1]}"
 
 		elif [[ "$arg" =~ ^(tiny|small|normal|default|unlimited)$ ]]; then
-			declare -n max_size="max_size_$arg"
+			declare -gn max_size="max_size_$arg"
 
 		elif [[ "$arg" =~ ^(vb|ab)([0-9]+[kMG])$ ]]; then
 			[ "${BASH_REMATCH[1]}" = vb ] && vbitrate="${BASH_REMATCH[2]}"

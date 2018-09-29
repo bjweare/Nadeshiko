@@ -1,3 +1,12 @@
+——— v 2.1.2  —————————————————————————————————————————————————————————————————
+
+Nadeshiko-2.1.2
+
+1. Fixed bug with custom sizes “tiny”, “small”, “normal”… not applying.
+
+Minor imrovements for Nadeshiko-mpv logging.
+
+
 ——— v 2.1.1  —————————————————————————————————————————————————————————————————
 
 1. Keeping an entire config is not necessary any more – it may contain only
