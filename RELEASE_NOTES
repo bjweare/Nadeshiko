@@ -22,11 +22,11 @@ Nadeshiko-mpv-2.2
    Better GUI, close to perfect.
    Requirements:
    - python3 with Gtk module 3.0.
-   - >=GTK+3.10 in the OS
+   - >=GTK+3.12 in the OS
 
 5. Postponed jobs are now separately put in a new directory,
    “postponed_commands” *file* is deprecated. Jobs now go
-   in “postponed_commands_dir”. See also № X_X_X_X_X_X
+   in “postponed_commands_dir”. See also № 9
 
 6. Fixed asking second time for mpv socket.
 
