@@ -283,8 +283,8 @@ check_times() {
 		#  If neither Time1 nor Time2 is set, use the full video duration.
 		new_time_array "00:00:00.000" 'time1'  \
 			|| err 'Couldn’t set Time1 to 00:00:00.000'
-		new_time_array "$mediainfo_source_duration" 'time2' \
-			|| err "Couldn’t set Time2 to $mediainfo_source_duration"
+		new_time_array "${mediainfo_source_duration[ts]}" 'time2' \
+			|| err "Couldn’t set Time2 to ${mediainfo_source_duration[ts]}"
 	}
 	[ ${time2[total_ms]} -gt ${time1[total_ms]} ]  \
 		&& declare -gn start='time1'  stop='time2' \
