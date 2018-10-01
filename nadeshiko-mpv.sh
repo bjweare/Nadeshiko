@@ -13,15 +13,10 @@ start_log
 set_libdir 'nadeshiko'
 . "$LIBDIR/mpv_ipc.sh"
 set_modulesdir 'nadeshiko'
-set +f
-for module in "$MODULESDIR"/nadeshiko-mpv_*.sh ; do
-	. "$module" || err "Couldn’t source module $module."
-done
-set -f
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.1.1"
+declare -r version="2.2"
 declare -r rcfile_minver='2.0'
 RCFILE_BOOLEAN_VARS=(
 	show_preview
@@ -32,20 +27,14 @@ RCFILE_BOOLEAN_VARS=(
 #  and didn’t confuse users with “declare -gA …”.
 declare -A mpv_sockets
 declare -r datadir="$CACHEDIR/nadeshiko-mpv_data"
+#  Old, this file is deprecated.
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
+#  New, this directory is to be used instead.
+declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 
-our_processes=$(pgrep -u $USER -afx "bash $0" -s 0)
-total_processes=$(pgrep -u $USER -afx "bash $0")
-our_processes_count=$(echo "$our_processes" | wc -l)
-total_processes_count=$(echo "$total_processes" | wc -l)
-(( our_processes_count < total_processes_count )) && {
-	warn "Processes: our: $our_processes_count, total: $total_processes_count.
-	      Our processes are:
-	      $our_processes
-	      Our and foreign processes are:
-	      $total_processes"
-	err 'Still running.'
-}
+single_process_check
+pgrep -u $USER -af "bash.*nadeshiko-do-postponed.sh" \
+	&& err 'Cannot run at the same time with Nadeshiko-do-postponed.'
 
 
 on_error() {
@@ -102,6 +91,8 @@ show_version() {
 post_read_rcfile() {
 	dialog=${dialog,,}
 	[ "$dialog" = xdialog ] && dialog="Xdialog"
+	[[ "$dialog" =~ ^(Xdialog|kdialog|gtk)$ ]] \
+		|| err "Unknown dialog type: “$dialog”"
 	return 0
 }
 
@@ -133,7 +124,9 @@ populate_data_file() {
 	#  path must be a valid file, but path *may be* relative
 	#  to $working_directory, thus the latter becomes a part of the path’s
 	#  “good value” test.
-	write_var_to_datafile mpv_socket "$mpv_socket"
+	#
+	#  Should be done earlier, see below.
+	# write_var_to_datafile mpv_socket "$mpv_socket"
 	get_props working-directory \
 	          screenshot-directory \
 	          path \
@@ -382,6 +375,7 @@ play_preview() {
 
 
 pick_max_size() {
+	declare -g mpv_pid
 	check_needed_vars
 	local  max_size_default  max_size_small  max_size_tiny  kilo  \
 	       fsize  fsize_val  variants  default_real_var_name  \
@@ -408,17 +402,16 @@ pick_max_size() {
 		fi
 	done
 
-	[[ "$max_size_default" =~ ^[0-9] ]] || {
-		#  Saving the name
-		default_real_var_name=max_size_$max_size_default
-		declare -n default_real_var_val=$default_real_var_name
-		#  Dereferencing the name, now max_size_default=normal becomes =20M,
-		#  for example.
-		max_size_default="$default_real_var_val"
-		#  Removing the variable containing the default value to avoid
-		#  the confusing duplication.
-		unset $default_real_var_name
-	}
+	#  Saving the name
+	default_real_var_name=max_size_$max_size_default
+	declare -n default_real_var_val=$default_real_var_name
+	#  Dereferencing the name, now max_size_default=normal becomes =20M,
+	#  for example.
+	max_size_default="$default_real_var_val"
+	#  Removing the variable containing the default value to avoid
+	#  the confusing duplication.
+	unset $default_real_var_name
+
 	for fsize in ${!max_size_*}; do
 		declare -n fsize_val=$fsize
 		if [ "$fsize" = max_size_default ]; then
@@ -436,9 +429,14 @@ pick_max_size() {
 		fi
 	done
 
-	mpv_pid=$(get_main_playback_mpv_pid)
+	 # Must be here, because mpv_pid is used in functions, that send messages
+	#  to mpv window, when it may be closed. To avoid that, we must know
+	#  its PID and check if it’s still running, so if there would be
+	#  no window, we wouldn’t send anything.
+	#
+	mpv_pid=$(lsof -t -c mpv -a -f -- "$mpv_socket")
+	[[ "$mpv_pid" =~ ^[0-9]+$ ]] || err "Couldn’t determine mpv PID."
 	show_dialogue_pick_size_$dialog
-	show_dialogue_set_name_$dialog
 	return 0
 }
 
@@ -454,12 +452,15 @@ set_nadeshiko_config() {
 		nadeshiko_config="nadeshiko.rc.sh"
 
 	elif  (( ${#nadeshiko_configs[*]} == 1 ));  then
-		nadeshiko_config="$nadeshiko_configs"
+		nadeshiko_config="${nadeshiko_configs[0]}"
 
 	else
 		for ((i=0; i<${#nadeshiko_configs[*]}; i++)); do
+			#  What to return in stdout
 			dialog_configs_list+=( "${nadeshiko_configs[i]}" )
+			#  Radiobox label
 			dialog_configs_list+=( "${nadeshiko_configs[i]}" )
+			#  Top radiobox should be enabled
 			(( i == 0 )) \
 				&& dialog_configs_list+=( on  ) \
 				|| dialog_configs_list+=( off )
@@ -468,19 +469,19 @@ set_nadeshiko_config() {
 		show_dialogue_choose_config_file_$dialog "$dialog_window_height"
 	fi
 
-	#  Though Nadeshiko has checks for config existence, we must do it
-	#  here ourselves, because we parse max_size_* variables in pick_max_size()
-	#  and the config must be readable, or there will be a sed error.
-	[ -e "$CONFDIR/$nadeshiko_config"  -a  -r "$CONFDIR/$nadeshiko_config" ] \
-		|| err "$nadeshiko_config doesn’t exist or not readable."
-
+	 # Though Nadeshiko has checks for config existence, we must do it here
+	#  ourselves, because we parse max_size_* variables in pick_max_size() and
+	#  the config must be readable at that time, or there will be a sed error.
+	[ -r "$CONFDIR/$nadeshiko_config" ] \
+		|| err "$nadeshiko_config doesn’t exist or is not readable."
 	return 0
 }
 
 
 encode() {
 	check_needed_vars
-	local  audio  subs  nadeshiko_retval  command
+	local  audio  subs  nadeshiko_retval  command  postponed_job_file  str  \
+	       first_line_in_postponed_command=t
 
 	[ -v ffmpeg_audio_tr_id ]  \
 		&& audio=audio:$ffmpeg_audio_tr_id  \
@@ -519,10 +520,26 @@ encode() {
 		                       "$nadeshiko_config"
 	)
 	if [ -v postpone ]; then
+		[ -d "$postponed_commands_dir" ] || mkdir "$postponed_commands_dir"
+		postponed_job_file="$postponed_commands_dir"
+		postponed_job_file+="/$(mktemp -u "${path##*/}.XXXXXXXX").sh"
+		cat <<-EOF >"$postponed_job_file"
+		#! /usr/bin/env bash
+
+		#  Nadeshiko-mpv postponed job file
+		#  ${postponed_job_file##*/}
+		#  This file is to be run with nadeshiko-do-postponed.sh
+
+
+		EOF
+		chmod +x "$postponed_job_file"
 		for str in "${nadeshiko_command[@]}"; do
-			set -x
-			echo "$str" >>"$postponed_commands"
-			set +x
+			if [ -v first_line_in_postponed_command ]; then
+				printf '%q  \\\n\t\\\n' "$str" >>"$postponed_job_file"
+				unset first_line_in_postponed_command
+			else
+				printf '\t%q  \\\n' "$str" >>"$postponed_job_file"
+			fi
 		done
 		echo >>"$postponed_commands"
 		rm "$data_file"
@@ -545,7 +562,7 @@ encode() {
 			if [ $nadeshiko_retval -eq 0 ]; then
 				send_command show-text 'Encoding done.'  '2000' || exit $?
 			else
-				send_command show-text 'Encoding failed.'  '3000' || exit $?
+				send_command show-text 'Failed to encode.'  '3000' || exit $?
 				#  Don’t display a desktop notification with an error here –
 				#  nadeshiko.sh does this.
 				# err 'Encoding failed.'
@@ -579,6 +596,9 @@ play_encoded_file() {
 
 	[ -e "/proc/${mpv_pid:-not exists}" ] && unfullscreen_and_rewind
 
+	 # Setting --screenshot-directory, because otherwise screenshots
+	#  taken from that video would fall into $datadir, and it’s not
+	#  obvious to seek for them there.
 	$mpv --x11-name mpv-nadeshiko-preview \
 	     --title "Encoded file – $MY_DESKTOP_NAME" \
 	     --input-ipc-server="$temp_sock" \
@@ -586,6 +606,7 @@ play_encoded_file() {
 	     --mute=no \
 	     --sub-visibility=yes \
 	     --osd-msg1="Encoded file" \
+	     --screenshot-directory="${screenshot_directory:-$working_directory}" \
 	     "${screenshot_directory:-$working_directory}/$last_file"
 	rm -f "$temp_sock"
 	return 0
@@ -596,7 +617,15 @@ play_encoded_file() {
 read_rcfile  "$rcfile_minver"
 post_read_rcfile
 REQUIRED_UTILS+=(
-	$dialog  # To show a confirmation window that also sets max. file size.
+	#  Preset and socket pickers, also dialogues setting max. file size.
+	$(
+		if [ "$dialog" = gtk ]; then
+			echo python3
+			echo xml      # xmlstarlet package to alter XML in the GUI file.
+		else
+			echo $dialog
+		fi
+	)
 	find     # To find and delete possible leftover data files.
 	lsof     # To check, that there is an mpv process listening to socket.
 	jq       # To parse JSON from mpv.
@@ -605,6 +634,8 @@ REQUIRED_UTILS+=(
 	socat
 )
 check_required_utils
+dialogue_module="$MODULESDIR"/nadeshiko-mpv_dialogues_$dialog.sh
+. "$dialogue_module" || err "Couldn’t source dialogue module for $dialog."
 
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && show_help && exit 0
 [[ "${1:-}" =~ ^(-v|--version)$ ]] && show_version && exit 0
@@ -621,20 +652,20 @@ check_required_utils
 #
 # retrieve_properties
 
- # Check connection and get us filename to serve as an ID for the playing file,
-#    as for getting path we’d need working-directory. Not taking path for ID
-#    to not do the job twice.
-#  filename= is to be sourced well, otherwise we would have to eval.
-#
-get_props mpv-version filename || exit $?
-
 data_file=$(grep -rlF "filename=$(printf '%q' "$filename")" |& head -n1)
 if [ -e "$data_file" ]; then
 	# Read properties.
 	. "$data_file"
 else
+	 # Check connection and get us filename to serve as an ID for the playing
+	#    file, as for getting path we’d need working-directory. Not taking
+	#    path for ID to not do the job twice.
+	#
+	get_props mpv-version filename
 	data_file=$(mktemp --tmpdir='.'  mpvfile.XXXX)
-	printf "filename=%q\n" "$filename" > "$data_file"
+	# printf "filename=%q\n" "$filename" > "$data_file"
+	write_var_to_datafile filename "$filename"
+	write_var_to_datafile mpv_socket "$mpv_socket"
 fi
 
 #  If this is the first run, set time1 and quit.

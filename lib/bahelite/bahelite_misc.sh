@@ -9,12 +9,12 @@
 	echo 'Must be sourced from bahelite.sh.' >&2
 	return 5
 }
+. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MISC_VER='1.6.1'
-
+BAHELITE_MODULE_MISC_VER='1.7'
 
 #  It is *highly* recommended to use “set -eE” in whatever script
 #  you’re going to source it from.
@@ -248,6 +248,27 @@ remove_windows_unfriendly_chars() {
 	str=${str//\?/}
 	str=${str//\*/}
 	echo "$str"
+	return 0
+}
+
+
+ # Allows only one instance of the main script to run.
+#
+single_process_check() {
+	local our_processes        total_processes \
+	      our_processes_count  total_processes_count
+	our_processes=$(pgrep -u $USER -afx "bash $MYNAME_AS_IN_DOLLARZERO" -s 0)
+	total_processes=$(pgrep -u $USER -afx "bash $MYNAME_AS_IN_DOLLARZERO")
+	our_processes_count=$(echo "$our_processes" | wc -l)
+	total_processes_count=$(echo "$total_processes" | wc -l)
+	(( our_processes_count < total_processes_count )) && {
+		warn "Processes: our: $our_processes_count, total: $total_processes_count.
+		Our processes are:
+		$our_processes
+		Our and foreign processes are:
+		$total_processes"
+		err 'Still running.'
+	}
 	return 0
 }
 

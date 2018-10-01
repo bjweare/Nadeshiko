@@ -255,22 +255,15 @@ check_socket() {
 			done
 			dialog_window_height=$((  170+27*(${#sockets_that_work[@]}-2)  ))
 			show_dialogue_choose_mpv_socket_$dialog
+			#  mpv_socket is now an array index (integer),
+			#  we use it for sockets_that_work, that has names like “Usual”.
 			mpv_socket=${sockets_that_work[mpv_socket]}
+			#  Now we dereferense that human name into file name by the
+			#  list specified in rc.sh.
 			mpv_socket=${mpv_sockets[$mpv_socket]}
 			;;
 	esac
 	return 0
-}
-
-
- # Returns PID of the mpv, that listens on $mpv_socket.
-#
-get_main_playback_mpv_pid() {
-	local pid
-	[ -S "$mpv_socket" ] || err "Not a socket file: “$mpv_socket”."
-	pid=$(lsof -t -c mpv -a -f -- "$mpv_socket") ||:  # mpv may be closed.
-	[[ "$pid" =~ ^[0-9]+$ ]] && echo "$pid" && return 0
-	err "Couldn’t determine mpv PID."
 }
 
 
@@ -363,17 +356,23 @@ get_prop() {
 	local propname="$1" mpv_answer propdata
 	check_socket
 	check_prop_name "$propname"
-	#  get_property_string gives more predictable and universal results
-	#  than get_property. The downside is that checking error field in the
-	#  mpv reponse becomes futile: it will always return “success” even for
-	#  unexisting variables. “null” for data isn’t a sign of an error, the
-	#  variable might just be not set neither in config, nor in command line.
+	 # "get_property" vs "get_property_string"
+	#    The latter gives more predictable and universal results. The downside
+	#    is that checking the error field in the mpv reponse becomes futile:
+	#    it will always return “success” even for unexisting variables.
+	#    “null” for data isn’t a sign of an error, the variable might just be
+	#    not set neither in config, nor in command line.
+	#  exit $? here is important, because without it in case of “connection
+	#    refused” error there would be two error messages: one for the error
+	#    triggered within send_command() – the actual error. And the bash
+	#    error on the line below: since send_command() runs in a subshell,
+	#    err function couldn’t really exit.
 	propdata=$(send_command 'get_property_string' "$propname") || exit $?
 	[ "$propdata" = null ] && propdata=''
 	#  https://github.com/deterenkelt/Nadeshiko/issues/1
 	[ "$propname" = 'screenshot-directory'  -a  "$propdata" = '~~desktop/' ] \
 		&& propdata=''
-	internal_set_prop "$propname" "$propdata" || exit $?
+	internal_set_prop "$propname" "$propdata"
 	return 0
 }
 

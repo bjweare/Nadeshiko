@@ -47,7 +47,8 @@ print_encoding_info() {
 #
 assemble_vf_string() {
 	declare -g vf_string
-	local  filter_list  overlay_subs_w  overlay_subs_h  xcorr=0  ycorr=0
+	local  filter_list  overlay_subs_w  overlay_subs_h  xcorr=0  ycorr=0  \
+	       font_list  forced_style  key
 	[ -v scale ] || [ -v subs ] || [ -v crop ] && {
 		[ -v subs ] && {
 			#  Let’s hope that the source is an mkv and the subs are ass.
@@ -84,7 +85,27 @@ assemble_vf_string() {
 				[ -r "$TMPDIR/subs.ass" ] && {
 					filter_list="${filter_list:+$filter_list,}"
 					filter_list+="setpts=PTS+$(( ${start[total_ms]}/1000 )).${start[ms]}/TB,"
-					filter_list+="subtitles=$TMPDIR/subs.ass:fontsdir=$TMPDIR/fonts,"
+					filter_list+="subtitles=$TMPDIR/subs.ass"
+					font_list="$(
+						find "$TMPDIR/fonts" \( -iname "*.otf" -o -iname "*.ttf" \)
+					)"
+					if [ "$font_list" ]; then
+						filter_list+=":fontsdir=$TMPDIR/fonts"
+					else
+						[ ${#ffmpeg_subtitle_fallback_style[*]} -gt 0 ] && {
+							for key in ${!ffmpeg_subtitle_fallback_style[@]}; do
+								forced_style="${forced_style:+$forced_style,}"
+								forced_style+="$key="
+								forced_style+="${ffmpeg_subtitle_fallback_style[$key]}"
+							done
+							filter_list+=":force_style='$forced_style'"
+						}
+					fi
+					#  There may be three variants:
+					#  - subtitles=$TMPDIR/subs.ass:fontsdir=…,
+					#  - subtitles=$TMPDIR/subs.ass:force_style=…,
+					#  - or just subtitles=$TMPDIR/subs.ass,
+					filter_list+=','
 					filter_list+='setpts=PTS-STARTPTS'
 				} || err "Subtitles are not present in $TMPDIR/subs.ass."
 			fi
@@ -99,7 +120,7 @@ assemble_vf_string() {
 		}
 	}
 	#  Assemble $vf_string only if $filter_list is not empty.
-	[ "${filter_list:-}" ] && vf_string="-filter_complex $filter_list"
+	[ "${filter_list:-}" ] && vf_string=(-filter_complex "$filter_list")
 	return 0
 }
 
@@ -170,8 +191,11 @@ encode() {
 	[ -v audio ] \
 		&& audio_opts="-c:a $ffmpeg_acodec  -b:a $abitrate  -ac 2" \
 		|| audio_opts="-an"
-	[ "$(type -t encode-$ffmpeg_vcodec)" = 'function' ] \
-		&& encode-$ffmpeg_vcodec
+	if [ "$(type -t encode-$ffmpeg_vcodec)" = 'function' ]; then
+		encode-$ffmpeg_vcodec
+	else
+		err "Cannot find encoding function “encode-$ffmpeg_vcodec”."
+	fi
 	rm -f ffmpeg2pass-0.log ffmpeg2pass-0.log.mbtree
 	mildec
 	return 0

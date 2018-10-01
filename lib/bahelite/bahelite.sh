@@ -217,10 +217,13 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.7"
+BAHELITE_VERSION="2.7.1"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
+	#  Sourced scripts cannot operate on the main script’s $0,
+	#  as it is changed for them to “bash”.
+	MYNAME_AS_IN_DOLLARZERO="$0"
 	MYPATH=$(realpath "$0")
 	MYDIR=${MYPATH%/*}
 	#  Used for desktop notification in bahelite_messages

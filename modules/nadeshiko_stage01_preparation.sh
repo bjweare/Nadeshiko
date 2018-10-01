@@ -36,8 +36,9 @@ post_read_rcfile() {
 		|| declare -g NO_DESKTOP_NOTIFICATIONS=t
 
 	#  Processing the rest of the variables
-	[[ "$max_size_default" =~ ^[0-9] ]] \
-		|| declare -gn max_size_default=max_size_${max_size_default}
+	[[ "$max_size_default" =~ ^(tiny|small|normal|unlimited)$ ]] \
+		&& declare -gn max_size_default=max_size_${max_size_default} \
+		|| err 'Invalid value for max_size_default.'
 	for pct_varname in $(compgen -A variable | grep '_pct$'); do
 		declare -n pct_var=$pct_varname
 		pct_var=${pct_var%\%}

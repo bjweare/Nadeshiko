@@ -27,7 +27,7 @@ encode-libx264() {
 		        "${ffmpeg_color_primaries[@]}" \
 		        "${ffmpeg_color_trc[@]}" \
 		        "${ffmpeg_colorspace[@]}" \
-		        ${vf_string:-} \
+		        "${vf_string[@]}" \
 		        $map_string \
 		        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
 		            -g $libx264_keyint \

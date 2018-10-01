@@ -100,7 +100,7 @@ encode-libvpx-vp9() {
 		        "${ffmpeg_color_primaries[@]}" \
 		        "${ffmpeg_color_trc[@]}" \
 		        "${ffmpeg_colorspace[@]}" \
-		        ${vf_string:-} \
+		        "${vf_string[@]}" \
 		        $map_string \
 		        ${libvpx_max_q:+-qmax $libvpx_max_q} \
 		        ${libvpx_min_q:+-qmin $libvpx_min_q} \

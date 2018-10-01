@@ -1,4 +1,4 @@
-# nadeshiko-mpv.rc.sh v2.1
+# nadeshiko-mpv.rc.sh v2.2
 
 
  # The command to launch mpv.
@@ -6,10 +6,10 @@
 mpv="mpv"
 
  # Dialog program to use
-#  Either “Xdialog” or “kdialog”.
+#  One of: “gtk”, “Xdialog”, “kdialog”.
 #  Default value: Xdialog
 #
-dialog='Xdialog'
+dialog='gtk'
 
  # Hide the dialogue asking for a custom video name.
 #  Only for dialog=kdialog. Because kdialog cannot ask subtly,

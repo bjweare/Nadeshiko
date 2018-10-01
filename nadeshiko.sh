@@ -37,7 +37,7 @@ set -f
 set_exampleconfdir
 prepare_confdir
 
-declare -r version='2.1.3'
+declare -r version='2.2'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES.md"
 declare -r rcfile_minver='2.0.1'
@@ -59,6 +59,7 @@ declare -A bitres_profile_360p \
            bitres_profile_1080p \
            bitres_profile_1440p \
            bitres_profile_2160p
+declare -A ffmpeg_subtitle_fallback_style
 RCFILE_BOOLEAN_VARS+=(
 	desktop_notifications
 	check_for_updates
