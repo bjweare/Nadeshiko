@@ -76,6 +76,35 @@ insert_one_xml_into_another() {
 }
 
 
+add_obj_property_to_xml() {
+	local varname="$1"  xpath="$2"  attr="$3"  value="$4"  xmlbuf
+	declare -g "$varname"
+	declare -gn varval="$varname"
+	xmlbuf="$varval"
+	varval=$(
+		xml ed -s "$xpath" -t elem -n 'property' -v '~'  <<<"$xmlbuf"  \
+			| xml ed -i "$xpath/property[text()='~']" -t attr -n 'name'  \
+			                                                  -v "$attr"  \
+			| xml ed -u "$xpath/property[@name='$attr']"  -v "$value"
+	)
+	return 0
+}
+
+
+force_enable_cb_postpone() {
+	local xpath="//object[@id='cb_postpone']"
+	add_obj_property_to_xml  entire_xml  \
+	                         "$xpath"  \
+	                         'active'  \
+	                         'True'
+	add_obj_property_to_xml  entire_xml  \
+	                         "$xpath"  \
+	                         'sensitive'  \
+	                         'False'
+	return 0
+}
+
+
 update_path_to_glade_file_in_py_file() {
 	sed -ri "s~(\s*builder\.add_from_file\(').*('\)\s*)~\1$glade_file\2~"  \
 	        "$py_file"
@@ -121,6 +150,7 @@ prepare_dotglade_and_dotpy() {
 	entire_xml=$( <"$glade_file" )
 
 	[ "$rb_type" = size ] && {
+		[ -v postpone ] && force_enable_cb_postpone
 		#  Magic is not needed, quickly replace some data and return.
 		for ((i=0; i<4; i++)); do
 			edit_attr_in_xml 'entire_xml' \

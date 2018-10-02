@@ -1,3 +1,13 @@
+——— v 2.2.3 ——————————————————————————————————————————————————————————————————
+
+Nadeshiko-mpv-2.2.2
+
+1. Fixed crash, that happened without postpone.
+
+2. With “postpone” passed via command line gtk GUI will have it force-enabled.
+
+
+
 ——— v 2.2.2 ——————————————————————————————————————————————————————————————————
 
 

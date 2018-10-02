@@ -16,7 +16,7 @@ set_modulesdir 'nadeshiko'
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.2.1"
+declare -r version="2.2.2"
 declare -r rcfile_minver='2.0'
 RCFILE_BOOLEAN_VARS=(
 	show_preview

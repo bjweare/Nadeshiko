@@ -256,14 +256,13 @@ remove_windows_unfriendly_chars() {
 #
 single_process_check() {
 	local our_processes        total_processes \
-	      our_processes_count  total_processes_count
-	our_processes=$(
-		pgrep -u $USER -afx "bash $MYNAME_AS_IN_DOLLARZERO ${ARGS[@]}" \
-		      --session 0  --pgroup 0
-	)
-	total_processes=$(
-		pgrep -u $USER -afx "bash $MYNAME_AS_IN_DOLLARZERO ${ARGS[@]}"
-	)
+	      our_processes_count  total_processes_count  our_command
+
+	[ ${#ARGS[*]} -eq 0 ]  \
+		&& our_command="bash $MYNAME_AS_IN_DOLLARZERO"  \
+		|| our_command="bash $MYNAME_AS_IN_DOLLARZERO ${ARGS[@]}"
+	our_processes=$(pgrep -u $USER -afx "$our_command" --session 0 --pgroup 0)
+	total_processes=$(pgrep -u $USER -afx "$our_command")
 	our_processes_count=$(echo "$our_processes" | wc -l)
 	total_processes_count=$(echo "$total_processes" | wc -l)
 	(( our_processes_count < total_processes_count )) && {
