@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MISC_VER='1.7'
+BAHELITE_MODULE_MISC_VER='1.7.1'
 
 #  It is *highly* recommended to use “set -eE” in whatever script
 #  you’re going to source it from.
@@ -257,8 +257,13 @@ remove_windows_unfriendly_chars() {
 single_process_check() {
 	local our_processes        total_processes \
 	      our_processes_count  total_processes_count
-	our_processes=$(pgrep -u $USER -afx "bash $MYNAME_AS_IN_DOLLARZERO" -s 0)
-	total_processes=$(pgrep -u $USER -afx "bash $MYNAME_AS_IN_DOLLARZERO")
+	our_processes=$(
+		pgrep -u $USER -afx "bash $MYNAME_AS_IN_DOLLARZERO ${ARGS[@]}" \
+		      --session 0  --pgroup 0
+	)
+	total_processes=$(
+		pgrep -u $USER -afx "bash $MYNAME_AS_IN_DOLLARZERO ${ARGS[@]}"
+	)
 	our_processes_count=$(echo "$our_processes" | wc -l)
 	total_processes_count=$(echo "$total_processes" | wc -l)
 	(( our_processes_count < total_processes_count )) && {

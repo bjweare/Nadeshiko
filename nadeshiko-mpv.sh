@@ -16,7 +16,7 @@ set_modulesdir 'nadeshiko'
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.2"
+declare -r version="2.2.1"
 declare -r rcfile_minver='2.0'
 RCFILE_BOOLEAN_VARS=(
 	show_preview
@@ -621,7 +621,7 @@ REQUIRED_UTILS+=(
 	$(
 		if [ "$dialog" = gtk ]; then
 			echo python3
-			echo xml      # xmlstarlet package to alter XML in the GUI file.
+			echo xmlstarlet  # to alter XML in the GUI file.
 		else
 			echo $dialog
 		fi
@@ -652,6 +652,7 @@ dialogue_module="$MODULESDIR"/nadeshiko-mpv_dialogues_$dialog.sh
 #
 # retrieve_properties
 
+get_props mpv-version filename
 data_file=$(grep -rlF "filename=$(printf '%q' "$filename")" |& head -n1)
 if [ -e "$data_file" ]; then
 	# Read properties.
@@ -661,7 +662,6 @@ else
 	#    file, as for getting path we’d need working-directory. Not taking
 	#    path for ID to not do the job twice.
 	#
-	get_props mpv-version filename
 	data_file=$(mktemp --tmpdir='.'  mpvfile.XXXX)
 	# printf "filename=%q\n" "$filename" > "$data_file"
 	write_var_to_datafile filename "$filename"

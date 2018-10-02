@@ -1,4 +1,25 @@
-——— v 2.2.1 ————————————————————————————————————————————————————————————————————
+——— v 2.2.2 ——————————————————————————————————————————————————————————————————
+
+
+Nadeshiko-2.2.2
+
+1. Fixed release notes link.
+
+
+Nadeshiko-mpv-2.2.1
+
+2. Fixed bug with “postpone” parameter leading to a crash.
+
+3. Fixed potential issue with playing filename not being written to mpv
+   data file.
+
+4. Replaced xmlstarlet dependency for binary name (xml → xmlstarlet),
+   as apparently, xml symlink is not present everywhere.
+
+
+
+
+——— v 2.2.1 ——————————————————————————————————————————————————————————————————
 
 Nadeshiko-2.2.1
 

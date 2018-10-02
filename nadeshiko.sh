@@ -26,7 +26,7 @@ set -f
 set_libdir
 #  For parsing ffprobe and mediainfo output into usable format.
 . "$LIBDIR/gather_file_info.sh"
-#  For manipulating the forms of a timestamp.
+#  For manipulating timestamp forms.
 . "$LIBDIR/time_functions.sh"
 set_modulesdir
 set +f
@@ -37,9 +37,9 @@ set -f
 set_exampleconfdir
 prepare_confdir
 
-declare -r version='2.2'
+declare -r version='2.2.2'
 info "Nadeshiko v$version" >>"$LOG"
-declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES.md"
+declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.0.1'
 #  [0]=ffmpeg own full version (not compared, because it may be a commit hash)
 #  [1]=libavutil version
@@ -90,7 +90,7 @@ show_help() {
 	                             5       =  5 s
 	                      Padding zeroes aren’t required.
 
-	            (no)sub – enable/disable burning subtitles into video,
+	           (no)subs – enable/disable burning subtitles into video,
 	                      also called hardsubbing. The default is to burn.
 	          (no)audio – use/throw away audio track.
 	                      The default is to add.

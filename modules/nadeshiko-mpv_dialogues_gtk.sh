@@ -16,6 +16,7 @@ cp "$py_file" "$TMPDIR"
 glade_file="$TMPDIR/${glade_file##*/}"
 py_file="$TMPDIR/${py_file##*/}"
 
+xml=$(which xmlstarlet)
 
 get_copy_of_radiobutton_xml() {
 	declare -g xml_copy
@@ -23,7 +24,7 @@ get_copy_of_radiobutton_xml() {
 	xml_copy=$(
 		#  We must operate on the entire <child>
 		#  in order to be able to duplicate elements.
-		xml sel -t -c "//child[child::object[@id='$rb']]" "$glade_file"
+		$xml sel -t -c "//child[child::object[@id='$rb']]" "$glade_file"
 	)
 	return 0
 }
@@ -34,7 +35,7 @@ edit_attr_in_xml() {
 	declare -g "$varname"
 	declare -gn varval="$varname"
 	xmlbuf="$varval"
-	varval=$( xml ed -O  -u "$xpath"  -v "$value"  <<<"$xmlbuf" )
+	varval=$( $xml ed -O  -u "$xpath"  -v "$value"  <<<"$xmlbuf" )
 	return 0
 }
 
@@ -44,7 +45,7 @@ delete_entity_in_xml() {
 	declare -g "$varname"
 	declare -gn varval="$varname"
 	xmlbuf="$varval"
-	varval=$( xml ed -O  -d "$xpath"  <<<"$xmlbuf" )
+	varval=$( $xml ed -O  -d "$xpath"  <<<"$xmlbuf" )
 	return 0
 }
 
@@ -54,7 +55,7 @@ put_mark_in_xml() {
 	declare -g "$varname"
 	declare -gn varval="$varname"
 	xmlbuf="$varval"
-	varval=$( xml ed -O  -s "$xpath"  -t elem  -n "puthere"  <<<"$xmlbuf" )
+	varval=$( $xml ed -O  -s "$xpath"  -t elem  -n "puthere"  <<<"$xmlbuf" )
 	return 0
 }
 
