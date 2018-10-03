@@ -20,7 +20,6 @@ parse_args() {
 	            kilo  scale  crop  video  where_to_place_new_file  \
 	            new_filename_user_prefix  max_size  vbitrate  abitrate
 	local args=("$@") arg pid
-	declare -p args &>$LOG
 	for arg in "${args[@]}"; do
 		if [[ "$arg" = @(-h|--help) ]]; then
 			show_help
