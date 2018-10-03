@@ -15,8 +15,8 @@ set_libdir 'nadeshiko'
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r rcfile_minver='2.0'
-declare -r version="2.1"
+declare -r version="2.2"
+declare -r rcfile_minver='2.2'
 declare -r failures_logdir="$LOGDIR/postponed_failures"
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -52,6 +52,7 @@ pgrep -u $USER -af "bash.*nadeshiko-mpv.sh" &>/dev/null  \
 #    was Time2 or the line with source video.
 #  Avoiding this bug by assembling all commands first and running them later.
 process_file() {
+	decalre -g failed_jobs_count
 	local i=0  comcom_0=()  ref  com  last_log
 	while IFS= read -r -d $'\n'; do
 		if [ "$REPLY" ]; then
@@ -73,6 +74,7 @@ process_file() {
 			else
 				warn "Cannot get last log."
 			fi
+			let ++failed_jobs_count
 		}
 	done
 
@@ -84,6 +86,7 @@ process_file() {
  # Process $postponed_commands_dir (new format)
 #
 process_dir() {
+	declare -g failed_jobs_count
 	local last_log
 	while IFS= read -r -d ''; do
 		${nice_cmd:-} ${taskset_cmd:-} "$REPLY" || {
@@ -93,6 +96,7 @@ process_dir() {
 			else
 				warn "Cannot get last log."
 			fi
+			let ++failed_jobs_count
 		}
 		rm "$REPLY"
 	done < <( find "$postponed_commands_dir" -type f -print0 )
@@ -100,10 +104,69 @@ process_dir() {
 }
 
 
-#  Finishing tasks from the single file, which is deprecated.
-[ -f "$postponed_commands" ] && process_file
-#  Doing tasks from the directory, the new way.
-[ -d "$postponed_commands_dir" ] && process_dir
+run_jobs() {}
+	#  Finishing tasks from the single file, which is deprecated.
+	[ -f "$postponed_commands" ] && process_file
+	#  Doing tasks from the directory, the new way.
+	[ -d "$postponed_commands_dir" ] && process_dir
+	return 0
+}
+
+
+ # Return true, if there are jobs, return false, if there are no jobs to do.
+#
+if_there_are_jobs() {
+	decalre -g file_jobs_count=0  dir_jobs_count=0  total_jobs=0
+	local jobs_in_file=t  jobs_in_dir=t  dir_jobfiles
+	if [ -f "$postponed_commands" ]; then
+		if [ "$(<"$postponed_commands")" ]; then
+			#  count jobs
+			file_jobs_count=$(grep -cF 'nadeshiko.sh' "$postponed_commands") ||:
+			[[ "$file_jobs_count" =~ ^[0-9]+$ ]] \
+				|| err 'Couldn’t get the count of jobs in the file.'
+		else
+			unset jobs_in_file
+		fi
+	else
+		unset jobs_in_file
+	fi
+
+	if [ -d "$postponed_commands_dir" ]; then
+		dir_jobfiles="$(find "$postponed_commands_dir" -type f -print0)"
+		if [ "$dir_jobfiles" ]; then
+			while IFS='' read -r -d ''; do
+				let ++dir_jobs_count
+			done < <( echo -e "$dir_jobfiles\0" )
+		else
+			unset jobs_in_dir
+		fi
+	else
+		unset jobs_in_dir
+	fi
+
+	((total_jobs > 0))
+	return $?
+}
+
+
+
+failed_jobs_count=0
+
+if [ -v DISPLAY ]; then
+	if if_there_are_jobs; then
+		show_dialogue_confirm_running_jobs
+		if [ -v confirmed_running_jobs ]; then
+			run_jobs
+			show_dialogue_jobs_result
+		else
+			abort 'Cancelled.'
+		fi
+	else
+		show_dialogue_no_jobs
+	fi
+else
+	run_jobs
+fi
 
 
 exit 0

@@ -125,15 +125,10 @@ prepare_dotglade_and_dotpy() {
 
 	 # dialog_items_list is an array, where every three elements represent
 	#  a radiobox list item:
-	#    - string for the output
-	#    - string to display in the dialog
-	#    - “on” or “off” to indicate which rb is active
+	#    - string to return in stdout, if this elements is chosen;
+	#    - string to display in radiobox label;
+	#    - “on” or “off” to indicate which rb is active.
 	items_count=$(( ${#items_data[@]} /3 ))
-	#  Each rb list already has a group of rb buttons, so we drop every third
-	#  item for convenience.
-	# for ((i=1; i<${#dialog_items_list[@]}+1; i++)); do
-	# 	[ $((i % 3)) -eq 0 ] || items_data+=( "${dialog_items_list[i-1]}" )
-	# done
 
 	case "${FUNCNAME[1]}" in
 		*choose_mpv_socket*)
@@ -150,8 +145,8 @@ prepare_dotglade_and_dotpy() {
 	entire_xml=$( <"$glade_file" )
 
 	[ "$rb_type" = size ] && {
-		[ -v postpone ] && force_enable_cb_postpone
 		#  Magic is not needed, quickly replace some data and return.
+		[ -v postpone ] && force_enable_cb_postpone
 		for ((i=0; i<4; i++)); do
 			edit_attr_in_xml 'entire_xml' \
 			                 "//object[@id='rb_${rb_type}$((i+1))']/property[@name='name']" \
@@ -161,8 +156,8 @@ prepare_dotglade_and_dotpy() {
 			                 "${items_data[3*i+1]}"
 			if [ "${items_data[3*i+2]}" = on ]; then
 				edit_attr_in_xml 'entire_xml' \
-			                 "//object[@id='rb_${rb_type}$((i+1))']/property[@name='active']" \
-			                 'True'
+			                     "//object[@id='rb_${rb_type}$((i+1))']/property[@name='active']" \
+			                     'True'
 			else
 				delete_entity_in_xml 'entire_xml' \
 			                         "//object[@id='rb_${rb_type}$((i+1))']/property[@name='active']"
