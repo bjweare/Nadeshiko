@@ -1,3 +1,14 @@
+——— v 2.2.4 ——————————————————————————————————————————————————————————————————
+
+Nadeshiko-2.2.4
+
+1. Added -nostdin to default ffmpeg options. Update your configs!
+
+2. determine_scene_complexity now uses common ffmpeg option set.
+
+
+
+
 ——— v 2.2.3 ——————————————————————————————————————————————————————————————————
 
 Nadeshiko-mpv-2.2.2

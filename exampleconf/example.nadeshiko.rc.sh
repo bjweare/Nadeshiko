@@ -1,9 +1,7 @@
-#  nadeshiko.rc.sh v2.2
+#  nadeshiko.rc.sh v2.2.4
 
 
-                             #  Syntax  #
-
- # RC file uses bash syntax:
+#  RC file uses bash syntax:
 #    key=value
 #  Quotes can be omitted, unless the string has spaces.
 #  The equals sign should stick to both key and value. No spaces around “=”.
@@ -96,8 +94,8 @@ create_windows_friendly_filenames=no
                          #  FFmpeg options  #
 
  # FFmpeg binary
-#  Default value: 'ffmpeg -v error'
-ffmpeg='ffmpeg -v error'
+#  Default value: 'ffmpeg -v error -nostdin'
+ffmpeg='ffmpeg -v error -nostdin'
 #
 #  Chroma subsampling
 #  Not all browsers support yuv422 or yuv444p yet.
