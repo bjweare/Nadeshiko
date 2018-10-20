@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_RCFILE_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_RCFILE_VER='1.4.2'
+BAHELITE_MODULE_RCFILE_VER='1.4.3'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -113,7 +113,7 @@ set_rcfile_from_args() {
 
 	local  temp_args=( "$@" )  i  args_to_unset=()  \
 	       arg  next_arg  \
-	       number_of_deleted_args=0  fname_pattern='[A-Za-z0-9_-]+\.rc\.sh'
+	       number_of_deleted_args=0  fname_pattern='[A-Za-z0-9_-\.\,\:\;]+\.rc\.sh'
 
 	for ((i=0; i<${#temp_args[*]}; i++)); do
 		unset -n  arg  next_arg  ||:

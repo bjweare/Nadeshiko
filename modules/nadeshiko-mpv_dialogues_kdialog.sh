@@ -30,10 +30,10 @@ show_dialogue_choose_mpv_socket_kdialog() {
 
 
 show_dialogue_choose_config_file_kdialog() {
-	declare -g nadeshiko_config
+	declare -g nadeshiko_preset
 	local  window_height="$1"  dialog_retval
 	errexit_off
-	nadeshiko_config=$(
+	nadeshiko_preset=$(
 		dialog --radiolist "Choose a Nadeshiko configuration file:"  \
 	           --geometry 324x$window_height  \
 	           "${dialog_configs_list[@]}"  \

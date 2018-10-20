@@ -19,7 +19,10 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_ERROR_HANDLING_VER='1.4'
+BAHELITE_MODULE_ERROR_HANDLING_VER='1.4.3'
+REQUIRED_UTILS+=(
+	mountpoint  # Prevent clearing TMPDIR, if it’s a mountpoint.
+)
 
  # Stores values, that environment variable $LINENO takes, in an array.
 #
@@ -165,7 +168,8 @@ trapondebug() {
 #  Error catching stuff should be put into a separate function.
 #
 bahelite_on_exit() {
-	local command="$1" retval="$2" stored_lnos="$3"
+	local command="$1"  retval="$2"  stored_lnos="$3"
+	#
 	#  Catching internal bash errors, like “unbound variable”
 	#    when using nounset option (set -u). These errors
 	#    do not trigger SIGERR, so they must be caught on exit.
@@ -173,22 +177,60 @@ bahelite_on_exit() {
 	#    won’t even see an error without this.
 	#  “exit” is te only command that allowed to quit with non-zero safely.
 	#    It implies, that the error was handled.
-	[ $retval -ne 0  -a  ! -v BAHELITE_ERROR_PROCESSED ] \
-		&&  ! [[ "$command" =~ ^exit ]] \
-		&& bahelite_show_error "$command" "$retval" \
-		                       "from_on_exit" "${stored_lnos##* }"
+	#
+	[ $retval -ne 0 ] && {
+		if ((retval > 2)) && [[ "$command" =~ ^exit[[:space:]] ]]; then
+			#
+			#  If it was exit that the author of the main script caught
+			#    with err() or errw(), run their on_error.
+			#  There are cases, when one has to catch a bad exit code
+			#    from a subshell, like with $(…) || exit $?
+			#    But “exit” directive is tricky here: one uses “exit” in two
+			#    cases: when exit status is clean, i.e. equals 0, and when
+			#    an error is already shown, e.g. with err() from inside the
+			#    subshell code – it has shown an error, it just couldn’t stop
+			#    the main script – so we run exit afterwards. But the subshell
+			#    code may still catch a bash error. Since it would be unexpec-
+			#    ted, no err() is placed. And exit shows no error message.
+			#    A nasty “silent failure” occurs.
+			#  To prevent that, the condition above does a check on the actual
+			#    number in the return code – if it’s 1 or 2, that would be
+			#    most likely an uncaught bash error. And they will go by the
+			#    “else” clause here, to bahelite_show_error().
+			#
+			if	[ -v BAHELITE_EXIT_FROM_ERR_FUNC ] \
+				|| (( retval == 6  ||  $retval == 8 ))  # “from subshell”
+			then
+				[ "$(type -t on_error)" = 'function' ] && on_error
+			fi
+		else
+			[ ! -v BAHELITE_ERROR_PROCESSED ]  \
+				&& bahelite_show_error "$command"  \
+				                       "$retval"  \
+				                       "from_on_exit"  \
+				                       "${stored_lnos##* }"
+			#  ^ user’s on_error() will be launched from within
+			#    bahelite_show_error()
+		fi
+	}
 	#  Run user’s on_exit().
 	[ "$(type -t on_exit)" = 'function' ] && on_exit
-	[ -d "$TMPDIR"  -a  ! -v BAHELITE_DONT_CLEAR_TMPDIR ] && rm -rf "$TMPDIR"
+	#  Stop the logging tee nicely
 	[ -v BAHELITE_LOGGING_STARTED ] && {
-		#  Stop the logging tee nicely
-		#    Without this the script would seemingly quit, but the bash
+		#  Without this the script would seemingly quit, but the bash
 		#    process will keep hanging to support the logging tee.
 		#  Searching with a log name is important to not accidentally kill
 		#    the mother script’s tee, in case one script calls another,
 		#    and both of them use Bahelite.
 		pkill -PIPE  --session 0  -f "tee -a $LOG"
+		# pkill -HUP  --session 0  -f "tee -a $LOG"
 	}
+	if	[ -d "$TMPDIR" ] && ! mountpoint --quiet "$TMPDIR" \
+		&& [ ! -v BAHELITE_DONT_CLEAR_TMPDIR ]
+	then
+		#  Remove TMPDIR only after logging is done.
+		rm -rf "$TMPDIR"
+	fi
 	#  Not actually necessary as it’s a trap on exit,
 	#  the return code is frozen.
 	return 0

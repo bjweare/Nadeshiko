@@ -1,9 +1,12 @@
 #! /usr/bin/env bash
 
+set -feEuT
+
 MYDIR="/home/dtr/repos/Nadeshiko/"
 TMPDIR=/tmp/tr
 [ -d "$TMPDIR" ] || mkdir "$TMPDIR"
 rm -rf "$TMPDIR"/*
+. ../lib/xml_and_python_functions.sh
 . ../modules/nadeshiko-mpv_dialogues_gtk.sh
 
 errexit_off() { : dummy; }
@@ -14,8 +17,8 @@ write_var_to_datafile() {
 	declare -gn varval="$varname"
 	varval="$value"
 }
-err() { : dummy; }
-abort() { : dummy; }
+err() { echo "$1"; exit 5; }
+abort() { echo "$1"; exit 7; }
 
 
 dialog_socket_list=(
@@ -25,31 +28,30 @@ dialog_socket_list=(
 	socket4_tag socket4_label off
 )
 
-dialog_configs_list=(
-	config_1_tag   config1.rc.sh    on
-	config_2_tag   config2.rc.sh    off
-	config_3_tag   config3.rc.sh    off
-	config_4_tag   config4.rc.sh    off
-	config_5_tag   config5.rc.sh    off
-	config_6_tag   config6.rc.sh    off
-	config_7_tag   config7.rc.sh    off
-	config_8_tag   config8.rc.sh    off
+arr2=(
+	default_config.rc.sh "default"  "<span weight=\"bold\">Config description</span>"  "Source file desc."
+	unlimited	"unlimited – default"	off		=	'1080p'
+	normal		"20 MiB"				on		v	'720p*'
+	small		"10 MiB"				off		v	'360p'
+	tiny		"2 MiB"					off		x	'Won’t fit'
 )
 
-variants=(
-	normal "20 MiB" off
-	small  "10 MiB" off
-	tiny   "2 MiB" on
-	unlimited "unlimited – default" off
+arr3=(
+	another_config.rc.sh "another" "<span style=\"italic\">Config description</span>"  "Source file desc."
+	gehi		"gehi – default"	off		=	'1080p'
+	awoo		"awoo"				off		v	'720p*'
+	keho		"keho"				off		v	'360p'
+	awawa		"awawa"				on		x	'Won’t fit'
 )
 
-show_dialogue_choose_mpv_socket_gtk
-echo "$mpv_config"
+#show_dialogue_choose_mpv_socket 'dialog_socket_list'
 
-show_dialogue_choose_config_file_gtk
-echo "$nadeshiko_config"
+#show_dialogue_crop_and_predictor 'pick=off' 'has_installer=yes' 'predictor=on'
+#show_dialogue_crop_and_predictor 'pick=on' 'predictor=off'
+#show_dialogue_crop_and_predictor 'pick=on' 'predictor=off' '100' '200' '300' '400'
+#show_dialogue_crop_and_predictor 'pick=off' 'predictor=off' '100' '200' '300' '400'
+#show_dialogue_crop_and_predictor 'pick=on' 'predictor=on' '100' '200' '300'
 
-show_dialogue_pick_size_gtk
-echo "$max_size"
-echo "$fname_pfx"
-echo "$postpone"
+show_dialogue_cropping 'Some text hjkh fsd kjh jkfsdh '
+
+#show_dialogue_choose_preset arr2 arr3

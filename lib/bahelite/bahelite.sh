@@ -28,8 +28,8 @@
  # bash >= 4.3 for declare -n.
 #  bash >= 4.4 for the fixed typeset -p behaviour.
 #
-if  [ ${BASH_VERSINFO[0]:-0} -eq 4  -a  ${BASH_VERSINFO[1]:-0} -le 3 ] \
-	|| [ ${BASH_VERSINFO[0]:-0} -le 3 ]
+if  (( ${BASH_VERSINFO[0]:-0} <= 3 )) \
+	|| (( ${BASH_VERSINFO[0]:-0} == 4 && ${BASH_VERSINFO[1]:-0} <= 3 ))
 then
 	echo -e "Bahelite error: bash v4.4 or higher required." >&2
 	# so it would work for both sourced and executed scripts
@@ -40,12 +40,13 @@ fi
 #  be sourced by an accident, Bahelite checks, that the main script is called
 #  as an executable. Set BAHELITE_LET_MAIN_SCRIPT_BE_SOURCED to skip this.
 #
-[ ! -v BAHELITE_LET_MAIN_SCRIPT_BE_SOURCED ] && {
-	[ "${BASH_SOURCE[-1]}" != "$0" ] && {
-		echo -e "${BASH_SOURCE[-1]} shouldn’t be sourced." >&2
-		return 4
-	}
-}
+if	[ ! -v BAHELITE_LET_MAIN_SCRIPT_BE_SOURCED ] \
+	&& [ "${BASH_SOURCE[-1]}" != "$0" ]
+then
+	echo -e "${BASH_SOURCE[-1]} shouldn’t be sourced." >&2
+	return 4
+fi
+
 
  # Bahelite requires util-linux >= 2.20
 #
@@ -56,7 +57,7 @@ read -d '' major minor  < <(
 )
 [[ "$major" =~ ^[0-9]+$  &&  "$minor" =~ ^[0-9]+$ ]] \
 &&  (
-		[ $major -eq 2  -a  $minor -ge 20 ] || [ $major -gt 2 ]
+		((  ( major == 2  &&  minor >= 20 )  ||  major >= 2  ))
 	) \
 	|| err 'old util-linux'
 unset  major minor
@@ -109,7 +110,7 @@ set() {
 		#  Hopefully, everyone would just use ‘set -x’ or ‘set +x’.
 		command=(builtin set "$@")
 	fi
-	"${command[@]}"  # No “return”, to not confuse people looking at trace.
+	"${command[@]}"  # No “return”, to not confuse people looking at the trace.
 }
 
 
@@ -217,7 +218,7 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.7.1"
+BAHELITE_VERSION="2.7.2"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -250,10 +251,11 @@ TERM_LINES=$(tput lines)
 #
 #  X variables
 [ -v DISPLAY ] && {
-	read WIDTH HEIGHT width_mm < <(
-		xrandr | sed -rn 's/^.* connected.* ([0-9]+)x([0-9]+).* ([0-9]+)mm x [0-9]+mm.*$/\1 \2 \3/p; T; Q1' \
-		&& echo '800 600 211.6'
-	)
+	read WIDTH HEIGHT width_mm \
+		< <(
+			xrandr | sed -rn 's/^.* connected.* ([0-9]+)x([0-9]+).* ([0-9]+)mm x [0-9]+mm.*$/\1 \2 \3/p; T; Q1' \
+				&& echo '800 600 211.6'
+		)
 	DPI=$(echo "scale=2; \
 	            dpi=$WIDTH/$width_mm*25.4; \
 	            scale=0; \
@@ -288,9 +290,9 @@ LOG=/dev/null
  # XDG default directories
 #  For the local subdirectories see bahelite_misc.sh and bahelite_rcfile.sh.
 #
-[ -v XDG_CONFIG_HOME ] || XDG_CONFIG_HOME="$HOME/.config"
-[ -v XDG_CACHE_HOME ] || XDG_CACHE_HOME="$HOME/.cache"
-[ -v XDG_DATA_HOME ] || XDG_DATA_HOME="$HOME/.local/share"
+: ${XDG_CONFIG_HOME:=$HOME/.config}
+: ${XDG_CACHE_HOME:=$HOME/.cache}
+: ${XDG_DATA_HOME:=$HOME/.local/share}
 
 
  # By default Bahelite turns off xtrace for its internal functions.

@@ -18,7 +18,8 @@ parse_args() {
 	            subs_track_id  \
 	            audio  audio_explicitly_requested  audio_track_id  \
 	            kilo  scale  crop  video  where_to_place_new_file  \
-	            new_filename_user_prefix  max_size  vbitrate  abitrate
+	            new_filename_user_prefix  max_size  vbitrate  abitrate \
+	            scene_complexity  dryrun
 	local args=("$@") arg pid
 	for arg in "${args[@]}"; do
 		if [[ "$arg" = @(-h|--help) ]]; then
@@ -124,6 +125,15 @@ parse_args() {
 			#    e.g. to note who does what on the video.
 			#  - test suite uses it to keep the encoded files in order.
 			new_filename_user_prefix="${BASH_REMATCH[1]}"
+
+		#  Internal use.
+		#  Nadeshiko-mpv uses this with dryrun.
+		elif [[ "$arg" =~ ^force_scene_complexity=(static|dynamic)$ ]]; then
+			scene_complexity=${BASH_REMATCH[1]}
+			scene_complexity_forced=t
+
+		elif [ "$arg" = dryrun ]; then
+			dryrun=t
 
 		else
 			err "“$arg”: parameter unrecognised."
@@ -432,6 +442,10 @@ check_subtitles() {
 
 
 prepare_subtitles() {
+	[ -v dryrun ] && {
+		info 'Dry run: skipping subtitle preparation.'
+		return 0
+	}
 	local  mkvmerge_output  id  font_name
 	[ -v subs_need_extraction ] && {
 		info "Extracting subs and fonts."
@@ -614,10 +628,10 @@ set_vars() {
 	if [[ "$orig_video_bitrate" =~ ^[0-9]+$ ]]; then
 		orig_video_bitrate_bits=$((orig_video_bitrate*1000))
 	else
-		# Unlike with the resolution, original bitrate
-		# is of less importance, as the source will most likely
-		# have bigger bit rate, and no bad things will happen
-		# from wasting (limited) space on quality.
+		#  Unlike with the resolution, original bitrate
+		#  is of less importance, as the source will most likely
+		#  have bigger bit rate, and no bad things will happen
+		#  from wasting (limited) space on quality.
 		no_orig_video_bitrate=t
 	fi
 
@@ -696,7 +710,7 @@ set_vars() {
 			for ((i=${#known_res_list[@]}-1; i>0; i--)); do
 				[ $orig_height -gt ${known_res_list[i]} ] && continue || break
 			done
-			[ $i -eq -1 ] && ((i++, 1))
+			[ $i -eq -1 ] && ((i++, 1))  # sic!
 			closest_res=${known_res_list[i]}
 			needs_bitrate_correction_by_origres=t
 		}
@@ -741,10 +755,11 @@ set_vars() {
 	# scale is special, it can be set in RC file.
 	[ -v scale  -a  ! -v rc_default_scale ] && forced_scale=t
 
-	determine_scene_complexity "$video" \
-	                           "${start[ts]}" \
-	                           "${duration[total_s_ms]}" \
-	                           "${duration[total_s]}"
+	[ -v scene_complexity ] \
+		|| determine_scene_complexity "$video" \
+		                              "${start[ts]}" \
+		                              "${duration[total_s_ms]}" \
+		                              "${duration[total_s]}"
 	[ "$scene_complexity" = dynamic ] && bitrates_locked_on_desired=t
 
 	return 0
@@ -808,13 +823,18 @@ display_settings() {
 	[ -v no_orig_video_bitrate ] \
 		&& warn "Bit rate: ${__y}unknown${__s}." \
 		|| info "Bit rate: $orig_video_bitrate kbps."
-	[ -v scene_complexity_assumed ] \
-		&& warn "Scene complexity: assumed to be $scene_complexity." \
-		|| info "Scene complexity: $scene_complexity."
+	if [ -v scene_complexity_assumed ]; then
+		warn "Scene complexity: assumed to be $scene_complexity."
+	else
+		[ -v forced_scene_complexity ] \
+			&& info "Scene complexity: ${__b}$scene_complexity${__s}." \
+			|| info "Scene complexity: $scene_complexity."
+	fi
 	milinc
 	[ "$scene_complexity" = dynamic ] \
 		&& info "Locking video bitrates on desired values."
-	info "SPS ratio: $sps_ratio."
+	#  Not set if scene_complexity is forced.
+	[ -v sps_ratio ] && info "SPS ratio: $sps_ratio."
 	mildec 2
 	[ "$ffmpeg_pix_fmt" != "yuv420p" ] \
 		&& info "Encoding to pixel format “${__b}$ffmpeg_pix_fmt${__s}”."

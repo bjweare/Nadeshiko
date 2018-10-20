@@ -128,8 +128,8 @@ update_version() {
 	return 0
 }
 
- # Returns 0, if the passed string is a valid version number
-#  (X, X.Y or X.Y.Z), or 1 otherwise.
+ # Returns 0, if the passed string is a valid version number,
+#  e.g. “X”, “X.Y” or “X.Y.Z”. Returns 1 otherwise.
 #  $1 – version string
 #
 is_version_valid() {
@@ -139,10 +139,9 @@ is_version_valid() {
 		|| return 1
 }
 
- # Compares two versions
+ # Compares two versions, and returns either the bigger one or “equal”.
 #    $1 – version string.
 #    $2 – version string.
-#  RETURNS the bigger one or “equal” if they’re equal.
 #
 compare_versions() {
 	xtrace_off && trap xtrace_on RETURN

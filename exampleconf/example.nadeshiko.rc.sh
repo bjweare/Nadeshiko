@@ -122,8 +122,9 @@ ffmpeg_pix_fmt='yuv420p'
 #  2) libvpx-vp9 + libopus/libvorbis in webm (Nadeshiko’s default since v1.2)
 #
 #  Video codec
-#  “libx264” – good quality, fast, options are well-known
-#  “libvpx-vp9” – better quality, but slower, options are weird and quirky.
+#  “libx264” – good quality, fast, options are well-known.
+#  “libvpx-vp9” – better picture quality, better efficiency in frames per MiB,
+#                 but slower and its behaviour is less predictable.
 #  Default value: 'libvpx-vp9'
 ffmpeg_vcodec='libvpx-vp9'
 #
@@ -277,8 +278,12 @@ crop_uses_profile_vbitrate=yes
 #    the next will be tried.
 #
 #  The lower border when seeking for the TARGET video bitrate.
-#  Calculated as a percentage of the desired bitrate.
+#  Calculated as a percentage of the desired bitrate. Highly depends
+#    on CPU time, that encoder spends. If you speed up the encoding
+#    by putting laxed values in libx264_preset or libvpx_pass*_cpu_used,
+#    you should rise the percentage here.
 #  Don’t confuse with libvpx_minrate and libvpx_maxrate.
+#  Default value: 60%
 minimal_bitrate_pct=60%
 #
 #  Read on the wiki

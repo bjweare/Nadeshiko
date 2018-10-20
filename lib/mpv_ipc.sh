@@ -100,6 +100,9 @@ declare -r -A properties=(
 	#  If muted
 	[mute]='test_yes_true_on  test_no_false_off'
 
+	#  Sound volume
+	[volume]='test_number false'
+
 	#  Current line in subtitles, that’s being displayed.
 	# [sub-text]=
 
@@ -136,8 +139,14 @@ declare -r -A properties=(
 	#  List of video, audio and subtitle tracks.
 	#  The contents is JSON array with data for each track.
 	[track-list]='test_nonempty_string  false'
-	# Total number of tracks in the list.
+	#  Total number of tracks in the list.
 	[track-list/count]='test_number  false'
+
+	#  Hide cursor over the window
+	[cursor-autohide]='test_yes_true_on  test_no_false_off'
+
+	#  Hide cursor over the window
+	[cursor-autohide-fs-only]='test_yes_true_on  test_no_false_off'
 
 	#  Set an option locally, i.e. for the current file only.
 	# file-local-options/<name>
@@ -151,6 +160,9 @@ test_nonempty_string() {
 }
 test_number() {
 	[[ "$1" =~ ^[0-9]+$ ]]
+}
+test_float() {
+	[[ "$1" =~ ^[0-9]+\.[0-9]+$ ]]
 }
 test_file_exists() {
 	local arg exists
@@ -194,7 +206,7 @@ check_socket() {
 	declare -g mpv_socket
 	local sockets_that_work=()  socket_name  socket  sockets_occupied=() \
 	      sockets_unused=() bad_sockets=() dialog_socket_list=() \
-	      i  err_message
+	      i  err_message  resp_mpv_socket
 	[ ${#mpv_sockets[@]} -eq 0 ] && err 'Error: no sockets defined.'
 	#  To avoid get_prop annoying the user with “Choose a socket” 50 times
 	#  during the same run, limit the socket list to already chosen socket
@@ -206,14 +218,25 @@ check_socket() {
 			#  In the future, it may be necessary to use
 			#  lsof -t +E -- "$socket"
 			if lsof_output=$(lsof -t -c mpv -a -f -- "$socket"); then
-				case "$(wc -l <<<"$lsof_output")" in
-					1)  sockets_that_work+=("$socket_name")
-						;;
-					*)  sockets_occupied+=("$socket")
-						warn "More than one mpv keeps open this socket: $socket
-						      $lsof_output"
-						;;
-				esac
+				#  This override is for the weird behaviour, when mpv spawns
+				#  a subprocess after “load-script” command. (The next command
+				#  sent in a row with “load-script”, e.g. “script-binding”,
+				#  would fail occasionally, because it would see that phantom
+				#  mpv process spawned by the previous command, which would
+				#  occupy the socket. This mpv subprocess doesn’t break IPC,
+				#  so the only way is to ignore it.)
+				if [ -v MPV_IPC_CHECK_SOCKET_ASSUME_ONE_PROCESS ]; then
+					sockets_that_work+=( "$socket_name" )
+				else
+					case "$(wc -l <<<"$lsof_output")" in
+						1)  sockets_that_work+=( "$socket_name" )
+							;;
+						*)  sockets_occupied+=( "$socket" )
+							warn "More than one mpv keeps open this socket: $socket
+							      $lsof_output"
+							;;
+					esac
+				fi
 			else
 				sockets_unused+=("$socket")
 				info "No mpv is listening on socket $socket."
@@ -247,17 +270,24 @@ check_socket() {
 			;;
 		*)
 			for ((i=0; i<${#sockets_that_work[@]}; i++)); do
+				#  String to return in stdout
 				dialog_socket_list+=($i)
+				#  String to display in the radiobox label
 				dialog_socket_list+=("${sockets_that_work[i]}")
+				#  Which radiobox should be active
 				(( i == 0 )) \
 					&& dialog_socket_list+=( on  ) \
 					|| dialog_socket_list+=( off )
 			done
-			dialog_window_height=$((  170+27*(${#sockets_that_work[@]}-2)  ))
-			show_dialogue_choose_mpv_socket_$dialog
+			show_dialogue_choose_mpv_socket 'dialog_socket_list'
+			resp_mpv_socket="$dialog_output"
+			[[ "$resp_mpv_socket" =~ ^[0-9]+$ ]] \
+			&& (( resp_mpv_socket >= 0  )) \
+			&& (( resp_mpv_socket <= ${#sockets_that_work[@]} )) \
+				|| err 'Dialog returned invalid index.'
 			#  mpv_socket is now an array index (integer),
 			#  we use it for sockets_that_work, that has names like “Usual”.
-			mpv_socket=${sockets_that_work[mpv_socket]}
+			mpv_socket=${sockets_that_work[resp_mpv_socket]}
 			#  Now we dereferense that human name into file name by the
 			#  list specified in rc.sh.
 			mpv_socket=${mpv_sockets[$mpv_socket]}
@@ -272,7 +302,7 @@ check_prop_name() {
 	for propname in ${!properties[@]}; do
 		[ "$propname" = "$propname_to_test" ] && found=t && break
 	done
-	[ -v found ] || err "No such property: “$propname_to_test”."
+	[ -v found ] || err "mpv-ipc module doesn’t have this property: “$propname_to_test”."
 	return 0
 }
 
@@ -372,6 +402,7 @@ get_prop() {
 	#  https://github.com/deterenkelt/Nadeshiko/issues/1
 	[ "$propname" = 'screenshot-directory'  -a  "$propdata" = '~~desktop/' ] \
 		&& propdata=''
+	[ "$propname" = 'volume' ] && propdata=${propdata%.*}
 	internal_set_prop "$propname" "$propdata"
 	return 0
 }

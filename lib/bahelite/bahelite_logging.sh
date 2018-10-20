@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_LOGGING_VER='1.3'
+BAHELITE_MODULE_LOGGING_VER='1.4'
 REQUIRED_UTILS+=(
 	date  #  to add date to $LOG file name and to the log itself.
 	pkill  #  to find and kill the logging tee nicely, so it wouldn’t hang.
@@ -73,6 +73,7 @@ start_log() {
 	return 0
 }
 
+
 show_path_to_log() {
 	xtrace_off && trap xtrace_on RETURN
 	if [ -v BAHELITE_MODULE_MESSAGES_VER ]; then
@@ -87,21 +88,33 @@ show_path_to_log() {
 	return 0
 }
 
- # Returns an absolute path to the last modified log in $LOGDIR.
+
+ # Returns absolute path to the last modified log in $LOGDIR.
 #  [$1] – log name prefix, if not set, equal to $MYNAME
 #         without .sh at the end (caller script’s own log).
 #
-get_last_log() {
+set_last_log_path() {
 	xtrace_off && trap xtrace_on RETURN
+	declare -g LAST_LOG_PATH
 	local logname="${1:-}" last_log
 	[ "$logname" ] || logname=${MYNAME%.*}
 	pushd "$LOGDIR" >/dev/null
 	noglob_off
-	last_log=$(ls -tr ${logname}_* | tail -n1)
+	last_log=$(ls -tr ${logname}_*.log | tail -n1)
 	noglob_on
 	[ -f "$last_log" ] || return 1
 	popd >/dev/null
-	echo "$LOGDIR/$last_log"
+	LAST_LOG_PATH="$LOGDIR/$last_log"
+	return 0
+}
+
+
+read_last_log() {
+	xtrace_off && trap xtrace_on RETURN
+	set_last_log_path "$@" || return $?
+	declare -g LAST_LOG
+	#  Stripping control characters, primarily to delete colours codes.
+	LAST_LOG=$(sed -r 's/[[:cntrl:]]\[[0-9]{1,3}[mKG]//g' "$LAST_LOG_PATH")
 	return 0
 }
 

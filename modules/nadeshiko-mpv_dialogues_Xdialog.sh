@@ -33,10 +33,10 @@ show_dialogue_choose_mpv_socket_Xdialog() {
 
 
 show_dialogue_choose_config_file_Xdialog() {
-	declare -g nadeshiko_config
+	declare -g nadeshiko_preset
 	local  window_height="$1"  dialog_retval
 	errexit_off
-	nadeshiko_config=$(
+	nadeshiko_preset=$(
 		dialog --stdout --no-tags  \
 	           --ok-label "Choose"  \
 	           --cancel-label "Cancel"  \
