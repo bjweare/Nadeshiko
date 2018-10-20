@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_VER='2.1.1'
+BAHELITE_MODULE_MESSAGES_VER='2.1.2'
 
  # Define this variable for info messages to have icon
 #
@@ -313,6 +313,7 @@ plainmsg() {
 msg() {
 	# Internal! There should be no xtrace_off!
 	# xtrace_off && trap xtrace_on RETURN
+	declare -g  BAHELITE_EXIT_FROM_ERR_FUNC
 	local  colour cs="$__s"  nonl  asterisk='  '  message  message_nocolours  \
 	       redir=stdout  code=5  internal  key  msg_key_exists  \
 	       notifysend_rank  notifysend_icon
@@ -373,7 +374,7 @@ msg() {
 			;;
 		abort)
 			msgtype='abort'
-			code=6
+			code=7
 			;;
 	esac
 	[ -v nonl ] && nonl='-n'
@@ -420,14 +421,26 @@ msg() {
 		#  Stripping colours, that might be placed in the $message by user.
 		bahelite_notify_send "$message_nocolours" "${notifysend_icon:-}"
 	}
+	[ "$msgtype" = err ] && BAHELITE_EXIT_FROM_ERR_FUNC=t
 	[[ "$msgtype" =~ ^(err|abort)$ ]] && {
 		#  If this is an error message, we must also quit
 		#  with a certain exit/return code.
 		[ -v MSG_USE_ARRAYS ] && [ ${#ERROR_CODES[@]} -ne 0 ] \
 			&& code=${ERROR_CODES[$*]}
 		#  Bahelite can be used in both sourced and standalone scripts.
-		#  Default error codes are 5 for an error, 6 for abort.
+		#  Default error codes are 5 for an error, 7 for abort.
 		#  Abort is for the case when user stops the program at some step.
+		#  Return codes are defined in pairs: “usual” and “from subshell”,
+		#    this is done to catch returns from the functions, that are
+		#    capable of triggering an exit. When err() for example is called
+		#    from within a subshell, it’s easy to place “|| exit $?” after
+		#    “$(…)” to exit properly, but this isn’t enough to clean tidily –
+		#    because such functions may set variables, that will be lost
+		#    within the subshell, however, top-level hooks on signals (aka
+		#    trap functions) will expect those variables to be set. By check-
+		#    ing, if the exit code would be “from subshell”, these functions
+		#    may do their work without variables.
+		[ $BASH_SUBSHELL -ne 0 ] && let ++code
 		return $code
 	}
 	return 0

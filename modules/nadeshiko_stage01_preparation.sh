@@ -61,7 +61,7 @@ check_for_new_release_on_github() {
 		|| err "Invalid updates checking interval in the RC file:
 		        “$NEW_RELEASE_CHECK_INTERVAL”."
 	check_for_new_release  deterenkelt Nadeshiko $version \
-	                       "$release_notes_url" ask_to_open ||:
+	                       "$release_notes_url" ||:
 	return 0
 }
 

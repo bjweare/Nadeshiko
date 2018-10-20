@@ -12,13 +12,15 @@ set -feE
 . "$(dirname "$0")/../lib/gather_file_info.sh"
 MY_DESKTOP_NAME="Nadeshiko test suite"
 nadeshiko_dir="$MYDIR/.."
-EXAMPLECONFDIR="$MYDIR/../exampleconf"
+exampleconf_dir="$MYDIR/../exampleconf"
 config_dir="$HOME/.config/nadeshiko"
+
 nadeshiko="$nadeshiko_dir/nadeshiko.sh"
+nadempv="$nadeshiko_dir/nadeshiko-mpv.sh"
 rcfile="$config_dir/nadeshiko.rc.sh"
 nadempv_rcfile="$config_dir/nadeshiko-mpv.rc.sh"
-example_nadempv_rcfile="$EXAMPLECONFDIR/example.nadeshiko-mpv.rc.sh"
-example_rcfile="$EXAMPLECONFDIR/example.nadeshiko.rc.sh"
+example_rcfile="$exampleconfdir/example.nadeshiko.rc.sh"
+example_nadempv_rcfile="$exampleconfdir/example.nadeshiko-mpv.rc.sh"
 
 tests_dir="$MYDIR/TESTS/$("$nadeshiko" --version | sed -rn '1s/.*\s(\S+)$/\1/p')"
 source_sets="$MYDIR/tests_source_sets.sh"
@@ -123,16 +125,11 @@ encode() {
 
 get_last_encoded_file() {
 	local last_log last_file
-	last_log=$(get_last_log nadeshiko) || {
+	read_last_log 'nadeshiko' || {
 		warn "Cannot get last log."
 		return 1
 	}
-	last_file=$(
-		sed -rn '/Encoded successfully/ {  n
-			                               s/^.{11}//
-			                               s/.{4}$//p  }' \
-		        "$last_log"
-	)
+	last_file=$(sed -rn '/Encoded successfully/ {n; s/^..//p}' <<<"$LAST_LOG")
 	popd >/dev/null
 	echo "$last_file"
 	return 0

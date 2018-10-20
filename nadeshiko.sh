@@ -30,7 +30,7 @@ set_libdir
 . "$LIBDIR/time_functions.sh"
 set_modulesdir
 set +f
-for module in "$MODULESDIR"/nadeshiko_{stage[0-9][0-9],encode}_*.sh ; do
+for module in "$MODULESDIR"/nadeshiko_*.sh ; do
 	. "$module" || err "Couldn’t source module $module."
 done
 set -f
@@ -114,8 +114,8 @@ show_help() {
 	                      encoded file. Will be put at the beginning.
 
 
-	This option list is shortened, see it in full format on our wiki:
-	https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko#list-of-options
+	Option descriptions are shortened for convenience,
+	see the full version in the wiki: https://git.io/fx8DV
 
 	Post bugs here: https://github.com/deterenkelt/Nadeshiko/issues
 	EOF

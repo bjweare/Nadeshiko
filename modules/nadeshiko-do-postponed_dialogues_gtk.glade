@@ -2,6 +2,11 @@
 <!-- Generated with glade 3.20.4 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
+  <object class="GtkImage">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-missing-image</property>
+  </object>
   <object class="GtkImage" id="img_quit">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -14,6 +19,12 @@
     <property name="margin_right">3</property>
     <property name="stock">gtk-go-forward</property>
   </object>
+  <object class="GtkImage" id="img_stop_encoding">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="margin_right">3</property>
+    <property name="stock">gtk-cancel</property>
+  </object>
   <object class="GtkWindow">
     <property name="can_focus">False</property>
     <property name="type_hint">dialog</property>
@@ -21,6 +32,8 @@
       <object class="GtkStack" id="stack1">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
+        <property name="hhomogeneous">False</property>
+        <property name="vhomogeneous">False</property>
         <child>
           <object class="GtkBox">
             <property name="visible">True</property>
@@ -214,6 +227,11 @@
                       <placeholder/>
                     </child>
                   </object>
+                <property name="sensitive">False</property>
+                <property name="can_focus">False</property>
+                <property name="title">Encoding…</property>
+                <child>
+                  <placeholder/>
                 </child>
               </object>
               <packing>
@@ -246,6 +264,12 @@
                 <child>
                   <placeholder/>
                 </child>
+              <object class="GtkButton">
+                <property name="label" translatable="yes">Stop encoding</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="image">img_stop_encoding</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -259,6 +283,86 @@
             <property name="title" translatable="yes">page2</property>
             <property name="position">2</property>
           </packing>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkHeaderBar">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="title">Encoding results</property>
+                <child>
+                  <placeholder/>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <child>
+                  <object class="GtkImage">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="stock">gtk-missing-image</property>
+                    <property name="icon_size">6</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">All jobs complete!
+
+or
+
+2 of 7 jobs failed to complete.</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton">
+                <property name="label" translatable="yes">Open folder with failed jobs on close</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">False</property>
+                <property name="draw_indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="name">page2</property>
+            <property name="title" translatable="yes">page2</property>
+            <property name="position">2</property>
         </child>
       </object>
     </child>

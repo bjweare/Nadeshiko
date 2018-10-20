@@ -21,12 +21,12 @@ recalc_vbitrate_and_maxfitting() {
 	recalc_bitrate 'vbitrate'
 	infon "Trying $vbitrate_pretty${audio_info:-} @"
 	if [ -v scale ]; then
-		# Forced scale
+		#  Forced scale
 		echo -n "${scale}p.  "
 	elif [ -v crop ]; then
 		echo -n "Cropped.  "
 	elif [ $current_bitres_profile -ne $starting_bitres_profile ]; then
-		# Going lowres
+		#  Going lowres
 		echo -n "${current_bitres_profile}p.  "
 	else
 		echo -n 'Native.  '
@@ -257,6 +257,7 @@ fit_bitrate_to_filesize() {
 	fi
 	current_bitres_profile="$starting_bitres_profile"
 	set_bitres_profile "$starting_bitres_profile"
+	info "Starting bitres profile: ${starting_bitres_profile}p."
 	milinc
 	recalc_vbitrate_and_maxfitting
 

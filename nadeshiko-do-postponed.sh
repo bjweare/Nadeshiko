@@ -17,9 +17,9 @@ prepare_confdir 'nadeshiko'
 
 declare -r version="2.2"
 declare -r rcfile_minver='2.2'
-declare -r failures_logdir="$LOGDIR/postponed_failures"
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
+declare -r failed_jobs_dir="$postponed_commands_dir/failed"
 
 read_rcfile  "$rcfile_minver"
 [ "${taskset_cpulist:-}" ] && {
@@ -68,9 +68,9 @@ process_file() {
 		declare -n ref=$com
 		echo -e "\n${ref[@]}"
 		${nice_cmd:-} ${taskset_cmd:-} "${ref[@]}" || {
-			[ -d "$failures_logdir" ] || mkdir "$failures_logdir"
-			if last_log=$(get_last_log nadeshiko); then
-				cp "$last_log" "$failures_logdir"
+			[ -d "$failed_jobs_dir" ] || mkdir "$failed_jobs_dir"
+			if set_last_log_path 'nadeshiko'; then
+				mv "$LAST_LOG_PATH" "$failed_jobs_dir"
 			else
 				warn "Cannot get last log."
 			fi
@@ -88,17 +88,19 @@ process_file() {
 process_dir() {
 	declare -g failed_jobs_count
 	local last_log
-	while IFS= read -r -d ''; do
-		${nice_cmd:-} ${taskset_cmd:-} "$REPLY" || {
-			[ -d "$failures_logdir" ] || mkdir "$failures_logdir"
-			if last_log=$(get_last_log nadeshiko); then
-				cp "$last_log" "$failures_logdir"
+	while IFS= read -r -d '' jobfile; do
+		if ${nice_cmd:-} ${taskset_cmd:-} "$jobfile";  then
+			rm "$jobfile"
+		else
+			[ -d "$failures_logdir" ] || mkdir "$failed_jobs_dir"
+			if set_last_log_path 'nadeshiko'; then
+				mv "$LAST_LOG_PATH" "$failed_jobs_dir"
+				mv "$jobfile" "$failed_jobs_dir"
 			else
 				warn "Cannot get last log."
 			fi
 			let ++failed_jobs_count
-		}
-		rm "$REPLY"
+		fi
 	done < <( find "$postponed_commands_dir" -type f -print0 )
 	return 0
 }

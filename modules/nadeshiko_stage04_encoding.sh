@@ -129,7 +129,7 @@ map_streams() {
 	declare -g map_string
 	local map_audio
 	[ -v audio ] && map_audio="-map 0:a:${audio_track_id:-0?}"
-	map_string="-map 0:v ${map_audio:-}"
+	map_string="-map 0:V ${map_audio:-}"
 	return 0
 }
 
@@ -174,6 +174,7 @@ encode() {
 	milinc
 	set_file_name_and_video_title
 	print_encoding_info
+	[ -v dryrun ] && exit 0
 	assemble_vf_string
 	map_streams
 	[ -v ffmpeg_colorspace  -a  ! -v ffmpeg_colorspace_prepared ] && {

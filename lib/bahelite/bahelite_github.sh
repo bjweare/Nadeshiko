@@ -15,7 +15,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_GITHUB_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_GITHUB_VER='1.0.1'
+BAHELITE_MODULE_GITHUB_VER='1.0.3'
 REQUIRED_UTILS+=(date stat ps wget xdg-open)
 
  # Default interval, that check_for_new_release() will use to look
@@ -73,14 +73,10 @@ check_for_new_release() {
 		warn "Our version “$our_ver” is not a valid string."
 		return 5
 	}
-	which wget &>/dev/null || {
-		warn "Cannot check new release: cannot find wget."
-		return 5
-	}
 	latest_release_ver=$(
 		wget -O- https://github.com/$user/$repo/releases/latest \
-		|& sed -rn "s=^.*/$user/$repo/tree/v([0-9\.]+).*$=\1=p;T;Q"
-	)||:
+			|& sed -rn "s=^.*/$user/$repo/tree/v([0-9\.]+).*$=\1=p;T;Q"
+	) ||:
 	is_version_valid "$latest_release_ver" || {
 		warn "Latest release version “$latest_release_ver” is not a valid string."
 		return 5
@@ -89,27 +85,31 @@ check_for_new_release() {
 	which_is_newer=$(compare_versions "$our_ver" "$latest_release_ver")
 
 	if [ "$which_is_newer" = "$latest_release_ver" ]; then
-		info-ns "${__b}New version $latest_release_ver is available!${__s}"
+		info-ns "${__b}v$latest_release_ver is available!${__s}"
 		[ "$relnotes_url" ] && {
 			case "$relnotes_action" in
 				ask_to_open)
-					message="Would you like to read release notes\n"
-					message+="for v$latest_release_ver on Github?"
+					# message="Would you like to read release notes\n"
+					# message+="for v$latest_release_ver on Github?"
 					#  If our shell has a terminal…
 					#  (literally: it is a foreground process)
 					#  P.S. no, both [[ "$-" =~ ^.*i.*$ ]] and [ -t 0 ]
 					#       do not work here.
-					if [[ "$(ps -o stat= -p $$)" =~ ^.*\+.*$ ]]; then
-						menu "${message//\\n/}" Yes No
-						[ "$CHOSEN" = Yes ] && open_relnotes_url=t
-					else
-						errexit_off
-						Xdialog --stdout --title "$MY_MSG_TITLE" \
-						        --ok-label Open --cancel-label No \
-						        --yesno "$message" 400x110 \
-							&& open_relnotes_url=t
-						errexit_on
-					fi
+					# if [[ "$(ps -o stat= -p $$)" =~ ^.*\+.*$ ]]; then
+					# 	menu "${message//\\n/}" Yes No
+					# 	[ "$CHOSEN" = Yes ] && open_relnotes_url=t
+					# else
+					# 	which Xdialog &>/dev/null && {
+					# 		local dialog=Xdialog
+					# 		errexit_off
+					# 		$dialog --stdout \
+					# 	            --ok-label Open \
+					# 	            --cancel-label No \
+					# 	            --yesno "$message" 400x110 \
+					# 			&& open_relnotes_url=t
+					# 		errexit_on
+					# 	}
+					# fi
 					;;
 				open)
 					open_relnotes_url=t
@@ -119,8 +119,7 @@ check_for_new_release() {
 					      $relnotes_url"
 					;;
 				*)
-					warn "Unknown value for release notes action:
-					      “$relnotes_action”."
+					#  Do nothing.
 					;;
 			esac
 			[ -v open_relnotes_url ] && xdg-open "$relnotes_url"
