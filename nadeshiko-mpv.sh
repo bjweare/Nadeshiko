@@ -583,12 +583,12 @@ choose_preset() {
 			preset_info+="+ $ffmpeg_acodec → $container;"
 			preset_info+='  '
 			[ "$subs" = yes ] \
-				&& preset_info+="<span weight=\"bold\">SUBS</span>" \
-				|| preset_info+="<span strikethrough=\"true\">SUBS</span>" 
+				&& preset_info+="+Subs" \
+				|| preset_info+="−Subs" 
 			preset_info+=' '
 			[ "$audio" = yes ] \
-				&& preset_info+="<span weight=\"bold\">AUDIO</span>" \
-				|| preset_info+="<span strikethrough=\"true\">AUDIO</span>"
+				&& preset_info+="+Audio" \
+				|| preset_info+="−Audio"
 			preset_info+='\n'
 			#  Line 2
 			preset_info+='Container own space: '

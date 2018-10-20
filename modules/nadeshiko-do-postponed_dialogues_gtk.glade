@@ -2,11 +2,6 @@
 <!-- Generated with glade 3.20.4 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
-  <object class="GtkImage">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-missing-image</property>
-  </object>
   <object class="GtkImage" id="img_quit">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -19,19 +14,21 @@
     <property name="margin_right">3</property>
     <property name="stock">gtk-go-forward</property>
   </object>
-  <object class="GtkImage" id="img_stop_encoding">
-    <property name="visible">True</property>
+  <object class="GtkWindow" id="window1">
     <property name="can_focus">False</property>
-    <property name="margin_right">3</property>
-    <property name="stock">gtk-cancel</property>
-  </object>
-  <object class="GtkWindow">
-    <property name="can_focus">False</property>
+    <property name="title" translatable="yes">Nadeshiko-do-postponed</property>
+    <property name="resizable">False</property>
+    <property name="window_position">center</property>
+    <property name="destroy_with_parent">True</property>
     <property name="type_hint">dialog</property>
     <child>
       <object class="GtkStack" id="stack1">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
+        <property name="halign">center</property>
+        <property name="valign">center</property>
+        <property name="hexpand">False</property>
+        <property name="vexpand">False</property>
         <property name="hhomogeneous">False</property>
         <property name="vhomogeneous">False</property>
         <child>
@@ -40,25 +37,16 @@
             <property name="can_focus">False</property>
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkHeaderBar">
-                <property name="visible">True</property>
-                <property name="sensitive">False</property>
-                <property name="can_focus">False</property>
-                <property name="title">Postponed jobs</property>
-                <child>
-                  <placeholder/>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
+              <placeholder/>
             </child>
             <child>
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="margin_left">48</property>
+                <property name="margin_right">48</property>
+                <property name="margin_top">21</property>
+                <property name="margin_bottom">21</property>
                 <property name="label" translatable="yes">There are X jobs. Run them?</property>
               </object>
               <packing>
@@ -68,38 +56,48 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButtonBox">
+              <object class="GtkSearchBar">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="spacing">18</property>
-                <property name="layout_style">center</property>
                 <child>
-                  <object class="GtkButton">
-                    <property name="label" translatable="yes">Run jobs</property>
+                  <object class="GtkButtonBox">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">True</property>
-                    <property name="image">img_run_jobs</property>
+                    <property name="can_focus">False</property>
+                    <property name="margin_left">48</property>
+                    <property name="margin_right">48</property>
+                    <property name="margin_top">14</property>
+                    <property name="margin_bottom">14</property>
+                    <property name="spacing">20</property>
+                    <property name="layout_style">center</property>
+                    <child>
+                      <object class="GtkButton">
+                        <property name="label" translatable="yes">Run jobs</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                        <property name="image">img_run_jobs</property>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkButton">
+                        <property name="label" translatable="yes">Quit</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                        <property name="image">img_quit</property>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
                   </object>
-                  <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkButton">
-                    <property name="label" translatable="yes">Quit</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">True</property>
-                    <property name="image">img_quit</property>
-                  </object>
-                  <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
-                    <property name="position">1</property>
-                  </packing>
                 </child>
               </object>
               <packing>
@@ -120,14 +118,14 @@
             <property name="can_focus">False</property>
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkHeaderBar">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="sensitive">False</property>
                 <property name="can_focus">False</property>
-                <property name="title">Postponed jobs</property>
-                <child>
-                  <placeholder/>
-                </child>
+                <property name="margin_left">48</property>
+                <property name="margin_right">48</property>
+                <property name="margin_top">18</property>
+                <property name="margin_bottom">5</property>
+                <property name="label" translatable="yes">No jobs!</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -136,29 +134,24 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel">
+              <object class="GtkButton">
+                <property name="label">gtk-ok</property>
+                <property name="width_request">90</property>
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">No jobs!</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="halign">center</property>
+                <property name="valign">center</property>
+                <property name="margin_left">48</property>
+                <property name="margin_right">48</property>
+                <property name="margin_top">14</property>
+                <property name="margin_bottom">14</property>
+                <property name="use_stock">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkButton">
-                <property name="label">gtk-ok</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="use_stock">True</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">2</property>
               </packing>
             </child>
           </object>
@@ -177,126 +170,7 @@
               <object class="GtkHeaderBar">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="title">Postponed jobs</property>
-                <child>
-                  <object class="GtkInfoBar">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <child internal-child="action_area">
-                      <object class="GtkButtonBox">
-                        <property name="can_focus">False</property>
-                        <property name="spacing">6</property>
-                        <property name="layout_style">end</property>
-                        <child>
-                          <placeholder/>
-                        </child>
-                        <child>
-                          <placeholder/>
-                        </child>
-                        <child>
-                          <placeholder/>
-                        </child>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">False</property>
-                        <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child internal-child="content_area">
-                      <object class="GtkBox">
-                        <property name="can_focus">False</property>
-                        <property name="spacing">16</property>
-                        <child>
-                          <placeholder/>
-                        </child>
-                        <child>
-                          <placeholder/>
-                        </child>
-                        <child>
-                          <placeholder/>
-                        </child>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">False</property>
-                        <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <placeholder/>
-                    </child>
-                  </object>
-                <property name="sensitive">False</property>
-                <property name="can_focus">False</property>
-                <property name="title">Encoding…</property>
-                <child>
-                  <placeholder/>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">There are X jobs. Run them?</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkButtonBox">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="spacing">18</property>
-                <property name="layout_style">center</property>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">Stop encoding</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="image">img_stop_encoding</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="name">page2</property>
-            <property name="title" translatable="yes">page2</property>
-            <property name="position">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkBox">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="orientation">vertical</property>
-            <child>
-              <object class="GtkHeaderBar">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="title">Encoding results</property>
-                <child>
-                  <placeholder/>
-                </child>
+                <property name="title">  Running jobs…</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -308,12 +182,12 @@
               <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkImage">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="stock">gtk-missing-image</property>
-                    <property name="icon_size">6</property>
+                    <property name="label" translatable="yes">M / N processed.</property>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -322,14 +196,11 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel">
+                  <object class="GtkProgressBar">
+                    <property name="width_request">270</property>
+                    <property name="height_request">30</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">All jobs complete!
-
-or
-
-2 of 7 jobs failed to complete.</property>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -345,12 +216,12 @@ or
               </packing>
             </child>
             <child>
-              <object class="GtkCheckButton">
-                <property name="label" translatable="yes">Open folder with failed jobs on close</property>
+              <object class="GtkSearchBar">
                 <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">False</property>
-                <property name="draw_indicator">True</property>
+                <property name="can_focus">False</property>
+                <child>
+                  <placeholder/>
+                </child>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -363,6 +234,7 @@ or
             <property name="name">page2</property>
             <property name="title" translatable="yes">page2</property>
             <property name="position">2</property>
+          </packing>
         </child>
       </object>
     </child>

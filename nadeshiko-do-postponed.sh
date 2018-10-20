@@ -155,17 +155,17 @@ if_there_are_jobs() {
 failed_jobs_count=0
 
 if [ -v DISPLAY ]; then
-	if if_there_are_jobs; then
-		show_dialogue_confirm_running_jobs
-		if [ -v confirmed_running_jobs ]; then
+	# if if_there_are_jobs; then
+	# 	show_dialogue_confirm_running_jobs
+	# 	if [ -v confirmed_running_jobs ]; then
 			run_jobs
-			show_dialogue_jobs_result
-		else
-			abort 'Cancelled.'
-		fi
-	else
-		show_dialogue_no_jobs
-	fi
+	# 		show_dialogue_jobs_result
+	# 	else
+	# 		abort 'Cancelled.'
+	# 	fi
+	# else
+	# 	show_dialogue_no_jobs
+	# fi
 else
 	run_jobs
 fi
