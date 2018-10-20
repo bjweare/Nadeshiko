@@ -546,10 +546,9 @@ determine_scene_complexity() {
 	      It takes 2–20 seconds depending on video.'
 	total_scenes=$(
 		FFREPORT=file=$LOGDIR/ffmpeg-scene-complexity.log:level=32 \
-		ffmpeg -v error \
-		       -ss "$start_time"  -t "$duration_total_s_ms"  -i "$video" \
-		       -vf "select='gte(scene,0.3)',metadata=print:file=-" \
-		       -an -sn -f null -
+		$ffmpeg  -ss "$start_time"  -t "$duration_total_s_ms"  -i "$video" \
+		         -vf "select='gte(scene,0.3)',metadata=print:file=-" \
+		         -an -sn -f null -
 	) || err "Couldn’t determine scene complexity: ffmpeg error."
 	total_scenes=$(
 		grep -cE '^lavfi\.scene_score=0\.[0-9]{6}$' <<<"$total_scenes" || :
