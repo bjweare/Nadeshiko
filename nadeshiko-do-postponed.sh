@@ -52,7 +52,7 @@ pgrep -u $USER -af "bash.*nadeshiko-mpv.sh" &>/dev/null  \
 #    was Time2 or the line with source video.
 #  Avoiding this bug by assembling all commands first and running them later.
 process_file() {
-	decalre -g failed_jobs_count
+	declare -g failed_jobs_count
 	local i=0  comcom_0=()  ref  com  last_log
 	while IFS= read -r -d $'\n'; do
 		if [ "$REPLY" ]; then
@@ -106,7 +106,7 @@ process_dir() {
 }
 
 
-run_jobs() {}
+run_jobs() {
 	#  Finishing tasks from the single file, which is deprecated.
 	[ -f "$postponed_commands" ] && process_file
 	#  Doing tasks from the directory, the new way.
