@@ -15,7 +15,7 @@ set_libdir 'nadeshiko'
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.1.2"
+declare -r version="2.1.3"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -92,7 +92,7 @@ process_dir() {
 		if ${nice_cmd:-} ${taskset_cmd:-} "$jobfile";  then
 			rm "$jobfile"
 		else
-			[ -d "$failures_logdir" ] || mkdir "$failed_jobs_dir"
+			[ -d "$failed_jobs_dir" ] || mkdir "$failed_jobs_dir"
 			if set_last_log_path 'nadeshiko'; then
 				mv "$LAST_LOG_PATH" "$failed_jobs_dir"
 				mv "$jobfile" "$failed_jobs_dir"
