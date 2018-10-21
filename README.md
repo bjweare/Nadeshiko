@@ -21,7 +21,7 @@ Wrapper to be used with mpv player.
 
 ![GIF: Nadeshiko-mpv in action](https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/nadeshiko-mpv.gif)
 
-[How to use](https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko%E2%80%91mpv)  ⋅  [Tips](https://github.com/deterenkelt/Nadeshiko/wiki/Tips-for-Nadeshiko%E2%80%91mpv)
+[Predictor](https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko%E2%80%91mpv.-Predictor)  ⋅  [How to use](https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko%E2%80%91mpv)  ⋅  [Tips](https://github.com/deterenkelt/Nadeshiko/wiki/Tips-for-Nadeshiko%E2%80%91mpv)
 
  
 
@@ -37,6 +37,10 @@ Wrapper to be used with mpv player.
   * add or remove subtitles and audio by default;
   * add or change FFmpeg parameters – for both input and output.
 * Create presets and choose them on the fly.
+<a href="https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko%E2%80%91mpv.-Predictor">
+<img alt="Predictor" src="https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/nadeshiko-mpv-predictor/predictor.gif"/>
+</a>
+
 
  
 

@@ -178,15 +178,15 @@ check_util_support() {
 				)
 				;;
 			crop_gui)
-				REQUIRED_UTILS+=(
-					#  Shutter allows to select a rectangle on the screen
-					#  and adjust(!) it.
-					shutter
-					#  Visgrep finds the coordinates of the cropped image.
-					#  Not imagemagick, because the imagemagick docs them-
-					#  selves recommend visgrep as a faster program.
-					visgrep
-				)
+				# REQUIRED_UTILS+=(
+				# 	#  Shutter allows to select a rectangle on the screen
+				# 	#  and adjust(!) it.
+				# 	shutter
+				# 	#  Visgrep finds the coordinates of the cropped image.
+				# 	#  Not imagemagick, because the imagemagick docs them-
+				# 	#  selves recommend visgrep as a faster program.
+				# 	visgrep
+				# )
 				;;
 			time_stat)
 				REQUIRED_UTILS+=(

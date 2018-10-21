@@ -159,19 +159,7 @@ Glade 3.20.4
 PyGObject 3.24.1
 Python 3.6.5-r1</property>
   </object>
-  <object class="GtkImage" id="img_cancel1">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="margin_right">3</property>
-    <property name="stock">gtk-delete</property>
-  </object>
   <object class="GtkImage" id="img_cancel2">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="margin_right">3</property>
-    <property name="stock">gtk-delete</property>
-  </object>
-  <object class="GtkImage" id="img_cancel4">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="margin_right">3</property>
@@ -182,12 +170,6 @@ Python 3.6.5-r1</property>
     <property name="can_focus">False</property>
     <property name="margin_right">3</property>
     <property name="stock">gtk-cancel</property>
-  </object>
-  <object class="GtkImage" id="img_continue4">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="margin_right">3</property>
-    <property name="stock">gtk-ok</property>
   </object>
   <object class="GtkImage" id="img_install">
     <property name="visible">True</property>
@@ -202,6 +184,12 @@ Python 3.6.5-r1</property>
     <property name="stock">gtk-ok</property>
   </object>
   <object class="GtkImage" id="img_ok2">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="margin_right">3</property>
+    <property name="stock">gtk-ok</property>
+  </object>
+  <object class="GtkImage" id="img_ok3">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="margin_right">3</property>
@@ -237,6 +225,8 @@ Python 3.6.5-r1</property>
         <property name="interpolate_size">True</property>
         <child>
           <object class="GtkScrolledWindow">
+            <property name="width_request">600</property>
+            <property name="height_request">400</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="shadow_type">in</property>
@@ -336,47 +326,19 @@ Python 3.6.5-r1</property>
                 <property name="can_focus">False</property>
                 <property name="search_mode_enabled">True</property>
                 <child>
-                  <object class="GtkButtonBox">
+                  <object class="GtkButton" id="but_choose_socket">
+                    <property name="label">Choose</property>
+                    <property name="width_request">90</property>
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
                     <property name="margin_left">48</property>
                     <property name="margin_right">48</property>
-                    <property name="margin_top">14</property>
-                    <property name="margin_bottom">14</property>
-                    <property name="spacing">20</property>
-                    <property name="homogeneous">True</property>
-                    <property name="layout_style">center</property>
-                    <child>
-                      <object class="GtkButton" id="but_choose_socket">
-                        <property name="label">Choose</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <property name="image">img_ok1</property>
-                        <property name="always_show_image">True</property>
-                        <signal name="clicked" handler="on_choose_socket_but_click" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="expand">True</property>
-                        <property name="fill">True</property>
-                        <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkButton" id="but_cancel1">
-                        <property name="label" translatable="yes">Cancel</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <property name="image">img_cancel1</property>
-                        <signal name="clicked" handler="on_window_destroy" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="expand">True</property>
-                        <property name="fill">True</property>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
+                    <property name="margin_top">6</property>
+                    <property name="margin_bottom">6</property>
+                    <property name="image">img_ok1</property>
+                    <property name="always_show_image">True</property>
+                    <signal name="clicked" handler="on_choose_socket_but_click" swapped="no"/>
                   </object>
                 </child>
               </object>
@@ -804,47 +766,18 @@ at every maximal size.</property>
                 <property name="can_focus">False</property>
                 <property name="search_mode_enabled">True</property>
                 <child>
-                  <object class="GtkButtonBox">
+                  <object class="GtkButton" id="but_accept_crop_and_predictor">
+                    <property name="label" translatable="yes">OK</property>
+                    <property name="width_request">80</property>
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="halign">center</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
                     <property name="margin_left">48</property>
                     <property name="margin_right">48</property>
-                    <property name="margin_top">14</property>
-                    <property name="margin_bottom">14</property>
-                    <property name="spacing">20</property>
-                    <property name="homogeneous">True</property>
-                    <property name="layout_style">center</property>
-                    <child>
-                      <object class="GtkButton" id="but_accept_crop_and_predictor">
-                        <property name="label" translatable="yes">OK</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <property name="image">img_continue4</property>
-                        <signal name="clicked" handler="on_accept_crop_and_predictor_but_click" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="expand">True</property>
-                        <property name="fill">True</property>
-                        <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <property name="label" translatable="yes">Cancel</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <property name="image">img_cancel4</property>
-                        <signal name="clicked" handler="on_window_destroy" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="expand">True</property>
-                        <property name="fill">True</property>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
+                    <property name="margin_top">6</property>
+                    <property name="margin_bottom">6</property>
+                    <property name="image">img_ok3</property>
+                    <signal name="clicked" handler="on_accept_crop_and_predictor_but_click" swapped="no"/>
                   </object>
                 </child>
               </object>

@@ -24,8 +24,8 @@ set -f
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.2.2"
-declare -r rcfile_minver='2.0'
+declare -r version="2.3"
+declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
 	show_preview
 	show_encoded_file
@@ -801,12 +801,13 @@ choose_preset() {
 			done
 
 			if [[ "$last_line_in_last_log" =~ Encoding\ with.*\ ([0-9]+p|Native|Cropped).* ]]; then
-				if [[ "${BASH_REMATCH[1]}" =~ ^(Native|Cropped)$ ]]; then
+				encoding_res_code="${BASH_REMATCH[1]}"
+				if [[ "$encoding_res_code" =~ ^(Native|Cropped)$ ]]; then
 					preset_fitmark='='
 					preset_fitdesc="$native_profile"
 				else
 					preset_fitmark='v'
-					preset_fitdesc="${BASH_REMATCH[1]}"
+					preset_fitdesc="$encoding_res_code"
 				fi
 				[ -v bitrate_corrections ] && preset_fitdesc+='*'
 

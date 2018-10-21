@@ -1,4 +1,4 @@
-# nadeshiko-mpv.rc.sh v2.0
+# nadeshiko-mpv.rc.sh v2.3
 
 
  # The command to launch mpv.
@@ -80,12 +80,25 @@ gui_default_preset='default'
 predictor=yes
 
 
- # If you never use certain file sizes, e.g. tiny (2 MiB by default)
-#  you could save a little time by making predictor skip them.
+ # To save time, predictor runs only for the default maximum size (that is
+#    specified in max_size_default variable in Nadeshiko RC file). This redu-
+#    ces the number of runs threefold.
+#  Usually the only values, that are really helpful are for the default
+#    maximum sizes, specified in the presets. The others are nice to look at,
+#    but they only take time. However, you may add other sizes, if you wish.
+#  Format: all size codes used in a Nadeshiko RC file: tiny, small, normal,
+#    unlimited, default.
+#  Size “unlimited” can be omitted, as predictor never actually runs for
+#    this size (everything fits in unlimited size).
+#  Size “default” will enable predictor for whatever maximum size is set
+#    as maximum_size_default in the Nadeshiko configuration file aka preset.
+#    (It is not an error, if it will be set to “normal” and both “default”
+#    and “normal” would be specified here.)
+#  Default value: =( "default" )
 #
-predictor_skips=(
+run_predictor_only_for_sizes=(
+	default
 	# tiny
 	# small
 	# normal
-	# unlimited  # Predictor never runs for “unlimited” size anyway.
 )
