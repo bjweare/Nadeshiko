@@ -143,7 +143,7 @@ declare -r -A properties=(
 	[track-list/count]='test_number  false'
 
 	#  Hide cursor over the window
-	[cursor-autohide]='test_yes_true_on  test_no_false_off'
+	[cursor-autohide]='test_cursor_autohide_true  test_cursor_autohide_false'
 
 	#  Hide cursor over the window
 	[cursor-autohide-fs-only]='test_yes_true_on  test_no_false_off'
@@ -186,6 +186,12 @@ test_mpv_version() {
 }
 test_time_pos() {
 	[[ "$1" =~ ^[0-9]+\.[0-9]{1,6}$ ]]
+}
+test_cursor_autohide_true() {
+	[[ "$1" =~ ^always$  || "$1" =~ ^[0-9]{1,5}$ ]]
+}
+test_cursor_autohide_false() {
+	[[ "$1" =~ ^no$ ]]
 }
 
 

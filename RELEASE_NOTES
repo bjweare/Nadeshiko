@@ -1,3 +1,14 @@
+——— v 2.3.3 ——————————————————————————————————————————————————————————————————
+
+Nadeshiko-mpv-2.3.1
+
+1. Fixed a bug in mpv_ipc.sh – number values in mpv’s cursor-autohide property
+   weren’t considered as a valid value.
+
+
+
+
+
 ——— v 2.3.2 ——————————————————————————————————————————————————————————————————
 
 Nadeshiko-do-postponed-2.1.3
