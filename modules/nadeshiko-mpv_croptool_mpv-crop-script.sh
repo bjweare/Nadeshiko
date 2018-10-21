@@ -93,7 +93,7 @@ prepare_crop_tool() {
 	         #
 	         /^function ASSCropper:stop_crop\(clear\)/,/^end/ {
 	             /self.current_crop = nil/ {
-	             	 s/.*/&\n/
+	                 s/.*/&\n/
 	                 r $TMPDIR/if_croptool_cancels_code.lua
 	             }
 	         }

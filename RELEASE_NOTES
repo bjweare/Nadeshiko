@@ -1,6 +1,144 @@
 ——— v 2.3 ————————————————————————————————————————————————————————————————————
 
 
+Nadeshiko-2.3
+
+1. New command line option: force_scene_complexity
+
+   On the wiki: https://git.io/fxK9I
+
+2. New command line option: dryrun
+
+   On the wiki: https://git.io/fxK9L
+
+3. Bitrate-resolution profile native to the source video is now printed
+   to console and log.
+
+4. Fixed a bug, when Nadeshiko couldn’t encode a video, because the built-in
+   cover was a default video stream. Now only real video streams will be used.
+
+
+
+Nadeshiko-mpv-2.3
+
+1. New feature: predictor
+
+   Read the new article on the wiki: https://git.io/fxKyc
+
+2. Preset configuration in nadeshiko-mpv.rc.sh changed: now profiles have
+   names for displaying too (sockets already had them). This way config
+   file name may stay long (nadeshiko-something-something.rc.sh), and when
+   displayed in the Nadehsiko-mpv GUI, it will be just “H.264” or “VP9”.
+   Isn’t it cool?
+
+   The tip about setting up with Multiple presets was updated
+   on the wiki: https://git.io/fx3Qr
+
+3. New config option: gui_default_preset
+
+   It chooses, which preset should be opened in the GUI by default,
+   if there are several presets.
+
+4. New config option: predictor
+
+   Enables or disables the predictor.
+
+5. New config option: run_predictor_only_for_sizes
+
+   Which maximal file sizes the predictor should use (file sizes not mentioned
+   in that list will be skipped to save time).
+
+6. Xdialog and kdialog support removed. Hence Config option “dialog” was
+   removed too. Gtk is now the only windows, that will be developed.
+
+   show_name_setting_dialog config option was removed, as it had meaning
+   only for “dialog=kdialog” setting.
+
+7. New feature and module: cropping
+
+   Nadeshiko-mpv can now load TheAMM’s mpv_crop_script in runtime, so it is
+   possible to crop videos from Nadeshiko-mpv!
+
+   You may have one problem, though: https://git.io/fxKSC
+
+8. Improved socket checks in mpv_ipc.sh
+
+9. Python Gtk dependency bumped to v3.12.
+
+10. GUI: config selection merged with the last window.
+
+11. GUI: damn big redraw
+
+12. GUI: moved the functions working with xml and python
+    into a separate library.
+
+13. GUI: improved generating python code, now based on placeholders,
+    pretty unified.
+
+14. GUI: better focus control (first tab activates first element)
+    This is not ideal, but the best that could done with Glade
+    and Python GObject.
+
+15. GUI: reworked automatic generation of elements in XML and Python.
+
+16. Unified data passing from and to dialogues. Creating a new frontend
+    would now be even simpler than with Xdialog/kdialog.
+
+17. Thorough error handling for cropping module: running module’s own
+    on_error() to tidy up and moving dryrun logs to LOGDIR. (Normally dryrun
+    logs are placed in TMPDIR and discarded.)
+
+18. Updated --help output. Now it’s shorter and has links to wiki
+    and bug tracker.
+
+19. Preset checks.
+
+20. When Nadeshiko-mpv runs preview and encoded files in mpv, they now use
+    now use sound volume of the main mpv. For certain videos previews were
+    too loud.
+
+21. Rewinding the video a couple of seconds back on pause is now disabled.
+    If you still need it, add in nadeshiko-mpv.rc.sh this line:
+
+    rewind_back_on_leaving_fullscreen=t
+
+
+
+Nadeshiko-do-postponed-2.1.1
+
+1. Failed jobs are now moved along with the encoding log files.
+
+2. Logs and job files of failed runs are now placed under
+   $HOME/.cache/nadeshiko/postponed_commands_dir/failed/
+   (Earlier the logs were placed in
+   $HOME/.cache/nadeshiko/logs/postponed_failures/)
+
+3. Groundwork for creating a GUI, aims are:
+   - at the start, show how many jobs there is (or show, that there are
+     no jobs);
+   - do not run the jobs, ask first. This will allow to use the command
+     just to see, how many jobs there is;
+   - show a progressbar on processing jobs;
+   - show a window, when the jobs are complete with statistics, how many
+     are encoded well, and how many failed (if any).
+
+
+
+Bahelite update
+
+1. Fixed colours being lost in subshells
+
+2. Fixed silent failures, when local on_error() wasn’t called, because
+   subshell return code >0 was passes to || exit $?, and the exit this way
+   was considered “clean”. Now errors are processed, backtraces are printed
+   to logs and error messages are shown.
+
+3. Added check for a mountpoint on cleaning TMPDIR.
+
+4. Fixed the code checking for updates on Github. Now only a notification
+   will be shown.
+
+5. More characters are allowed in RC file name: . , : ;
 
 
 
