@@ -8,7 +8,6 @@ Nadeshiko-mpv-2.3.1
 
 
 
-
 ——— v 2.3.2 ——————————————————————————————————————————————————————————————————
 
 Nadeshiko-do-postponed-2.1.3
@@ -44,7 +43,8 @@ Nadeshiko-2.3
    to console and log.
 
 4. Fixed a bug, when Nadeshiko couldn’t encode a video, because the built-in
-   cover was a default video stream. Now only real video streams will be used.
+   cover was the default video stream. Now only real video streams
+   will be used.
 
 
 
@@ -77,8 +77,8 @@ Nadeshiko-mpv-2.3
    Which maximal file sizes the predictor should use (file sizes not mentioned
    in that list will be skipped to save time).
 
-6. Xdialog and kdialog support removed. Hence Config option “dialog” was
-   removed too. Gtk is now the only windows, that will be developed.
+6. Xdialog and kdialog support removed. Hence config option “dialog” was
+   removed too. Gtk windows are now the only ones, that will be developed.
 
    show_name_setting_dialog config option was removed, as it had meaning
    only for “dialog=kdialog” setting.
@@ -96,7 +96,7 @@ Nadeshiko-mpv-2.3
 
 10. GUI: config selection merged with the last window.
 
-11. GUI: damn big redraw
+11. GUI: damn big redraw.
 
 12. GUI: moved the functions working with xml and python
     into a separate library.
@@ -114,7 +114,7 @@ Nadeshiko-mpv-2.3
     would now be even simpler than with Xdialog/kdialog.
 
 17. Thorough error handling for cropping module: running module’s own
-    on_error() to tidy up and moving dryrun logs to LOGDIR. (Normally dryrun
+    on_error() to tidy up and moving dryrun logs to LOGDIR. (Normally dry run
     logs are placed in TMPDIR and discarded.)
 
 18. Updated --help output. Now it’s shorter and has links to wiki
@@ -155,14 +155,14 @@ Nadeshiko-do-postponed-2.1.1
 
 Bahelite update
 
-1. Fixed colours being lost in subshells
+1. Fixed the colours, that were lost in subshells.
 
 2. Fixed silent failures, when local on_error() wasn’t called, because
    subshell return code >0 was passes to || exit $?, and the exit this way
    was considered “clean”. Now errors are processed, backtraces are printed
    to logs and error messages are shown.
 
-3. Added check for a mountpoint on cleaning TMPDIR.
+3. Added a check for a mountpoint on cleaning TMPDIR.
 
 4. Fixed the code checking for updates on Github. Now only a notification
    will be shown.

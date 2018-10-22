@@ -36,6 +36,7 @@ Wrapper to be used with mpv player.
 * Choose the defaults suiting your workflow:
   * add or remove subtitles and audio by default;
   * add or change FFmpeg parameters – for both input and output.
+* Cropping (built-in [mpv_crop_script](https://github.com/TheAMM/mpv_crop_script)).
 * Create presets and choose them on the fly.
 <a href="https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko%E2%80%91mpv.-Predictor">
 <img alt="Predictor" src="https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/nadeshiko-mpv-predictor/predictor.gif"/>
@@ -153,5 +154,5 @@ Check the list of [known issues](https://github.com/deterenkelt/Nadeshiko/wiki/K
 </p>
 
 <p align="center">
-<i>Nadeshiko uses ffmpeg (which in its turn includes libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass…), mediainfo, mkvtoolnix, GNU grep, GNU sed and GNU time.<br><br>Let’s be grateful to them for their hard work.</i>
+<i>Nadeshiko uses ffmpeg (which in its turn includes libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass…), mediainfo, mkvtoolnix, mpv_crop_script by TheAMM, GNU grep, GNU sed and GNU time.<br><br>Let’s be grateful to them for their hard work.</i>
 </p>
