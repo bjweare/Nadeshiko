@@ -1,3 +1,11 @@
+——— v 2.3.5 ——————————————————————————————————————————————————————————————————
+
+Changed the code sourcing Bahelite to use realpath in all three Nadeshiko
+  scripts.
+
+
+
+
 ——— v 2.3.4 ——————————————————————————————————————————————————————————————————
 
 Nadeshiko-2.3.4
