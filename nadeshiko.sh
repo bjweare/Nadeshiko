@@ -17,7 +17,7 @@
 set -feEuT
 shopt -s extglob
 #  Logging, error handling, messages to console and desktop.
-. "$(realpath --logical "$0")/lib/bahelite/bahelite.sh"
+. "$(dirname "$(realpath --logical "$0")")/lib/bahelite/bahelite.sh"
 prepare_cachedir
 start_log
 set +f
@@ -37,7 +37,7 @@ set -f
 set_exampleconfdir
 prepare_confdir
 
-declare -r version='2.3.5'
+declare -r version='2.3.6'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.0.1'

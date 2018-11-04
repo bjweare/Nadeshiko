@@ -8,7 +8,7 @@
 
 set -feEuT
 shopt -s extglob
-. "$(realpath --logical "$0")/lib/bahelite/bahelite.sh"
+. "$(dirname "$(realpath --logical "$0")")/lib/bahelite/bahelite.sh"
 prepare_cachedir 'nadeshiko'
 start_log
 set_libdir 'nadeshiko'
@@ -24,7 +24,7 @@ set -f
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.3.1"
+declare -r version="2.3.2"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
 	show_preview

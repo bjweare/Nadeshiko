@@ -1,3 +1,10 @@
+——— v 2.3.6 ——————————————————————————————————————————————————————————————————
+
+Fixed the realpath sourcing in v2.3.5 (still needs dirname).
+
+
+
+
 ——— v 2.3.5 ——————————————————————————————————————————————————————————————————
 
 Changed the code sourcing Bahelite to use realpath in all three Nadeshiko
