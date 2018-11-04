@@ -8,7 +8,7 @@
 
 set -feEuT
 shopt -s extglob
-. "$(dirname "$(readlink "$0")")/lib/bahelite/bahelite.sh"
+. "$(realpath --logical "$0")/lib/bahelite/bahelite.sh"
 prepare_cachedir 'nadeshiko'
 start_log
 set_libdir 'nadeshiko'
