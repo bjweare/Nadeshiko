@@ -282,9 +282,8 @@ Python 3.6.5-r1</property>
                     <property name="name">Placeholder for the value to return.</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="has_focus">True</property>
                     <property name="is_focus">True</property>
-                    <property name="receives_default">True</property>
+                    <property name="receives_default">False</property>
                     <property name="halign">start</property>
                     <property name="active">True</property>
                     <property name="draw_indicator">True</property>

@@ -257,7 +257,6 @@ remove_windows_unfriendly_chars() {
 single_process_check() {
 	local our_processes        total_processes \
 	      our_processes_count  total_processes_count  our_command
-
 	[ ${#ARGS[*]} -eq 0 ]  \
 		&& our_command="bash $MYNAME_AS_IN_DOLLARZERO"  \
 		|| our_command="bash $MYNAME_AS_IN_DOLLARZERO ${ARGS[@]}"

@@ -281,21 +281,21 @@ fit_bitrate_to_filesize() {
 		#  round and around until the overall size fits to max_size!
 
 		if [ -v our_options[seek_maxfit_here] ]; then
-			if [    $max_fitting_vbitrate_bits -ge $minimal_vbitrate_bits  \
-			     -a $max_fitting_vbitrate_bits -le $desired_vbitrate_bits  ]
+			if	((     max_fitting_vbitrate_bits >= minimal_vbitrate_bits
+				    && max_fitting_vbitrate_bits <= desired_vbitrate_bits  ))
 			then
-			     vbitrate=$max_fitting_vbitrate_bits
-			     recalc_vbitrate_and_maxfitting
+				vbitrate=$max_fitting_vbitrate_bits
+				recalc_vbitrate_and_maxfitting
 			else
 				unset our_options[seek_maxfit_here]
 			fi
 		elif [ -v our_options[lower_resolution] ]; then
-			if [ $closest_lowres_index -lt ${#known_res_list[@]} ]; then
+			if (( closest_lowres_index < ${#known_res_list[@]} )); then
 				current_bitres_profile=${known_res_list[closest_lowres_index]}
 				mildrop
 				info "Trying lower resolution ${current_bitres_profile}p… "
 				set_bitres_profile $current_bitres_profile
-				((closest_lowres_index++, 1))
+				let 'closest_lowres_index++ || 1'
 				milinc
 				our_options[seek_maxfit_here]=t
 				recalc_vbitrate_and_maxfitting

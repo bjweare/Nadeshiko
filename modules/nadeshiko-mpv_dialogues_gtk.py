@@ -166,8 +166,9 @@ class Nadeshiko_mpv_dialogues:
 			self.window.move( monitor_geom.width - width,
 			                  monitor_geom.height - height )
 			self.window.set_keep_above(True)
-		elif startpage == 'gtkbox_pick_size':
-			self.window.set_focus_child(self.rb_size1)
+		#  Automated in .sh file
+		# elif startpage == 'gtkbox_pick_size':
+		# 	self.window.set_focus_child(self.rb_size1)
 
 
 	def on_window_destroy(self, object, data=None):

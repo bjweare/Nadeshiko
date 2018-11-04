@@ -44,7 +44,7 @@ arr3=(
 	awawa		"awawa"				on		x	'Won’t fit'
 )
 
-#show_dialogue_choose_mpv_socket 'dialog_socket_list'
+show_dialogue_choose_mpv_socket 'dialog_socket_list'
 
 #show_dialogue_crop_and_predictor 'pick=off' 'has_installer=yes' 'predictor=on'
 #show_dialogue_crop_and_predictor 'pick=on' 'predictor=off'
@@ -52,6 +52,6 @@ arr3=(
 #show_dialogue_crop_and_predictor 'pick=off' 'predictor=off' '100' '200' '300' '400'
 #show_dialogue_crop_and_predictor 'pick=on' 'predictor=on' '100' '200' '300'
 
-show_dialogue_cropping 'Some text hjkh fsd kjh jkfsdh '
+#show_dialogue_cropping 'Some text hjkh fsd kjh jkfsdh '
 
 #show_dialogue_choose_preset arr2 arr3

@@ -285,6 +285,10 @@ check_socket() {
 					&& dialog_socket_list+=( on  ) \
 					|| dialog_socket_list+=( off )
 			done
+			#  Cannot do it here, because in order to connect to mpv
+			#  mpv_socket must be set first, and it does not, if the
+			#  algorithm went here.
+			#pause_and_leave_fullscreen
 			show_dialogue_choose_mpv_socket 'dialog_socket_list'
 			resp_mpv_socket="$dialog_output"
 			[[ "$resp_mpv_socket" =~ ^[0-9]+$ ]] \

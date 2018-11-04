@@ -1109,6 +1109,23 @@ check_required_utils
 #
 # retrieve_properties
 
+
+ # Here is a hen and egg problem.
+#  We would like to ask user to choose the socket only once, i.e. only when
+#    they set Time1. On setting Time2 Nadeshiko-mpv should read $mpv_socket
+#    variable from the $data_file. However, in order to find the corresponding
+#    $data_file, we must know, which file is opened in mpv, where Nadeshiko-mpv
+#    is called from. So we must first query mpv to read $filename, and then
+#    by the $filename find a $data_file, which would have that $filename inside.
+#  Thus trying to read $data_file before querying mpv is futile and will break
+#    the process of setting Time1 and Time2.
+#  To avoid querying mpv socket twice, Nadeshiko-mpv should process each video
+#    clip in one run, not in two runs, like it is now. Nadeshiko-mpv should
+#    have two windows: one before predictor runs, and one after it runs. The
+#    first window would have options to connect to sockets, set times (however
+#    many, 2, 4, 20…), turn on and off sound and subtitles, set crop area, and
+#    run preview. The second window would  be as it is now, unchanged.
+#
 get_props mpv-version filename
 data_file=$(grep -rlF "filename=$(printf '%q' "$filename")" |& head -n1)
 if [ -e "$data_file" ]; then
