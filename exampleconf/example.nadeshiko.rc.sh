@@ -180,12 +180,12 @@ ffmpeg_subtitle_fallback_style=(
 	#[Fontname]='Roboto Medium'
 
 	#  Font size
-	#[Fontsize]='21'
+	#[Fontsize]='24'
 
 	#  Colour in which words should appear.
 	#  Format: &HCC332211, hex codes in ABGR order, prepended with “&H”.
-	#    Some guides say, that the colour code should end with “&”.
-	#[PrimaryColour]=''
+	#  Alpha means transparency: 00 = 0%, FF = 100%.
+	#[PrimaryColour]='&H00F0F0F0'
 
 	#  “may be used instead of the Primary colour” (how?!)
 	#  Format: see PrimaryColour
@@ -193,7 +193,7 @@ ffmpeg_subtitle_fallback_style=(
 
 	#  “may be used instead of the Primary or Secondary colour” (?!)
 	#  Format: see PrimaryColour
-	#[OutlineColour]=''
+	# [OutlineColour]='&H03111111'
 
 	#  “the colour of the subtitle outline or shadow, if these are used.”
 	#  Format: see PrimaryColour
@@ -210,7 +210,7 @@ ffmpeg_subtitle_fallback_style=(
 	#  If BorderStyle is 1, then this specifies the width of the outline
 	#  around the text, in some abstract measure.
 	#  Format: 0, 1, 2, 3 or 4.
-	#[Outline]='1'
+	#[Outline]='2'
 
 	#  If BorderStyle is 1, then this specifies the depth of the drop shadow
 	#  behind the text, in some abstract measure too, probably. Drop shadow
@@ -663,6 +663,7 @@ codec_names_as_formats=(
 can_be_used_together=(
 	'mp4 libx264 libfdk_aac'
 	'mp4 libx264 aac'
+	'mp4 libx264 libmp3lame'
 	#'mp4 libx264 libopus'  # libopus in mp4 is still experimental
 	'webm libvpx-vp9 libopus'
 	'webm libvpx-vp9 libvorbis'
