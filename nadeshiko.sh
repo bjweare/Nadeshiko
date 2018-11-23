@@ -107,7 +107,7 @@ show_help() {
 	                      Example: ab128000, ab192k, ab88k.
 	       crop=W:H:X:Y – crop video. Cannot be used together with scaling.
 	           <folder> – place encoded file into <folder>.
-	           <config> – alternate config file to use.
+	      <config name> – alternate config file to use.
 	                      Must be a file in $CONFDIR
 	                      The filename must end with “.rc.sh”
 	 fname_pfx=<string> – A custom string to be added to the name of the

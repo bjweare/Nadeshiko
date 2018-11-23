@@ -85,7 +85,8 @@ assemble_vf_string() {
 				[ -r "$TMPDIR/subs.ass" ] && {
 					filter_list="${filter_list:+$filter_list,}"
 					filter_list+="setpts=PTS+$(( ${start[total_ms]}/1000 )).${start[ms]}/TB,"
-					filter_list+="subtitles=$TMPDIR/subs.ass"
+					filter_list+='subtitles='
+					filter_list+="filename=$TMPDIR/subs.ass"
 					font_list="$(
 						find "$TMPDIR/fonts" \( -iname "*.otf" -o -iname "*.ttf" \)
 					)"

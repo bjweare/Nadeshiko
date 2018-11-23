@@ -177,17 +177,6 @@ check_util_support() {
 					mkvextract
 				)
 				;;
-			crop_gui)
-				# REQUIRED_UTILS+=(
-				# 	#  Shutter allows to select a rectangle on the screen
-				# 	#  and adjust(!) it.
-				# 	shutter
-				# 	#  Visgrep finds the coordinates of the cropped image.
-				# 	#  Not imagemagick, because the imagemagick docs them-
-				# 	#  selves recommend visgrep as a faster program.
-				# 	visgrep
-				# )
-				;;
 			time_stat)
 				REQUIRED_UTILS+=(
 					#  To output how many seconds the encoding took.
@@ -201,8 +190,8 @@ check_util_support() {
 	#  Checking ffmpeg version
 	readarray -t ffmpeg_ver < <( \
 		$ffmpeg -version \
-		    | sed -rn '1s/ffmpeg version (\S+) .*/\1/p
-		                s/libav(util|codec|format)\s+([0-9]{2,3})\..*/\2/p'
+		    | sed -rn '1 s/ffmpeg version (\S+) .*/\1/p
+		               s/libav(util|codec|format)\s+([0-9]{2,3})\..*/\2/p'
 	)
 	info "System ffmpeg: ${ffmpeg_ver[0]} ${ffmpeg_ver[1]}/${ffmpeg_ver[2]}/${ffmpeg_ver[3]}."
 	for ((i=1; i<4; i++)); do
@@ -361,7 +350,7 @@ check_subtitles() {
 				#  Bitmap subtitles technically can be rendered, but:
 				#  - VobSub subtitles extracted are two files –
 				#    .idx. and .sub. It is unclear, how to include
-				#    and manipulate them with -map;
+				#    and manipulate them both with -map;
 				#  - there are no examples of how it should be done.
 				#  Thus, unless there’s a precedent, VobSub as external
 				#  files won’t be supported, a workaround may be building
@@ -389,7 +378,7 @@ check_subtitles() {
 
 		[ -z "$codec_name" ] && {
 			if  [ -v subs_explicitly_requested ];  then
-				err "Adding subtitles was requested, but there’s no $such subtitle stream. Add “nosub”?"
+				err "Adding subtitles was requested, but there’s no $such subtitle stream. Add “nosubs”?"
 			else
 				#  It was just RC default setting,
 				#  it isn’t an error, that a video had no subs at all.
