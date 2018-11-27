@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MISC_VER='1.7.1'
+BAHELITE_MODULE_MISC_VER='1.8'
 
 #  It is *highly* recommended to use “set -eE” in whatever script
 #  you’re going to source it from.
@@ -272,6 +272,20 @@ single_process_check() {
 		$total_processes"
 		err 'Still running.'
 	}
+	return 0
+}
+
+
+ # Expands a string like “1-5” into the range of numbers “1 2 3 4 5”.
+#  $1 – string with range, format: N-N, where N is an integer.
+#
+expand_range() {
+	local range="$1" expanded_range
+	[[ "$range" =~ ^([0-9]+)-([0-9]+)$ ]] || {
+		warn "Invalid input range for expansion: “$range”."
+		return 1
+	}
+	seq -s ' ' ${BASH_REMATCH[1]} ${BASH_REMATCH[2]}
 	return 0
 }
 
