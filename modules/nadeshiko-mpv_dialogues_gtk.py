@@ -77,6 +77,7 @@ class Nadeshiko_mpv_dialogues:
 		if startpage == 'gtkbox_choose_socket':
 			self.rb_socket1 = builder.get_object('rb_socket1')
 			self.rb_socket2 = builder.get_object('rb_socket2')
+			self.but_choose_socket = builder.get_object('but_choose_socket')
 			###  PLACEHOLDER FOR EXTRA SELF.RB_SOCKET* CODE  ###
 
 		if startpage == 'gtkbox_crop_and_predictor':
@@ -117,6 +118,8 @@ class Nadeshiko_mpv_dialogues:
 
 		if startpage == 'gtkbox_pick_size':
 			self.preset_tabs = builder.get_object('preset_tabs')
+			#  Needed for focus control, see below.
+			self.but_encode_cancel = builder.get_object('but_encode_cancel')
 
 			#  Ex.: self.rb_size1 = builder.get_object('rb_size1')
 			###  PLACEHOLDER FOR SELF.RB_SIZE* CODE  ###
@@ -145,10 +148,25 @@ class Nadeshiko_mpv_dialogues:
 
 		#  Setting proper focus, window positioning.
 		if startpage == 'gtkbox_choose_socket':
-			#  There’s no way to show the focus frame over the first element
-			#  (no, .grab_focus grabs it invisibly), but this will at least
-			#  put the frame on the element on the first Tab press.
-			self.window.set_focus_child(self.rb_socket1)
+			#  See Glade bugs №№ 14 and 15 in the Glade file.
+			self.but_choose_socket.grab_focus()
+			#
+			# self.rb_socket1.grab_focus()
+			# self.window.set_focus_child(self.rb_socket1)
+			# self.gtkbox_choose_socket = builder.get_object('gtkbox_choose_socket')
+			# self.yob_tvoyu_mat = builder.get_object('yob_tvoyu_mat')
+			# self.yob_tvoyu_mat.set_focus_child(self.rb_socket2)
+			# self.gtkbox_choose_socket.set_focus_child(self.rb_socket2)
+			# self.stack.set_focus_chain([self.gtkbox_choose_socket])
+			# self.gtkbox_choose_socket.set_focus_chain(  [self.yob_tvoyu_mat]  )
+			# self.yob_tvoyu_mat.set_focus_chain( (self.rb_socket1, self.rb_socket2 ) )
+			# self.stack.set_focus_chain( (self.but_choose_socket, self.rb_socket2) )  # (self.but_choose_socket, self.rb_socket1, self.rb_socket2)
+			# self.gtkbox_choose_socket.set_focus_chain([])
+			# self.yob_tvoyu_mat.set_focus_chain([])
+			# print( 'yahho\n')
+			# print(self.yob_tvoyu_mat.get_focus_chain() )
+			# print ('\nwahoo')
+			# pass
 		elif startpage == 'gtkbox_crop_and_predictor':
 			self.window.set_focus_child(self.cb_crop)
 		elif startpage == 'gtkbox_cropping':
@@ -167,8 +185,11 @@ class Nadeshiko_mpv_dialogues:
 			                  monitor_geom.height - height )
 			self.window.set_keep_above(True)
 		#  Automated in .sh file
-		# elif startpage == 'gtkbox_pick_size':
-		# 	self.window.set_focus_child(self.rb_size1)
+		elif startpage == 'gtkbox_pick_size':
+			#  See Glade bugs №№ 14 and 15 in the glade file.
+			self.but_encode_cancel.grab_focus()
+			# self.window.set_focus_child(self.rb_size1)
+
 
 
 	def on_window_destroy(self, object, data=None):

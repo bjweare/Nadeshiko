@@ -41,6 +41,9 @@ prepare_dotglade_and_dotpy_for_sockets() {
 	edit_attr_in_xml 'entire_xml' \
 	                 "//object[@id='rb_socket2']/property[@name='label']" \
 	                 "${items_data[4]}"
+	edit_attr_in_xml 'entire_xml' \
+	                 "//object[@id='rb_socket2']/property[@name='active']" \
+	                 "False"
 	((items_count > 2)) && {
 		put_xml_chunk_in_var 'entire_xml'  \
 		                     '//child[child::object[@id="rb_socket2"]]' \

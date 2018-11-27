@@ -28,9 +28,11 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
 
 Specifics of Nadeshiko-mpv UI
 
+
 1. Named items are probably having bonds with .sh and .py
 files (.sh parses XML, .py operates in runtime) – so don’t
 edit those names mindlessly.
+
 
 2. When you use Pango markup in labels, tooltips and else-
 where, Glade converts &lt; and &gt; to &amp;lt; and &amp;gt; for you.
@@ -39,19 +41,23 @@ combinations like that – when they will be read by xmlstar-
 let, it will automatically convert &lt;, &gt;, &amp; etc to &amp;lt; &amp;gt;
 &amp;amp; etc.
 
+
 3. Avoid giving names, if possible. Objects can be in the
 window unnamed, and this way it is easier to duplicate
 elements in the code. Give names only to items which you
 need for anchors, to those, that you will be altering later
 with Python or grabbing their data.
 
+
 4. Header bar title in gtkbox_pick_size should have its
 title set for tabbed variant (as the whole appearance is
 set to). The .sh file works with it with an assumption,
 that it initially prepared for tabbed view.
 
+
 5. Receiving the ENTER keypress by default may be confusing,
 hence shouldn’t be used.
+
 
 6. Cancel button has visibility turned off, because of two
 reasons:
@@ -65,15 +71,20 @@ by closing the window.
 
 
 
+
+
 Glade and GtkBuilder bugs
+
 
 1. GtkButtonBox crops a side of a button in certain align-
 ment modes. To avoid this, place a “GTK alignment” element
 first, then place a button inside it.
 
+
 2. Certain alignments make Glade crash. One notable example
 would be choosing “Expand” items alignment in GtkButtonBox
 and checking the box “add center child”.
+
 
 3. Third bug in GtkButtonBox is that it somehow preserves
 homogeneous=on for its children, even though it’s expli-
@@ -83,11 +94,13 @@ the element has “No show all” enabled and is not initially
 visibly, i.e. homogeneous children state may be set to
 a default value (GtkBuilder ignores the specified value).
 
+
 4. Elements that didn’t work in Glade:
    - Action bar;
    - Combo box (probably needs a CellRenderer implemented
      on Python side?);
    - Link button (no label).
+
 
 5. GtkWindow still can be resized and the cursor does
 take “resize corner” shape, even though “Resizeable”
@@ -95,11 +108,13 @@ and “Resize grip” properties are turned off, and the
 window has a “Dialog” hint – dialog windows shouldn’t
 be resizeable by definition.
 
+
 6. GtkRadioButton elements lose their active attribute,
 when they are drawn on the window. If you need to select
 an element other than the first to be the active one,
 when the window is shown, this has to be overridden in
 runtime with Python.
+
 
 7. Placing elements inside containers “disabled”
 with turning Sensitive property off, makes them
@@ -111,15 +126,18 @@ from its parent and place it in another, which
 would have Sensitive=on, GtkSwitch will stay
 inactive.
 
+
 8. Glade doesn’t preserve the state of “Client-side window
 decorations” property value and with it loses window title.
 And it loses window title, it places a placeholder for the
 titlebar in the WYSISYG viewport, and this distorts your
 image of how the window should look like.
 
+
 9. On copying and pasting elements from one place to another
 Glade drops certain attributes. For example, it ALWAYS loses
 top, bottom, left and right margins (those in Common tab).
+
 
 10. The said margins are often not represented in the
 WYSIWYG Glade viewport, they are ALWAYS shown wrong after
@@ -127,12 +145,14 @@ you close the project and open it again. You can, however,
 still make it look like it should be with nudging the margin
 by adding 1 and remove 1 to it.
 
+
 11. WYSIWYG viewport still doesn’t work, because various
 placeholders would stick out with their checkerboard back-
 ground and take more space than an element placed in it
 would take, so it would still require you to run the window
 from Python script just to see how the elements are aligned
 and whether the spacing between them is appropriate.
+
 
 12. Conditional showing of elements is SUPER QUIRKY.
 First problem is that “Visible” property works with a look-
@@ -149,10 +169,37 @@ seem hella weird and may lead to confusion later, as they
 don’t constitute any of the real states, that the window may
 be in.
 
+
 13. UI has to be tested thoroughly – GTK is shit and things
 may (and often will) not work as expected or at all, 
 when you run it. Bugs increase complexity of the autogene-
 rated code, and require runtime overrides with Python.
+
+
+14. Moving focus between elements will work correctly only
+with certain types of containers. Presumably they are sepa-
+rated on “high-level” ones such as GtkBox and “low-level” ones
+such as “GtkButtonBox”. Focus won’t work with a hierarchy
+like this:
+  GtkBox __ GtkBox
+         \        \_ radiobutton1
+         |        |_ radiobutton2
+         |
+         |_ button1
+but will, if you replace nested GtkBox with GtkButtonBox.
+
+
+15. Setting default focus has its own quirks. In gtkbox_crop_and_predictor
+it’s possible to just set can_focus and has_focus to True for cb_crop –
+and it will work. For gtbox_choose_socket, which has GtkButtonBox with
+radiobuttons as its first element, this *isn’t enough*. The focus will
+not be placed so that first press on Tab would focus the first radiobox.
+The solution is to call grab_focus() for but_choose_socket and then
+first Tab “wraps” focus and the first radio button is focused (and the
+desirable focus frame is shown).
+P.S. cb_crop works thanks to self.window.set_focus_child(self.cb_crop),
+but this doesn’t work for a radio button within GtkButtonBox.
+
 
 
 Glade 3.20.4
@@ -265,7 +312,7 @@ Python 3.6.5-r1</property>
               </packing>
             </child>
             <child>
-              <object class="GtkBox">
+              <object class="GtkButtonBox" id="yob_tvoyu_mat">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="halign">center</property>
@@ -274,15 +321,15 @@ Python 3.6.5-r1</property>
                 <property name="margin_top">18</property>
                 <property name="margin_bottom">18</property>
                 <property name="orientation">vertical</property>
-                <property name="spacing">6</property>
                 <property name="homogeneous">True</property>
+                <property name="layout_style">start</property>
                 <child>
                   <object class="GtkRadioButton" id="rb_socket1">
                     <property name="label" translatable="yes">socket 1 gdf gdf </property>
                     <property name="name">Placeholder for the value to return.</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="is_focus">True</property>
+                    <property name="has_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="halign">start</property>
                     <property name="active">True</property>
@@ -302,7 +349,6 @@ Python 3.6.5-r1</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="halign">start</property>
-                    <property name="active">True</property>
                     <property name="draw_indicator">True</property>
                     <property name="group">rb_socket1</property>
                   </object>
@@ -1331,7 +1377,7 @@ Minimal bitrate perc.: &lt;span fgalpha="50%" weight="bold"&gt;60%&lt;/span&gt; 
                         <property name="can_focus">False</property>
                         <property name="yalign">1</property>
                         <child>
-                          <object class="GtkButton">
+                          <object class="GtkButton" id="but_encode_cancel">
                             <property name="label" translatable="yes">Cancel</property>
                             <property name="width_request">104</property>
                             <property name="visible">True</property>
