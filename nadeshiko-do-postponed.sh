@@ -12,10 +12,11 @@ set -feEuT
 prepare_cachedir 'nadeshiko'
 start_log
 set_libdir 'nadeshiko'
+set_modulesdir 'nadeshiko'
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.1.4"
+declare -r version="2.2"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -42,7 +43,7 @@ pgrep -u $USER -af "bash.*nadeshiko.sh" &>/dev/null  \
 pgrep -u $USER -af "bash.*nadeshiko-mpv.sh" &>/dev/null  \
 	&& err 'Cannot run at the same time with Nadeshiko-mpv.'
 
-
+cd "$TMPDIR"
 
  # Process $postponed_commands as a file with multiple commands (old format)
 #  There’s a weird bug when this was done a simpler way – gathering path
@@ -117,9 +118,12 @@ run_jobs() {
 
  # Return true, if there are jobs, return false, if there are no jobs to do.
 #
-if_there_are_jobs() {
-	decalre -g file_jobs_count=0  dir_jobs_count=0  total_jobs=0
-	local jobs_in_file=t  jobs_in_dir=t  dir_jobfiles
+are_there_any_jobs() {
+	declare -g file_jobs_count  dir_jobs_count  total_jobs
+	file_jobs_count=0
+	dir_jobs_count=0
+	total_jobs=0
+	local jobs_in_file=t  jobs_in_dir=t
 	if [ -f "$postponed_commands" ]; then
 		if [ "$(<"$postponed_commands")" ]; then
 			#  count jobs
@@ -134,11 +138,10 @@ if_there_are_jobs() {
 	fi
 
 	if [ -d "$postponed_commands_dir" ]; then
-		dir_jobfiles="$(find "$postponed_commands_dir" -type f -print0)"
-		if [ "$dir_jobfiles" ]; then
+		if [ "$(ls -A "$postponed_commands_dir")" ]; then
 			while IFS='' read -r -d ''; do
 				let ++dir_jobs_count
-			done < <( echo -e "$dir_jobfiles\0" )
+			done < <( find "$postponed_commands_dir" -type f -print0 )
 		else
 			unset jobs_in_dir
 		fi
@@ -146,8 +149,13 @@ if_there_are_jobs() {
 		unset jobs_in_dir
 	fi
 
-	((total_jobs > 0))
-	return $?
+	total_jobs=$(( file_jobs_count + dir_jobs_count ))
+	info "Jobs in file: $file_jobs_count
+	      Jobs in directory: $dir_jobs_count
+	      Total jobs: $total_jobs"
+	((total_jobs > 0)) \
+		&& return 0 \
+		|| return 1
 }
 
 
@@ -155,17 +163,20 @@ if_there_are_jobs() {
 failed_jobs_count=0
 
 if [ -v DISPLAY ]; then
-	# if if_there_are_jobs; then
-	# 	show_dialogue_confirm_running_jobs
-	# 	if [ -v confirmed_running_jobs ]; then
+	. "$MODULESDIR/nadeshiko-do-postponed_dialogues_${dialog:=gtk}.sh"
+	if are_there_any_jobs; then
+		info "There are jobs to run, asking to confirm."
+	 	show_dialogue_launch_jobs "$total_jobs"
+	 	IFS=$'\n' read -r -d ''  resp_action  < <(echo -e "$dialog_output\0")
+	 	if [ "$resp_action" = 'run_jobs' ]; then
 			run_jobs
-	# 		show_dialogue_jobs_result
-	# 	else
-	# 		abort 'Cancelled.'
-	# 	fi
-	# else
-	# 	show_dialogue_no_jobs
-	# fi
+			# show_dialogue_jobs_result
+		else
+			abort 'Cancelled.'
+		fi
+	else
+		show_dialogue_no_jobs
+	fi
 else
 	run_jobs
 fi
