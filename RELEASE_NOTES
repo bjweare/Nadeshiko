@@ -2,7 +2,7 @@
 
 Nadeshiko-2.3.7
 
-1. Changed defaults for RC option for ffmpeg_subtitle_fallback_style
+1. Changed defaults for the RC option ffmpeg_subtitle_fallback_style
    in the example.nadeshiko.rc.sh
 
 
@@ -18,12 +18,12 @@ Nadeshiko-do-postponed-2.2
 
    This is to avoid accidentally running postponed jobs,
    e.g. when nadeshiko-mpv.sh  and nadeshiko-do-postponed.sh  are bound
-   to close hotkeys and may be sometimes confused.
+   to close hotkeys and these hotkeys may be sometimes confused.
 
    Now Nadeshiko-do-postponed can be launched freely just to check, if there
-   are any jobs. The dialogue will show only when nadeshiko-do-postponed.sh
-   is launched from within an X session (if DISPLAY is set), thus there will
-   be no dialogue for a cron job.
+   are any jobs. The dialogue will show up only when nadeshiko-do-postponed.sh
+   is launched from within an X session (if DISPLAY is set), thus it shouldn’t
+   break any cron jobs.
 
 
 
