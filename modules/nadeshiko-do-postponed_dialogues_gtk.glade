@@ -107,7 +107,7 @@ Run them?</property>
                         <property name="is_focus">True</property>
                         <property name="receives_default">True</property>
                         <property name="image">img_quit</property>
-                        <signal name="clicked" handler="on_window_destroy" swapped="no"/>
+                        <signal name="clicked" handler="on_launch_jobs_cancel_but_click" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -178,7 +178,7 @@ Run them?</property>
                 <property name="margin_top">14</property>
                 <property name="margin_bottom">16</property>
                 <property name="use_stock">True</property>
-                <signal name="clicked" handler="on_window_destroy" swapped="no"/>
+                <signal name="clicked" handler="on_launch_jobs_ok2_but_click" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -270,7 +270,7 @@ Run them?</property>
         </child>
       </object>
     </child>
-    <child>
+    <child type="titlebar">
       <placeholder/>
     </child>
   </object>

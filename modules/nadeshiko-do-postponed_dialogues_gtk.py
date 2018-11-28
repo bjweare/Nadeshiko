@@ -72,7 +72,21 @@ class Nadeshiko_do_postponed_dialogues:
 	def on_launch_jobs_ok1_but_click(self, widget, *args):
 		print ('run_jobs')
 		Gtk.main_quit()
-		sys.exit(4)
+		sys.exit(0)
+
+	def on_launch_jobs_ok2_but_click(self, widget, *args):
+		print ('no_jobs')
+		Gtk.main_quit()
+		sys.exit(0)
+
+	#  Cancel with a cancel button.
+	#  Not using on_window_destroy, for it will cancel with exit code 4
+	#  and then trigger notify-send message with “Cancelled” whic would
+	#  look superfluous.
+	def on_launch_jobs_cancel_but_click(self, widget, *args):
+		print ('do_not_run_jobs')
+		Gtk.main_quit()
+		sys.exit(0)
 
 
 def main():
