@@ -24,7 +24,7 @@ set -f
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.3.2"
+declare -r version="2.3.3"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
 	show_preview

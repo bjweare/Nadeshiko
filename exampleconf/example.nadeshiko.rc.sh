@@ -1,4 +1,4 @@
-#  nadeshiko.rc.sh v2.2.4
+#  nadeshiko.rc.sh v2.3.7
 
 
 #  RC file uses bash syntax:
