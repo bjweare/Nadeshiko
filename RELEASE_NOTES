@@ -1,3 +1,12 @@
+——— v 2.3.8 ——————————————————————————————————————————————————————————————————
+
+Nadeshiko-do-postponed-2.2.1
+
+1. Fixed a bug on log file copying, when failed jobs dir wasn’t empty.
+
+
+
+
 ——— v 2.3.7 ——————————————————————————————————————————————————————————————————
 
 Nadeshiko-2.3.7

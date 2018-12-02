@@ -37,7 +37,7 @@ set -f
 set_exampleconfdir
 prepare_confdir
 
-declare -r version='2.3.7'
+declare -r version='2.3.8'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.0.1'
@@ -86,7 +86,7 @@ show_help() {
 	                      Any time format is valid:
 	                      11:23:45.670   =  11 h 23 min 45 s 670 ms
 	                         23:45.1     =  23 min 45 s 100 ms
-	                           125.340   =  2 min  5 s 340 ms
+	                           125.340   =  2 min 5 s 340 ms
 	                             5       =  5 s
 	                      Padding zeroes aren’t required.
 

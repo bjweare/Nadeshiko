@@ -16,7 +16,7 @@ set_modulesdir 'nadeshiko'
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.2"
+declare -r version="2.2.1"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -102,7 +102,7 @@ process_dir() {
 			fi
 			let ++failed_jobs_count
 		fi
-	done < <( find "$postponed_commands_dir" -type f -print0 )
+	done < <( find "$postponed_commands_dir" -maxdepth 1 -type f -print0 )
 	return 0
 }
 
