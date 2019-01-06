@@ -165,6 +165,10 @@ check_util_support() {
 					#  For the parts not retrievable with ffprobe
 					#  and as a fallback option for when ffprobe fails.
 					mediainfo
+					#  To determine, that the file is really a video.
+					#  “file” command is not sufficient.
+					#  mimetype is a part of dev-perl/File-MimeInfo
+					mimetype
 				)
 				;;
 			subs)
