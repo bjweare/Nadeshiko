@@ -16,6 +16,17 @@
 #  Declaring presence of this module for other modules.
 BAHELITE_MODULE_MISC_VER='1.8.1'
 
+INTERNALLY_REQUIRED_UTILS+=(
+	pgrep   # Single process check
+	wc      # Single process check
+	shuf    # random(), that works better than $RANDOM
+)
+INTERNALLY_REQUIRED_UTILS_HINTS+=(
+	[pgrep]='pgrep is a part of procps-ng.
+	http://procps-ng.sourceforge.net/
+	https://gitlab.com/procps-ng/procps'
+)
+
 #  It is *highly* recommended to use “set -eE” in whatever script
 #  you’re going to source it from.
 

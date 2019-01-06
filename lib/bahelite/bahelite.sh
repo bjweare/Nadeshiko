@@ -218,7 +218,7 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.7.4"
+BAHELITE_VERSION="2.8"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -288,7 +288,8 @@ LOG=/dev/null
 
 
  # XDG default directories
-#  For the local subdirectories see bahelite_misc.sh and bahelite_rcfile.sh.
+#  For the script subdirectories within them, see bahelite_misc.sh
+#  and bahelite_rcfile.sh.
 #
 : ${XDG_CONFIG_HOME:=$HOME/.config}
 : ${XDG_CACHE_HOME:=$HOME/.cache}
@@ -302,12 +303,36 @@ LOG=/dev/null
 BAHELITE_HIDE_FROM_XTRACE=t
 
 
-#  List of utilities the lack of which must trigger an error.
-REQUIRED_UTILS=(
+ # Lists of utilities, the lack of which must trigger an error.
+#
+INTERNALLY_REQUIRED_UTILS=(
 	getopt
 	grep
 	sed
 )
+#
+#  Holds a short info on which package a missing binary may be found in.
+declare -A INTERNALLY_REQUIRED_UTILS_HINTS=()
+#
+#  User list for required utils
+#  Ex. REQUIRED_LIST=( mimetype ffmpeg )
+#  This list is initially empty to separate internally required utils from
+#    the dependencies of the main script itself. If that would be a single
+#    list, users could accidently wipe it with = instead of addition to it
+#    with +=.
+REQUIRED_UTILS=()
+#
+#  Holds descriptions for missing utils: which packages they can be found in,
+#  which versions were used for development etc. A hint is printed when
+#  a corresponding utility in REQUIRED_UTILS is not found.
+#  Syntax: REQUIRED_UTILS_HINTS=( [prog1]='Prog1 can be found in Package1.' )
+#  (Hints are not required, this array may be left empty.)
+declare -A REQUIRED_UTILS_HINTS=()
+#
+#  In the future, add an array that would hold function names, that should
+#  run sophisticated checks over the binaries, e.g. query their version,
+#  or that grep is GNU grep and not BSD grep.
+#declare -A REQUIRED_UTILS_CHECKFUNCS=()
 
 noglob_off
 for bahelite_module in "$BAHELITE_DIR"/bahelite_*.sh; do
@@ -325,10 +350,23 @@ noglob_on
  # Call this function in your script after extending the array above.
 #
 check_required_utils() {
-	local  util  missing_utils
-	for util in ${REQUIRED_UTILS[@]}; do
-		which "$util" &>/dev/null \
-			|| missing_utils="${missing_utils:+$missing_utils, }“$util”"
+	local  util  missing_utils req_utils=()
+	req_utils=$(printf "%s\n" ${INTERNALLY_REQUIRED_UTILS[@]} \
+	                          ${REQUIRED_UTILS[@]} \
+	                | sort -u  )
+	for util in ${req_utils[@]}; do
+		which "$util" &>/dev/null || {
+			missing_utils="${missing_utils:+$missing_utils, }“$util”"
+			if [ "${REQUIRED_UTILS_HINTS[$util]:-}" ]; then
+				warn "$util was not found on this system!
+				      ${REQUIRED_UTILS_HINTS[$util]}"
+			elif [ "${INTERNALLY_REQUIRED_UTILS_HINTS[$util]:-}" ]; then
+				warn "$util was not found on this system!
+				      ${INTERNALLY_REQUIRED_UTILS_HINTS[$util]}"
+			else
+				warn "$util was not found on this system!"
+			fi
+		}
 	done
 	[ "${missing_utils:-}" ] && ierr 'no util' "$missing_utils"
 	return 0

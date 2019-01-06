@@ -1,3 +1,14 @@
+——— v 2.3.12 —————————————————————————————————————————————————————————————————
+
+Nadeshiko-2.3.12
+
+1. Missing utils will now print a short information about how they
+   can be found and a link to the project. (Important only for new
+   users.)
+
+
+
+
 ——— v 2.3.11 —————————————————————————————————————————————————————————————————
 
 Nadeshiko-2.3.11

@@ -150,9 +150,6 @@ parse_args() {
 #
 check_util_support() {
 	local codec_list missing_encoders arg ffmpeg_ver ffmpeg_is_too_old
-	#  bc – For the floating point calculations, that are necessary
-	#       e.g. in determining scene_complexity.
-	REQUIRED_UTILS+=(bc)
 	for arg in "$@"; do
 		case "$arg" in
 			video)
@@ -167,8 +164,10 @@ check_util_support() {
 					mediainfo
 					#  To determine, that the file is really a video.
 					#  “file” command is not sufficient.
-					#  mimetype is a part of dev-perl/File-MimeInfo
 					mimetype
+					#  For the floating point calculations, that are necessary
+					#  e.g. in determining scene_complexity.
+					bc
 				)
 				;;
 			subs)
@@ -190,6 +189,22 @@ check_util_support() {
 				;;
 		esac
 	done
+	REQUIRED_UTILS_HINTS+=(
+		[ffprobe]='ffprobe comes along with FFmpeg.
+		https://www.ffmpeg.org/'
+
+		[mimetype]='mimetype is a part of File-MimeInfo.
+		https://metacpan.org/pod/File::MimeInfo'
+
+		[mkvmerge]='mkvmerge is a part of MKVToolNix.
+		https://mkvtoolnix.download/'
+
+		[mkvextract]='mkvextract is a part of MKVToolNix.
+		https://mkvtoolnix.download/'
+
+		[time]='time is found in the package of the same name.
+		https://www.gnu.org/directory/time.html'
+	)
 	check_required_utils
 	#  Checking ffmpeg version
 	readarray -t ffmpeg_ver < <( \

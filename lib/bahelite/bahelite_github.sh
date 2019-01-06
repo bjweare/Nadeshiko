@@ -15,8 +15,8 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_GITHUB_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_GITHUB_VER='1.0.3'
-REQUIRED_UTILS+=(date stat ps wget xdg-open)
+BAHELITE_MODULE_GITHUB_VER='1.0.4'
+INTERNALLY_REQUIRED_UTILS+=(date stat ps wget xdg-open)
 
  # Default interval, that check_for_new_release() will use to look
 #  for a new release. You can redefine it after sourcing bahelite.sh

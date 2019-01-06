@@ -1088,10 +1088,9 @@ REQUIRED_UTILS+=(
 	find        # To find and delete possible leftover data files.
 	lsof        # To check, that there is an mpv process listening to socket.
 	jq          # To parse JSON from mpv.
-	pgrep
-	wc
-	socat
+	socat       # To talk to mpv via UNIX socket.
 )
+
 check_required_utils
 
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && show_help && exit 0

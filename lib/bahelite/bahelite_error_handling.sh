@@ -19,9 +19,9 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_ERROR_HANDLING_VER='1.4.3'
-REQUIRED_UTILS+=(
-	mountpoint  # Prevent clearing TMPDIR, if it’s a mountpoint.
+BAHELITE_MODULE_ERROR_HANDLING_VER='1.4.4'
+INTERNALLY_REQUIRED_UTILS+=(
+	mountpoint   # Prevent clearing TMPDIR, if it’s a mountpoint.
 )
 
  # Stores values, that environment variable $LINENO takes, in an array.

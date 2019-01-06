@@ -32,7 +32,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MENUS_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MENUS_VER='1.2.2'
+BAHELITE_MODULE_MENUS_VER='1.2.4'
 
 # It is *highly* recommended to use “set -eE” in whatever script
 # you’re going to source it from.
@@ -222,9 +222,17 @@ menu() {
 				done
 				echo -en "${__g}Up${__s}/${__g}Dn${__s}: select parameter, ${__g}Enter${__s}: confirm. "
 				;;
-			esac
-		read -sn1
-		[ "$REPLY" = $'\e' ] && read -sn2 rest && REPLY+="$rest"
+		esac
+		#  Sometimes there is something wrong with stdin, and read returns 1.
+		#    Apparently, it receives EOF. SO says it’s common when we are
+		#    in a loop reading something else, e.g. a file, but this happens
+		#    also in some inexplainable situations.
+		#  So to make it work properlyin every case, we read directly
+		#    from /dev/tty.
+		read -s -n1 </dev/tty
+		[ "$REPLY" = $'\e' ]  \
+			&& read -s -n2 rest </dev/tty  \
+			&& REPLY+="$rest"
 		if [ "$REPLY" ]; then
 			case "$REPLY" in
 				"$arrow_left"|"$arrow_down"|',')
@@ -272,19 +280,20 @@ menu() {
  # A wrapper over shell’s “read”.
 #  Provides a prompt unified with Bahelite output – it respects current
 #  indentation level and by default is coloured green, as it asks user
-#  to take an action. It only
+#  to take an action.
 #
 read() {
 	xtrace_off && trap xtrace_on RETURN
-	local i args=( "$@" )
-	for ((i=0; i<${#args[@]}; i++)); do
-		[ "${args[i]}" = -p ] && {
+	local i _args=( "$@" )
+	for ((i=0; i<${#_args[@]}; i++)); do
+		[ "${_args[i]}" = -p ] && {
 			[ -v args[i+1] ] \
 				|| err "Prompt key is used, but no string provided."
-			args[i+1]="$(echo -en "$MI${__g}${args[i+1]}${__s} ${__b}>${__s} ")"
+			args[i+1]="$(echo -en "$MI${__g}${_args[i+1]}${__s} ${__b}>${__s} ")"
 		}
 	done
-	builtin read "${args[@]}"
+	builtin read "${_args[@]}"
+	return 0
 }
 
 

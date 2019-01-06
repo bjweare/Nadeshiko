@@ -14,8 +14,8 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_LOGGING_VER='1.4'
-REQUIRED_UTILS+=(
+BAHELITE_MODULE_LOGGING_VER='1.4.1'
+INTERNALLY_REQUIRED_UTILS+=(
 	date  #  to add date to $LOG file name and to the log itself.
 	pkill  #  to find and kill the logging tee nicely, so it wouldn’t hang.
 )
