@@ -3,7 +3,7 @@
 
 #  RC file uses bash syntax:
 #    key=value
-#  Quotes can be omitted, unless the string has spaces.
+#  Quotes can be omitted, unless the string with value has spaces.
 #  The equals sign should stick to both key and value. No spaces around “=”.
 #
 #  Nadeshiko wiki may answer a question before you ask it!
@@ -169,8 +169,8 @@ audio=yes
 #  The items of this array are fed to FFmpeg’s subtitle filter as force_style
 #    parameter. force_style uses SSA style fields, see chapter 5. Style lines
 #    in this doc: with http://moodub.free.fr/video/ass-specs.doc
-#  Recommended set: Fontname='Roboto Medium', Fontsize='21',
-#    Borderstyle=1 Outline=1 Shadow=0.
+#  Recommended set: Fontname='Roboto Medium', Fontsize=21,
+#    PrimaryColour=&H00F0F0F0, Borderstyle=1 Outline=1 Shadow=0.
 #  By default this array of options is set, but empty, and doesn’t affect
 #    anything.
 ffmpeg_subtitle_fallback_style=(
@@ -182,24 +182,26 @@ ffmpeg_subtitle_fallback_style=(
 	#  Font size
 	#[Fontsize]='24'
 
-	#  Colour in which words should appear.
+	#  Text colour
 	#  Format: &HCC332211, hex codes in ABGR order, prepended with “&H”.
 	#  Alpha means transparency: 00 = 0%, FF = 100%.
 	#[PrimaryColour]='&H00F0F0F0'
 
-	#  “may be used instead of the Primary colour” (how?!)
+	#  Uncertain. “may be used instead of the Primary colour” (how?!)
 	#  Format: see PrimaryColour
 	#[SecondaryColour]=''
 
-	#  “may be used instead of the Primary or Secondary colour” (?!)
+	#  Text outline colour. Description warns, that it “may be used instead
+	#  of the Primary or Secondary colour”
 	#  Format: see PrimaryColour
-	# [OutlineColour]='&H03111111'
+	#[OutlineColour]='&H03111111'
 
-	#  “the colour of the subtitle outline or shadow, if these are used.”
+	#  Uncertain. The description says: “the colour of the subtitle outline
+	#  or shadow, if these are used.”
 	#  Format: see PrimaryColour
 	#[BackColour]=''
 	#
-	# ^ Note the British spelling – it is standard here.
+	# ^ Note the British spelling – it is a standard here.
 
 	#  Format: -1 = True, 0 = False
 	#[Bold]=''
@@ -227,7 +229,7 @@ ffmpeg_subtitle_fallback_style=(
 #    the command line option “scale” by that it doesn’t force (fixate) the
 #    resolution – Nadeshiko will be able to choose a smaller profile, if it
 #    will be necessary to fit the duration.
-#  Possible values are 2160p, 1440p, 1080p, 720p, 576p, 480p and 360p.
+#  Possible values are 2160p, 1440p, 1080p, 720p, 576p, 480p, 360p and “no”.
 #  Default value: no
 scale=no
 

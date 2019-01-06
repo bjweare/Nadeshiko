@@ -218,7 +218,7 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.7.3"
+BAHELITE_VERSION="2.7.4"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -278,7 +278,7 @@ TMPDIR=$(mktemp --tmpdir=${BAHELITE_LOCAL_TMPDIR:-${TMPDIR:-/tmp/}} \
 
  # Desktop directory
 #
-DESKTOP=$(which xdg-user-dir &>/dev/null && xdg-user-dir DESKTOP)
+DESKTOP=$(which xdg-user-dir &>/dev/null && xdg-user-dir DESKTOP) ||:
 [ -d "$DESKTOP" ] || DESKTOP="$HOME"
 
 
