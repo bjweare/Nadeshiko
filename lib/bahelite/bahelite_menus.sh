@@ -32,7 +32,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MENUS_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MENUS_VER='1.2.4'
+BAHELITE_MODULE_MENUS_VER='1.2.5'
 
 # It is *highly* recommended to use “set -eE” in whatever script
 # you’re going to source it from.
@@ -282,19 +282,24 @@ menu() {
 #  indentation level and by default is coloured green, as it asks user
 #  to take an action.
 #
-read() {
-	xtrace_off && trap xtrace_on RETURN
-	local i _args=( "$@" )
-	for ((i=0; i<${#_args[@]}; i++)); do
-		[ "${_args[i]}" = -p ] && {
-			[ -v args[i+1] ] \
-				|| err "Prompt key is used, but no string provided."
-			args[i+1]="$(echo -en "$MI${__g}${_args[i+1]}${__s} ${__b}>${__s} ")"
-		}
-	done
-	builtin read "${_args[@]}"
-	return 0
-}
+#  Commented, because it causes at least one serious problem: when read is used
+#  for reading a stream or file, call to the function makes an extra line
+#  to appear. This can be avoided by using “builtin read” within the main
+#  script, but that’d be bad.
+#
+# read() {
+# 	xtrace_off && trap xtrace_on RETURN
+# 	local i _args=( "$@" )
+# 	for ((i=0; i<${#_args[@]}; i++)); do
+# 		[ "${_args[i]}" = -p ] && {
+# 			[ -v _args[i+1] ] \
+# 				|| err "Prompt key is used, but no string provided."
+# 			_args[i+1]="$(echo -en "$MI${__g}${_args[i+1]}${__s} ${__b}>${__s} ")"
+# 		}
+# 	done
+# 	builtin read "${_args[@]}"
+# 	return 0
+# }
 
 
 return 0

@@ -1,3 +1,15 @@
+——— v 2.3.13 —————————————————————————————————————————————————————————————————
+
+Nadeshiko-2.3.13
+
+1. Removed overridden “read”, that caused a bug in reading streams
+   (extra line appeared and made certain parts of code fail. One example is
+   font extraction, that has seen an empty attachment ID and quit with
+   an error).
+
+
+
+
 ——— v 2.3.12 —————————————————————————————————————————————————————————————————
 
 Nadeshiko-2.3.12
