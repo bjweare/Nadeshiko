@@ -2,7 +2,7 @@
 
 #  nadeshiko-encode-libx264.sh
 #  Nadeshiko module for encoding with libx264.
-#  deterenkelt © 2018
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
@@ -11,6 +11,7 @@
 
 
 encode-libx264() {
+
 	pass() {
 		local pass=$1
 		local pass1_params=( -pass 1 -sn -an  -f mp4  /dev/null )

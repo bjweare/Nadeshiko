@@ -2,7 +2,7 @@
 
 #  time_functions.sh
 #  Helper functions to convert time formats, subtract times etc.
-#  deterenkelt © 2018
+#  © deterenkelt 2018
 #
 #  For licence see nadeshiko.sh
 

@@ -2,7 +2,7 @@
 
 #  nadeshiko-do-postponed_dialogues_gtk.py
 #  Dialogues implemented in Python, aiming for a better UX.
-#  deterenkelt © 2018
+#  © deterenkelt 2018
 #
 #  For licence see nadeshiko.sh
 

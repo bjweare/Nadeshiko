@@ -2,9 +2,13 @@
 
 #  nadeshiko-mpv.sh
 #  Wrapper for Nadeshiko to provide IPC with mpv.
-#  deterenkelt © 2018
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
+#
+#  mpv_crop_script.lua © TheAMM 2018
+#  Licence: GPL v3,
+#  see entire text in ./lib/mpv_crop_script/mpv_crop_script LICENSE
 
 set -feEuT
 shopt -s extglob
@@ -121,7 +125,7 @@ show_help() {
 show_version() {
 	cat <<-EOF
 	nadeshiko-mpv.sh $version
-	© deterenkelt 2018.
+	© deterenkelt 2018–2019.
 	Licence GPLv3+: GNU GPL ver. 3  <http://gnu.org/licenses/gpl.html>
 	This is free software: you are free to change and redistribute it.
 	There is no warranty, to the extent permitted by law.

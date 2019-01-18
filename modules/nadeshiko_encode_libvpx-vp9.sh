@@ -2,7 +2,7 @@
 
 #  nadeshiko-encode-libvpx-vp9.sh
 #  Nadeshiko module for encoding with libvpx-vp9.
-#  deterenkelt © 2018
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 

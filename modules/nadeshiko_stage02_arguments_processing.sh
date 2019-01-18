@@ -4,7 +4,7 @@
 #  Nadeshiko module that contains functions for parsing, verifying,
 #  and processing arguments. It also has a function that would
 #  display the initial set of parameters.
-#  deterenkelt © 2018
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 

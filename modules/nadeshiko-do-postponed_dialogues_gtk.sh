@@ -2,7 +2,7 @@
 
 #  nadeshiko-mpv_dialogues_gtk.sh
 #  Dialogues implemented with Python and Glade. I rate them 4.5/5.
-#  deterenkelt © 2018
+#  © deterenkelt 2018
 #
 #  For licence see nadeshiko.sh
 

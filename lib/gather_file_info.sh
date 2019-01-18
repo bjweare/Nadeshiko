@@ -2,7 +2,7 @@
 
 #  gather_file_info.sh
 #  A set of functions to get information with ffmpeg and mediainfo.
-#  deterenkelt © 2018
+#  © deterenkelt 2018
 #
 #  For licence see nadeshiko.sh
 

@@ -3,7 +3,7 @@
 #  mpv_ipc.sh
 #  Implementation of a library, that reads and sets mpv properties (only
 #  a limited number of them), can verify values and assign to variables.
-#  deterenkelt © 2018
+#  © deterenkelt 2018
 #
 #  For licence see nadeshiko.sh
 

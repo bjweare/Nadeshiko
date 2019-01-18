@@ -2,7 +2,7 @@
 
 #  stage01_preparation.sh
 #  Nadeshiko module containing preparation stage functions.
-#  deterenkelt © 2018
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 

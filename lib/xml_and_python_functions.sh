@@ -3,7 +3,7 @@
 #  xml_and_python_functions.sh
 #  Helper functions to parse and generate code in Glade XML and Python script
 #  accompanying it.
-#  deterenkelt © 2018
+#  © deterenkelt 2018
 #
 #  For licence see nadeshiko.sh
 

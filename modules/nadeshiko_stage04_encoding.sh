@@ -4,7 +4,7 @@
 #  Nadeshiko module for the final stage – the encoding. This stage includes
 #  the preparations too, such as combining new file name, metadata
 #  and assembling the filter option string.
-#  deterenkelt © 2018
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 

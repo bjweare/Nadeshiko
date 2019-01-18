@@ -2,7 +2,7 @@
 
 #  nadeshiko.sh
 #  A Linux tool to cut small videos with ffmpeg.
-#  deterenkelt © 2018
+#  © deterenkelt 2018–2019
 
  # This program is free software; you can redistribute it and/or modify it
 #    under the terms of the GNU General Public License as published
@@ -126,7 +126,7 @@ show_help() {
 show_version() {
 	cat <<-EOF
 	nadeshiko.sh $version
-	© deterenkelt 2018.
+	© deterenkelt 2018–2019.
 	Licence: GNU GPL version 3  <http://gnu.org/licenses/gpl.html>
 	This is free software: you are free to change and redistribute it.
 	There is no warranty, to the extent permitted by law.
