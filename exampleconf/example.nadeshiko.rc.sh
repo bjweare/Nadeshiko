@@ -1,4 +1,4 @@
-#  nadeshiko.rc.sh v2.3.7
+#  nadeshiko.rc.sh v2.3.13
 
 
 #  RC file uses bash syntax:
@@ -99,6 +99,7 @@ ffmpeg='ffmpeg -v error -nostdin'
 #
 #  Chroma subsampling
 #  Not all browsers support yuv422 or yuv444p yet.
+#  VP9 encodes well with yuv444p! Plays in the old FF-52 ESR.
 #  Default value: 'yuv420p'
 ffmpeg_pix_fmt='yuv420p'
 #
@@ -155,7 +156,7 @@ container=auto
 container_own_size_pct=3%
 
 
- # Defaults for hardcoding subtitles into video and adding audio track.
+ # The defaults for hardcoding subtitles into video and adding audio track.
 #  Default is “yes” for both.
 subs=yes
 audio=yes
