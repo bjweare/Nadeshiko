@@ -27,6 +27,8 @@ else
 	BAHELITE_LOG_MAX_COUNT=5
 fi
 
+BAHELITE_LOGFD_PATH="$TMPDIR/bahelite_logfd"
+
 
  # Call this function to start logging.
 #  To keep logs under $CACHEDIR, run prepare_cachedir() before calling this
@@ -69,6 +71,28 @@ start_log() {
 	#  and triggering an error. It will, however, quit with a code >0,
 	#  so we catch it here with “||:”.
 	exec &> >(tee -a "$LOG" ||:)
+
+	#  An attempt to avoid sending tee signals at exit, and just use
+	#  a separate file descriptor for a copy of stdin and stdout.
+
+	#  № 1
+	# exec 2>&1 1>>&"$LOG"
+
+	#  № 2
+	# exec {BAHELITE_LOGFD}<>"$BAHELITE_LOGFD_PATH"
+	# exec &>{BAHELITE_LOGFD}
+	# ( tee -a "$LOG" <{BAHELITE_LOGFD} ) &
+
+	#  № 3
+	# exec {BAHELITE_LOGFD}<>"$LOG"
+	# exec 1>&{BAHELITE_LOGFD} 2>&1
+	# exec 1>&"$LOG" 2>&"$LOG"
+
+	#  № 4
+	# exec {BAHELITE_LOGFD}<>"$BAHELITE_LOGFD_PATH"
+	# exec &>{BAHELITE_LOGFD}
+	# exec {BAHELITE_LOGFD}> >(tee -ia "$LOG" ||:)
+
 	BAHELITE_LOGGING_STARTED=t
 	return 0
 }

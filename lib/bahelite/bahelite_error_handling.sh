@@ -223,6 +223,7 @@ bahelite_on_exit() {
 		#    the mother script’s tee, in case one script calls another,
 		#    and both of them use Bahelite.
 		pkill -PIPE  --session 0  -f "tee -a $LOG"
+		# exec {BAHELITE_LOGFD}<&-
 		# pkill -HUP  --session 0  -f "tee -a $LOG"
 	}
 	if	[ -d "$TMPDIR" ] && ! mountpoint --quiet "$TMPDIR" \
