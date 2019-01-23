@@ -1,3 +1,13 @@
+——— v 2.3.14 —————————————————————————————————————————————————————————————————
+
+Nadeshiko-2.3.14
+
+1. **Bugfix:** Updated `rcfile_minver` as it should point to v2.2.4
+   and make people update their configs.
+
+
+
+
 ——— v 2.3.13 —————————————————————————————————————————————————————————————————
 
 Nadeshiko-2.3.13
