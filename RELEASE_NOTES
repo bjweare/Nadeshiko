@@ -1,3 +1,19 @@
+——— v 2.3.16 —————————————————————————————————————————————————————————————————
+
+Nadeshiko 2.3.16
+Nadeshiko-mpv 2.3.4
+Nadeshiko-do-postponed 2.2.2
+
+1. Bahelite modules are now cherrypicked.
+2. **Bugfix:** check_for_updates config option now controls sourcing
+   the bahelite_github.sh module. Set the option to “no” and the dependencies
+   to wget and xdg-open, which annoyed some, will be no more.
+3. Removed mpv-crop-script_installer.lua, as the development went another
+   way and it turned out to be not needed.
+
+
+
+
 ——— v 2.3.15 —————————————————————————————————————————————————————————————————
 
 Nadeshiko-2.3.15
