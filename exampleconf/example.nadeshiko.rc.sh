@@ -118,9 +118,6 @@ ffmpeg_pix_fmt='yuv420p'
 
 
  # A/V codecs and containers
-#  Supported combinations:
-#  1) libx264 + libfdk_aac/aac in mp4
-#  2) libvpx-vp9 + libopus/libvorbis in webm (Nadeshiko’s default since v1.2)
 #
 #  Video codec
 #  “libx264” – good quality, fast, options are well-known.
@@ -129,23 +126,26 @@ ffmpeg_pix_fmt='yuv420p'
 #  Default value: 'libvpx-vp9'
 ffmpeg_vcodec='libvpx-vp9'
 #
-#  Audio codec
-#  “libopus” – the best out there, but only for webm, hence libvpx-vp9.
-#  “libvorbis” – good, but only for webm, hence libvpx-vp9.
-#                May produce unexplainably large audio tracks in webm,
-#                so better don’t use it, if you can use Opus.
-#  “libfdk_aac” – equally good as Vorbis, for mp4, hence libx264.
-#                 The best out there for MP4. The licence doesn’t allow
-#                 to build distributable packages with this library, so you’ll
-#                 have to compile FFmpeg yourself in order to have libfdk_aac.
-#  “aac” – still good, but worse than libvorbis and libfdk_aac.
-#  “libmp3lame”, “ac3”… – it’s 2018, don’t use them.
+#
+# Audio codec
+#        Name  Compatible  Notes
+#               container
+#     libopus     WebM     The best.
+#   libvorbis     WebM     Good, but may produce unexplainably large audio
+#                            tracks. Prefer Opus.
+#  libfdk_aac      MP4     Equally good as Vorbis, the best out there for MP4.
+#                            The licence doesn’t allow to build distributable
+#                            packages with this library, so you’ll have to com-
+#                            pile FFmpeg yourself in order to have libfdk_aac.
+#         aac      MP4     Still good, but worse than libvorbis and libfdk_aac.
+#  libmp3lame      MP4     Worse, than all abovementioned.
+#         ac3      MP4     Comparable to libmp3lame.
 #  Default value: 'libopus'
 ffmpeg_acodec='libopus'
 #
 #  Container
 #  “mp4” – use for libx264.
-#  “webm” – use for libvpx-vp9. Needs libvpx-1.7+ installed.
+#  “webm” – use for libvpx-vp9.
 #  “auto” – pick appropriate container based on the chosen set of A/V codecs.
 #  Default value: auto
 container=auto
@@ -170,8 +170,6 @@ audio=yes
 #  The items of this array are fed to FFmpeg’s subtitle filter as force_style
 #    parameter. force_style uses SSA style fields, see chapter 5. Style lines
 #    in this doc: with http://moodub.free.fr/video/ass-specs.doc
-#  Recommended set: Fontname='Roboto Medium', Fontsize=21,
-#    PrimaryColour=&H00F0F0F0, Borderstyle=1 Outline=1 Shadow=0.
 #  By default this array of options is set, but empty, and doesn’t affect
 #    anything.
 ffmpeg_subtitle_fallback_style=(
@@ -262,6 +260,9 @@ crop_uses_profile_vbitrate=yes
                     #  Options for advanced users   #
 
  # Bitrate-resolution profiles
+#                                   Read on the wiki
+#                                   - what profiles do: https://git.io/fxJhR
+#                                   - how profiles work: https://git.io/fxJpu
 #
 #  Sometimes, the encoded file wouldn’t fit into the maximum size – its reso-
 #    lution and/or bitrate may be too big for the required size. The higher is
@@ -288,10 +289,7 @@ crop_uses_profile_vbitrate=yes
 #  Don’t confuse with libvpx_minrate and libvpx_maxrate.
 #  Default value: 60%
 minimal_bitrate_pct=60%
-#
-#  Read on the wiki
-#  - what profiles do: https://git.io/fxJhR
-#  - how profiles work: https://git.io/fxJpu
+
 bitres_profile_360p=(
 	[libx264_desired_bitrate]=500k
 	[libvpx-vp9_desired_bitrate]=276k
@@ -353,7 +351,7 @@ bitres_profile_2160p=(
 
 
                          #  libx264 options  #
-
+                                            #   wiki: https://git.io/fhSkC
  # Speed / quality preset
 #  “veryslow” > “slower” > “slow” > shit > “medium” > … > “ultrafast”.
 libx264_preset='veryslow'
@@ -387,7 +385,7 @@ libx264_pass2_extra_options=()
 
 
                         #  libvpx-vp9 options  #
-
+                                              #   wiki: https://git.io/fhSkW
  # Tile columns
 #  Places an upper constraint on the number of tile-columns,
 #  which libvpx-vp9 may use.
