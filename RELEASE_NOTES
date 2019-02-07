@@ -1,3 +1,16 @@
+——— v 2.3.15 —————————————————————————————————————————————————————————————————
+
+Nadeshiko-2.3.15
+
+1. **Bugfix:** Fixed `single_process_check()` in bahelite, that failed with
+   an error if nadeshiko-mpv was used with an argument, while no other nadeshi-
+   ko process was running.
+2. Cleaned descriptions example.nadeshiko.rc.sh from old stuff, added
+   a couple of links to the wiki, when suitable.
+
+
+
+
 ——— v 2.3.14 —————————————————————————————————————————————————————————————————
 
 Nadeshiko-2.3.14

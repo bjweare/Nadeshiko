@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MISC_VER='1.8.1'
+BAHELITE_MODULE_MISC_VER='1.8.2'
 
 INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # Single process check
@@ -271,8 +271,12 @@ single_process_check() {
 	[ ${#ARGS[*]} -eq 0 ]  \
 		&& our_command="bash $MYNAME_AS_IN_DOLLARZERO"  \
 		|| our_command="bash $MYNAME_AS_IN_DOLLARZERO ${ARGS[@]}"
-	our_processes=$(pgrep -u $USER -afx "$our_command" --session 0 --pgroup 0)
-	total_processes=$(pgrep -u $USER -afx "bash $MYNAME_AS_IN_DOLLARZERO")
+	our_processes=$(
+		pgrep -u $USER -afx "$our_command" --session 0 --pgroup 0
+	)
+	total_processes=$(
+		pgrep -u $USER -af  "bash $MYNAME_AS_IN_DOLLARZERO"  # sic!
+	)
 	our_processes_count=$(echo "$our_processes" | wc -l)
 	total_processes_count=$(echo "$total_processes" | wc -l)
 	(( our_processes_count < total_processes_count )) && {
