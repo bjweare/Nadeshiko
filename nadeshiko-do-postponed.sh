@@ -8,6 +8,13 @@
 
 
 set -feEuT
+BAHELITE_CHERRYPICK_MODULES=(
+	error_handling
+	logging
+	rcfile
+	versioning
+	misc
+)
 . "$(dirname "$(realpath --logical "$0")")/lib/bahelite/bahelite.sh"
 prepare_cachedir 'nadeshiko'
 start_log
@@ -16,7 +23,7 @@ set_modulesdir 'nadeshiko'
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.2.1"
+declare -r version="2.2.2"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"

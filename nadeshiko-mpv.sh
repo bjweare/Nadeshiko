@@ -12,6 +12,13 @@
 
 set -feEuT
 shopt -s extglob
+BAHELITE_CHERRYPICK_MODULES=(
+	error_handling
+	logging
+	rcfile
+	versioning
+	misc
+)
 . "$(dirname "$(realpath --logical "$0")")/lib/bahelite/bahelite.sh"
 prepare_cachedir 'nadeshiko'
 start_log
@@ -28,7 +35,7 @@ set -f
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.3.3"
+declare -r version="2.3.4"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
 	show_preview

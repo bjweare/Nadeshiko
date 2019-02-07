@@ -187,6 +187,9 @@ check_util_support() {
 					time
 				)
 				;;
+			check_for_updates)
+				. "$MYDIR/lib/bahelite/bahelite_github.sh"
+				;;
 		esac
 	done
 	REQUIRED_UTILS_HINTS+=(

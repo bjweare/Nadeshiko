@@ -16,7 +16,13 @@
 
 set -feEuT
 shopt -s extglob
-#  Logging, error handling, messages to console and desktop.
+BAHELITE_CHERRYPICK_MODULES=(
+	error_handling
+	logging
+	rcfile
+	versioning
+	misc
+)
 . "$(dirname "$(realpath --logical "$0")")/lib/bahelite/bahelite.sh"
 prepare_cachedir
 start_log
@@ -37,7 +43,7 @@ set -f
 set_exampleconfdir
 prepare_confdir
 
-declare -r version='2.3.15'
+declare -r version='2.3.16'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.2.4'
@@ -140,10 +146,12 @@ show_version() {
 set_rcfile_from_args "$@"
 read_rcfile  "$rcfile_minver"
 post_read_rcfile
-[ -v check_for_updates ] && check_for_new_release_on_github
 #  Stage 2
 parse_args "${args[@]}"
-check_util_support video ${audio:+audio} ${subs:+subs} ${time_stat:+time_stat}
+check_util_support  video  ${audio:+audio}  ${subs:+subs} \
+                    ${time_stat:+time_stat} \
+                    ${check_for_updates:+check_for_updates}
+[ -v check_for_updates ] && check_for_new_release_on_github
 set_vars
 display_settings
 until [ -v size_fits ]; do

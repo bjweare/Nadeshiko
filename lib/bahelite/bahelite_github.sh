@@ -15,8 +15,15 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_GITHUB_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_GITHUB_VER='1.0.4'
+BAHELITE_MODULE_GITHUB_VER='1.0.5'
 INTERNALLY_REQUIRED_UTILS+=(date stat ps wget xdg-open)
+INTERNALLY_REQUIRED_UTILS_HINTS+=(
+	[ps]='ps is a part of procps-ng.
+	http://procps-ng.sourceforge.net/
+	https://gitlab.com/procps-ng/procps'
+	[xdg-open]='xdg-open belongs to xdg-utils
+	https://www.freedesktop.org/wiki/Software/xdg-utils/'
+)
 
  # Default interval, that check_for_new_release() will use to look
 #  for a new release. You can redefine it after sourcing bahelite.sh

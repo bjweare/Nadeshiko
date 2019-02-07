@@ -218,7 +218,7 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.8"
+BAHELITE_VERSION="2.9"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -334,11 +334,17 @@ declare -A REQUIRED_UTILS_HINTS=()
 #  or that grep is GNU grep and not BSD grep.
 #declare -A REQUIRED_UTILS_CHECKFUNCS=()
 
-noglob_off
-for bahelite_module in "$BAHELITE_DIR"/bahelite_*.sh; do
-	. "$bahelite_module" || return 5
-done
-noglob_on
+if [ -v BAHELITE_CHERRYPICK_MODULES ]; then
+	for module in "${BAHELITE_CHERRYPICK_MODULES[@]}"; do
+		. "$BAHELITE_DIR/bahelite_$module.sh" || return 5
+	done
+else
+	noglob_off
+	for bahelite_module in "$BAHELITE_DIR"/bahelite_*.sh; do
+		. "$bahelite_module" || return 5
+	done
+	noglob_on
+fi
 
 
 [ -v BAHELITE_MODULE_MESSAGES_VER ] || {
