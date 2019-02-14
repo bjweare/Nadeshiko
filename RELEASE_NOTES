@@ -1,3 +1,14 @@
+——— v 2.3.17 —————————————————————————————————————————————————————————————————
+
+Nadeshiko-mpv 2.3.5
+
+1. Changed the hint for the “later” checkbox, that’s next to “Encode” button.
+2. **Bugfix:** Fixed xml_and_python_funcs lib trying to set $xml before
+   xmlstarlet was checked for being present among other dependencies.
+
+
+
+
 ——— v 2.3.16 —————————————————————————————————————————————————————————————————
 
 Nadeshiko 2.3.16

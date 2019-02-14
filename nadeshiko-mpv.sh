@@ -34,8 +34,7 @@ done
 set -f
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
-
-declare -r version="2.3.4"
+declare -r version="2.3.5"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
 	show_preview
@@ -55,6 +54,7 @@ declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 single_process_check
 pgrep -u $USER -af "bash.*nadeshiko-do-postponed.sh" \
 	&& err 'Cannot run at the same time with Nadeshiko-do-postponed.'
+
 
 
 on_error() {
@@ -1092,7 +1092,6 @@ play_encoded_file() {
 
 read_rcfile  "$rcfile_minver"
 post_read_rcfile
-
 REQUIRED_UTILS+=(
 	python3     # Dialogue windows.
 	xmlstarlet  # To alter XML in the GUI file.
@@ -1101,8 +1100,8 @@ REQUIRED_UTILS+=(
 	jq          # To parse JSON from mpv.
 	socat       # To talk to mpv via UNIX socket.
 )
-
 check_required_utils
+declare -r xml=$(which xmlstarlet)  # for lib/xml_and_python_functions.sh
 
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && show_help && exit 0
 [[ "${1:-}" =~ ^(-v|--version)$ ]] && show_version && exit 0

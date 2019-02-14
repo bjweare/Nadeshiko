@@ -8,7 +8,8 @@
 #  For licence see nadeshiko.sh
 
 
-xml=$(which xmlstarlet)
+ # In the code below,
+#  $xml should point to xmlstarlet binary.
 
 
  # Cuts a part of XML from one variable and assigns to another.

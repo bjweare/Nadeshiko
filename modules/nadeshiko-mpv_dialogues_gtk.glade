@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.20.4 
+<!-- Generated with glade 3.20.4
 
 Copyright (C) deterenkelt 2018
 
@@ -67,7 +67,7 @@ reasons:
 - it introduces ambiguity in the Crop dialog: when the win-
 dow appears and you read “Crop the video?”, then the check-
 box, then the two buttons – OK and Cancel, it gives a wrong
-impression, that Cancel is a some kind of “No” answer 
+impression, that Cancel is a some kind of “No” answer
 to the question, as OK approves it;
 - the user can cancel Nadeshiko-mpv execution at any time
 by closing the window.
@@ -159,11 +159,11 @@ and whether the spacing between them is appropriate.
 
 12. Conditional showing of elements is SUPER QUIRKY.
 First problem is that “Visible” property works with a look-
-back at “No show all”. The second problem is that damn Glade 
-removes properties, instead of setting them to “False”. 
-What’s bad in it, you’d say? When you need to autogenerate 
+back at “No show all”. The second problem is that damn Glade
+removes properties, instead of setting them to “False”.
+What’s bad in it, you’d say? When you need to autogenerate
 such a property, it gets placed at the end of &lt;object&gt;
-&lt;/object&gt;, behind its children. And damn GtkBuilder seems to 
+&lt;/object&gt;, behind its children. And damn GtkBuilder seems to
 not read the properties specified after &lt;child&gt;&lt;/child&gt;.
 Your properties are ignored. You have to tick Visible and
 No show all just so that they would appear in the original
@@ -174,7 +174,7 @@ be in.
 
 
 13. UI has to be tested thoroughly – GTK is shit and things
-may (and often will) not work as expected or at all, 
+may (and often will) not work as expected or at all,
 when you run it. Bugs increase complexity of the autogene-
 rated code, and require runtime overrides with Python.
 
@@ -1351,8 +1351,8 @@ Minimal bitrate perc.: &lt;span fgalpha="50%" weight="bold"&gt;60%&lt;/span&gt; 
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">False</property>
-                                <property name="tooltip_markup" translatable="yes">Store the command to a file to run later.
-(Will not run Nadeshiko &lt;i&gt;now&lt;/i&gt;.)</property>
+                                <property name="tooltip_markup" translatable="yes">Pressing “Encode” with ticked “later” will store the command to a file
+to be run later (Nadeshiko backend will not start &lt;i&gt;now&lt;/i&gt;).</property>
                                 <property name="margin_left">3</property>
                                 <property name="draw_indicator">True</property>
                               </object>
