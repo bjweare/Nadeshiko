@@ -15,7 +15,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_RCFILE_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_RCFILE_VER='1.4.5'
+BAHELITE_MODULE_RCFILE_VER='1.4.6'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -232,7 +232,7 @@ read_rcfile() {
 	else
 		[ -v EXAMPLE_RCFILE ] \
 			|| err "No example rc file provided and EXAMPLE_RCFILE is not set.
-		            Did you forget to run place_rc_and_examplerc_in_confdir?"
+		            Did you forget to run place_rc_and_examplerc?"
 		example_rcfile="$EXAMPLE_RCFILE"
 	fi
 	#  This allows to keep user RC files short.
