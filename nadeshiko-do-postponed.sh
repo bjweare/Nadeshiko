@@ -23,7 +23,7 @@ set_modulesdir 'nadeshiko'
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 
-declare -r version="2.2.2"
+declare -r version="2.2.3"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -43,6 +43,7 @@ read_rcfile  "$rcfile_minver"
 	nice_cmd="nice -n $niceness_level"
 }
 check_required_utils
+declare -r xml=$(which xmlstarlet)  # for lib/xml_and_python_functions.sh
 
 single_process_check
 pgrep -u $USER -af "bash.*nadeshiko.sh" &>/dev/null  \

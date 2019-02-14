@@ -1,10 +1,21 @@
+——— v 2.3.18 —————————————————————————————————————————————————————————————————
+
+Nadeshiko-do-postponed 2.2.3
+
+1. **Bugfix:** add the definition of $xml to Nadeshiko-do-postponed, the
+   lack of which caused a crash since it has been moved from xml_and_python_
+   funcs library.
+
+
+
+
 ——— v 2.3.17 —————————————————————————————————————————————————————————————————
 
 Nadeshiko-mpv 2.3.5
 
 1. Changed the hint for the “later” checkbox, that’s next to “Encode” button.
 2. **Bugfix:** Fixed xml_and_python_funcs lib trying to set $xml before
-   xmlstarlet was checked for being present among other dependencies.
+   xmlstarlet wis checked for being present among other dependencies.
 
 
 
