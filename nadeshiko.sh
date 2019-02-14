@@ -42,8 +42,9 @@ done
 set -f
 set_exampleconfdir
 prepare_confdir
+place_rc_and_examplerc
 
-declare -r version='2.3.18'
+declare -r version='2.3.19'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.2.4'
@@ -77,6 +78,7 @@ RCFILE_BOOLEAN_VARS+=(
 	crop_uses_profile_vbitrate
 	create_windows_friendly_filenames
 )
+
 
 
 show_help() {

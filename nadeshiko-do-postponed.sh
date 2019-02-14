@@ -22,8 +22,9 @@ set_libdir 'nadeshiko'
 set_modulesdir 'nadeshiko'
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
+place_rc_and_examplerc
 
-declare -r version="2.2.3"
+declare -r version="2.2.4"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"

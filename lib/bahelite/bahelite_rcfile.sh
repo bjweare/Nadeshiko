@@ -10,11 +10,12 @@
 }
 . "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 . "$BAHELITE_DIR/bahelite_versioning.sh" || return 5
+. "$BAHELITE_DIR/bahelite_directories.sh" || return 5
 
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_RCFILE_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_RCFILE_VER='1.4.4'
+BAHELITE_MODULE_RCFILE_VER='1.4.5'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -31,45 +32,6 @@ BAHELITE_ERROR_MESSAGES+=(
 #  value (so that they could be later checked with [ -v varname ]).
 #
 RCFILE_BOOLEAN_VARS=()
-
-
- # Prepares config directory with respect to XDG
-#  [$1] – script name, whose config directory will be used.
-#         If unset, uses $MYNAME. (Useful for when there’s a script suite,
-#         which should use same directory, or when one script is a testing
-#         suite for another and should be able to retrieve other script’s
-#         config directory).
-#
-prepare_confdir() {
-	[ -v BAHELITE_CONFDIR_PREPARED ] && {
-		info "Config directory is already prepared!"
-		return 0
-	}
-	[ "${1:-}" ] \
-		&& local own_subdir="$1" \
-		|| local own_subdir="${MYNAME%.*}"
-	[ -v CONFDIR ] || CONFDIR="$XDG_CONFIG_HOME/$own_subdir"
-
-	bahelite_check_directory "$CONFDIR" 'Config'
-	declare -g  RCFILE  EXAMPLE_RCFILE
-	RCFILE="$CONFDIR/${MYNAME%.*}.rc.sh"
-	if [ -v EXAMPLECONFDIR ]; then
-		EXAMPLE_RCFILE="$EXAMPLECONFDIR/example.${MYNAME%.*}.rc.sh"
-		#  Copy or update config example.
-		if [ -r "$EXAMPLE_RCFILE" ]; then
-			[ "$EXAMPLE_RCFILE" -nt "$CONFDIR/${EXAMPLE_RCFILE##*/}" ] \
-			&& cp "$EXAMPLE_RCFILE"  "$CONFDIR/${EXAMPLE_RCFILE##*/}"
-		else
-			: "no example RC file in EXAMPLECONFDIR."
-			unset EXAMPLE_RCFILE
-		fi
-	else
-		warn "Not copying example RC file: EXAMPLECONFDIR is not set.
-		      Run “set_exampleconfdir” before “prepare_confdir”."
-	fi
-	declare -g BAHELITE_CONFDIR_PREPARED=t
-	return 0
-}
 
 
  # Pass the main script’s positional parameters to this function
@@ -189,6 +151,61 @@ set_rcfile_from_args() {
 }
 
 
+ # Copies example RC file from the installation files into user’s CONFDIR.
+#  Updates an old example RC file, if the file in the installation is newer.
+#  If there is no RC file in CONFDIR, puts a copy of example RC in its place.
+#  [$1] – name of the example rc file (only the unique part). If not set,
+#         equals to "${MYNAME%.*}".
+#            It makes sense to pass this parameter, if you have a bundle of
+#         scripts each with its own config, and you have one “mother” script,
+#         that calls another. If the mother script reads other script’s RC file
+#        (or just verifies, that it does exist), this will trigger an error –
+#         at least until somebody would figure out to launch that inner script
+#         by itself. Thus, if you’re going to operate with another script RC
+#         file, you should prepare its RC files beforehand with this function
+#         and pass the name of that script as an argument.
+#  If the argument is not set or is equal to “${MYFILE%.*}”,
+#  then RCFILE and EXAMPLE_RCFILE are set.
+#
+place_rc_and_examplerc() {
+	declare -g  RCFILE  EXAMPLE_RCFILE
+	local config_name="${MYNAME%.*}"
+	[ "${1:-}" ] && config_name="$1"
+	local rc_path="$CONFDIR/$config_name.rc.sh"
+	local installed_examplerc_path="$EXAMPLECONFDIR/example.$config_name.rc.sh"
+	local local_examplerc_path="$CONFDIR/example.$config_name.rc.sh"
+
+	if [ -v EXAMPLECONFDIR ]; then
+		info "Testing example RC file from the installation:
+		      $installed_examplerc_path"
+		#  Copy or update config example.
+		if [ -r "$installed_examplerc_path" ]; then
+			[ "$installed_examplerc_path" -nt "$local_examplerc_path" ] \
+				&&  cp "$installed_examplerc_path" "$local_examplerc_path"
+		else
+			warn "Check that “set_exampleconfdir” is called prior to calling
+			      “prepare_confdir”, and the latter – before this function."
+			err "Example RC file doesn’t exist in the installation."
+		fi
+		[ ! -r "$rc_path" ] && {
+			info "RC file ($rc_path) doesn’t exist, copying example RC file:
+			      $local_examplerc_path"
+			cp "$local_examplerc_path" "$rc_path" \
+				|| err "Couldn’t create RC file!"
+		}
+		#  Setting global values only when working with script’s own
+		#  RC and example RC files.
+		[ "$config_name" = "${MYNAME%.*}" ] && {
+			RCFILE="$rc_path"
+			EXAMPLE_RCFILE="$local_examplerc_path"
+		}
+	else
+		err "EXAMPLECONFDIR is not set."
+	fi
+	return 0
+}
+
+
  # Reads an RC file and verifies, that it has a compatible version.
 #  If version is lower, than minimum compatible version, throws an error.
 #   $1 – the minimal compatible version for the RC file.
@@ -215,11 +232,16 @@ read_rcfile() {
 	else
 		[ -v EXAMPLE_RCFILE ] \
 			|| err "No example rc file provided and EXAMPLE_RCFILE is not set.
-		            Did you forget to run prepare_confdir?"
+		            Did you forget to run place_rc_and_examplerc_in_confdir?"
 		example_rcfile="$EXAMPLE_RCFILE"
 	fi
+	#  This allows to keep user RC files short.
+	#  Full settings are picked from the example RC, and user’s RC
+	#  just overrides them.
 	. "$example_rcfile"
 
+	info "Sourcing RC file
+	      $rcfile"
 	if [ -r "$rcfile" ]; then
 		#  Verifying RC file version
 		rcfile_ver=$(
@@ -233,39 +255,8 @@ read_rcfile() {
 		}
 		. "$rcfile"
 	else
-		if [ -r "$example_rcfile" ]; then
-			cp "$example_rcfile" "$rcfile" || err "Couldn’t create RC file!"
-			. "$rcfile"
-		else
-			err "No RC file or example RC file was found!"
-		fi
+		err "RC file doesn’t exist"
 	fi
-
-	 # Verifying, that all the variables, which are specified in the example
-	#  config file, are present in the one, that the main script uses.
-	#  (Too strict. Now we just source exampleconf and let the user’s config
-	#   file to place overrides. RC version check is left for the cases when
-	#   option names change)
-	#
-	# [ -r "$example_rcfile" ] && {
-	# 	for varname in \
-	# 		$(
-	# 			old_vars="$(compgen -A variable)"
-	# 			. "$example_rcfile"
-	# 			new_vars="$(compgen -A variable)"
-	# 			echo "$old_vars"$'\n'"${new_vars//old_vars/}" | sort | uniq -u
-	# 		)
-	# 	do
-	# 		[ -v "$varname" ] || missing_variable_list+=( "$varname" )
-	# 	done
-	# 	[ ${#missing_variable_list[*]} -gt 0 ] && {
-	# 		verb='is'
-	# 		[ ${#missing_variable_list[*]} -gt 1 ] && plural_s='s' verb='are'
-	# 		err "Config variable${plural_s:-} $verb missing: $(
-	# 		        sed -r 's/ /, /g'<<<"${missing_variable_list[*]}"
-	# 		    )"
-	# 	}
-	# }
 
 	#  Unsetting variables with a negative value
 	for varname in "${RCFILE_BOOLEAN_VARS[@]}"; do

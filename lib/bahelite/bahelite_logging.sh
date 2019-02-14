@@ -9,7 +9,8 @@
 	echo 'Must be sourced from bahelite.sh.' >&2
 	return 5
 }
-. "$BAHELITE_DIR/bahelite_misc.sh" || return 5
+. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
+. "$BAHELITE_DIR/bahelite_directories.sh" || return 5
 
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
@@ -27,7 +28,7 @@ else
 	BAHELITE_LOG_MAX_COUNT=5
 fi
 
-BAHELITE_LOGFD_PATH="$TMPDIR/bahelite_logfd"
+# BAHELITE_LOGFD_PATH="$TMPDIR/bahelite_logfd"
 
 
  # Call this function to start logging.

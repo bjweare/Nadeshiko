@@ -3,7 +3,7 @@
 #  bahelite.sh
 #  BAsh HElper LIbrary – To Everyone!
 #  ――――――――――――――――――――――――――――――――――
-#  deterenkelt © 2018
+#  © deterenkelt 2018–2019
 #  https://github.com/deterenkelt/Bahelite
 #
 #  This work is based on the Bash Helper Library for Large Scripts,
@@ -218,7 +218,7 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.9"
+BAHELITE_VERSION="2.9.1"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -248,22 +248,7 @@ else
 	TERM_COLS=80
 fi
 TERM_LINES=$(tput lines)
-#
-#  X variables
-[ -v DISPLAY ] && {
-	read WIDTH HEIGHT width_mm \
-		< <(
-			xrandr | sed -rn 's/^.* connected.* ([0-9]+)x([0-9]+).* ([0-9]+)mm x [0-9]+mm.*$/\1 \2 \3/p; T; Q1' \
-				&& echo '800 600 211.6'
-		)
-	DPI=$(echo "scale=2; \
-	            dpi=$WIDTH/$width_mm*25.4; \
-	            scale=0; \
-	            dpi /= 1; \
-	            print dpi" \
-		      | bc -q)
-	unset width_mm
-}
+
 
  # Script’s tempdir
 #  bahelite_on_exit removes it – don’t forget anything there.
@@ -285,15 +270,6 @@ DESKTOP=$(which xdg-user-dir &>/dev/null && xdg-user-dir DESKTOP) ||:
  # Dummy logfile
 #  To enable proper logging, call start_log().
 LOG=/dev/null
-
-
- # XDG default directories
-#  For the script subdirectories within them, see bahelite_misc.sh
-#  and bahelite_rcfile.sh.
-#
-: ${XDG_CONFIG_HOME:=$HOME/.config}
-: ${XDG_CACHE_HOME:=$HOME/.cache}
-: ${XDG_DATA_HOME:=$HOME/.local/share}
 
 
  # By default Bahelite turns off xtrace for its internal functions.
