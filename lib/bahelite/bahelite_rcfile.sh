@@ -176,16 +176,16 @@ place_rc_and_examplerc() {
 	local local_examplerc_path="$CONFDIR/example.$config_name.rc.sh"
 
 	if [ -v EXAMPLECONFDIR ]; then
-		info "Testing example RC file from the installation:
-		      $installed_examplerc_path"
 		#  Copy or update config example.
 		if [ -r "$installed_examplerc_path" ]; then
 			[ "$installed_examplerc_path" -nt "$local_examplerc_path" ] \
 				&&  cp "$installed_examplerc_path" "$local_examplerc_path"
 		else
-			warn "Check that “set_exampleconfdir” is called prior to calling
+			warn "Example RC file doesn’t exist in the installation
+			      $installed_examplerc_path
+			      Check that “set_exampleconfdir” is called prior to calling
 			      “prepare_confdir”, and the latter – before this function."
-			err "Example RC file doesn’t exist in the installation."
+			err "Example RC file doesn’t exist."
 		fi
 		[ ! -r "$rc_path" ] && {
 			info "RC file ($rc_path) doesn’t exist, copying example RC file:

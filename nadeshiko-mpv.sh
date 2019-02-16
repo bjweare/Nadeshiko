@@ -10,13 +10,13 @@
 #  Licence: GPL v3,
 #  see entire text in ./lib/mpv_crop_script/mpv_crop_script LICENSE
 
+
 set -feEuT
 shopt -s extglob
 BAHELITE_CHERRYPICK_MODULES=(
 	error_handling
 	logging
 	rcfile
-	versioning
 	misc
 )
 . "$(dirname "$(realpath --logical "$0")")/lib/bahelite/bahelite.sh"
@@ -37,7 +37,7 @@ prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 place_rc_and_examplerc 'nadeshiko'
 
-declare -r version="2.3.6"
+declare -r version="2.3.7"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
 	show_preview
@@ -799,7 +799,7 @@ choose_preset() {
 			info "Container to be used: $container"  >&2
 
 			native_profile=$(
-				sed -rn 's/\* Starting bitres profile: ([0-9]{3,4}p)\./\1/p' \
+				sed -rn 's/\s*\* Starting bitres profile: ([0-9]{3,4}p)\./\1/p' \
 					<<<"$LAST_LOG"
 			)
 			[[ "$native_profile" =~ ^[0-9]{3,4}p$ ]] \

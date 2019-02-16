@@ -48,7 +48,35 @@ then
 fi
 
 
+             #  Cleaning the environment before start  #
+
+ # Wipe user functions from the environment
+#  This is done by default, because of the custom things, that often
+#    exist in ~/.bashrc or exported from mother shell. Being supposed to
+#    simplify the work in terminal, they may – and often will – complicate
+#    things for the mother script running in the terminal.
+#  Define BAHELITE_KEEP_ENV_FUNCS variable before sourcing bahelite.sh
+#    to override the default behaviour.
+#
+if [ ! -v BAHELITE_KEEP_ENV_FUNCS ]; then
+	#  This wipes every function, which name doesn’t start with an underscore
+	#  (those that start with “_” or “__” are internal functions mostly
+	#  related to completion)
+	unset -f $(declare -F | sed -rn 's/^declare\s\S+\s([^_]*+)$/\1/p')
+fi
+#
+#  env in shebang will not recognise -i, so an internal respawn is needed
+#  in order to run the script in a clean environment.
+if [ -v BAHELITE_TOTAL_ENV_CLEAN ]; then
+	[ ! -v BAHELITE_ENV_CLEANED ] && {
+		exec /usr/bin/env -i BAHELITE_ENV_CLEANED=t bash "$0" "$@"
+		exit $?
+	}
+fi
+
  # Bahelite requires util-linux >= 2.20
+#  Shoulda move that to a function-check, i.e. this should become a part
+#  of the check_required_utils.
 #
 read -d '' major minor  < <(
 	getopt -V \
@@ -218,7 +246,7 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.9.1"
+BAHELITE_VERSION="2.11"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}

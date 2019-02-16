@@ -12,7 +12,6 @@ BAHELITE_CHERRYPICK_MODULES=(
 	error_handling
 	logging
 	rcfile
-	versioning
 	misc
 )
 . "$(dirname "$(realpath --logical "$0")")/lib/bahelite/bahelite.sh"
@@ -24,7 +23,7 @@ set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 
-declare -r version="2.2.4"
+declare -r version="2.2.5"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"

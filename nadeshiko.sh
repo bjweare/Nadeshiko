@@ -20,7 +20,6 @@ BAHELITE_CHERRYPICK_MODULES=(
 	error_handling
 	logging
 	rcfile
-	versioning
 	misc
 )
 . "$(dirname "$(realpath --logical "$0")")/lib/bahelite/bahelite.sh"
@@ -44,7 +43,7 @@ set_exampleconfdir
 prepare_confdir
 place_rc_and_examplerc
 
-declare -r version='2.3.19'
+declare -r version='2.3.20'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.2.4'
@@ -52,7 +51,12 @@ declare -r rcfile_minver='2.2.4'
 #  [1]=libavutil version
 #  [2]=libavcodec version
 #  [3]=libavformat version
-declare -r ffmpeg_minver=( 'any' 55 57 57 )
+declare -r ffmpeg_minver=( 'any' 56  58  58
+	#  Reasons:
+	#  1) row-mt appeared after ffmpeg-3.4.2
+	#  2) -t <duration> doesn’t always grant precise end time,
+	#     but -to <timestamp> stopped causing problems only after ffmpeg-4.0.0.
+)
 declare where_to_place_new_file="$PWD"
 #  Defining them here, so that the definition in the RC file would be shorter
 #  and didn’t confuse users with “declare -gA …”.

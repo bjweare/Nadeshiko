@@ -1,3 +1,24 @@
+——— v 2.3.20 —————————————————————————————————————————————————————————————————
+
+1. **Bugfix:** improved stability by stripping user functions from the envi-
+   ronment, which caused spontaneous bugs. Nadeshiko-mpv and Nadeshiko-do-
+   postponed now run in a totally clean environment.
+2. **Bugfix:** changed the method of passing the end time to ffmpeg:
+   -t <duration> didn’t always guarantee that the clip will end precisely
+   where it told to end. Now instead of -t <duration> is used -to <timestamp>.
+   This, however, caused problems on certain versions of FFmpeg prior to 4.0,
+   so the dependencies are now updated accordingly (to 56/58/58).
+3. **Cleaning:** source file metadata now don’t go to the output file. This
+   caused confusion, as it left information about chapters and the encoder
+   of the source file.
+4. Fixed RC-related messages to console.
+5. Nadeshiko log is now distinctively indented within Nadeshiko-mpv log,
+   also a minor bug fixed in nadeshiko-mpv.sh related to reading the dryrun
+   log of nadeshiko.sh.
+
+
+
+
 ——— v 2.3.19 —————————————————————————————————————————————————————————————————
 
 1. Update to newer bahelite, modularised more and pulling less dependencies.
@@ -5,8 +26,8 @@
 Nadeshiko-mpv 2.3.6
 
 2. **Bugfix:** solved an error on the first run, when Nadeshiko-mpv complained
-   about non-existing RC file for Nadeshiko. Backend RC and example RC files
-   are now prepared beforehand.
+   about non-existing RC file for Nadeshiko. Now backend RC and example RC
+   files are prepared beforehand, and the first run goes smoothly.
 
 
 

@@ -23,7 +23,7 @@ encode-libx264() {
 		FFREPORT=file=$LOGDIR/ffmpeg-pass$pass.log:level=32 \
 		$ffmpeg -y \
 		            -ss "${start[ts]}" \
-		            -t  "${duration[total_s_ms]}" \
+		            -to "${stop[ts]}" \
 		        -i "$video" \
 		        "${ffmpeg_color_primaries[@]}" \
 		        "${ffmpeg_color_trc[@]}" \
@@ -37,6 +37,7 @@ encode-libx264() {
 		        -preset:v $libx264_preset -tune:v $libx264_tune \
 		        -profile:v $libx264_profile -level $libx264_level \
 		        "${extra_options[@]}" \
+		        -map_metadata -1 \
 		        -metadata title="$video_title" \
 		        -metadata comment="Converted with Nadeshiko v$version" \
 		        "${ffmpeg_command_end[@]}" \

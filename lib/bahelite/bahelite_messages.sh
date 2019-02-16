@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_VER='2.1.2'
+BAHELITE_MODULE_MESSAGES_VER='2.1.3'
 
  # Define this variable for info messages to have icon
 #
@@ -101,11 +101,16 @@ bahelite_notify_send() {
 #  will be indented one level more. mildec decreases one level.
 #  See also: milset, mildrop.
 #
-MI_LEVEL=0  # Debug indentation level. Default is 0.
-MI_SPACENUM=4  # Number of spaces to use per indentation level
-MI_CHARS=''  # Accumulates spaces for one portion of indentation
+#  Indentation level
+[ -v MI_LEVEL  -a  -v MI ] || {
+	MI_LEVEL=0
+	#  Whitespace indentation itself.
+	MI=''
+	export MI_LEVEL MI
+}
+MI_SPACENUM=4  # Number of spaces to use per indentation level.
+MI_CHARS=''  # Accumulates spaces for one level of indentation.
 for ((i=0; i<MI_SPACENUM; i++)); do MI_CHARS+=' '; done
-MI=''  # The message indentation string itself.
 
 mi_assemble() {
 	# Internal! There should be no xtrace_off!

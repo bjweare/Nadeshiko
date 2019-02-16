@@ -95,7 +95,7 @@ encode-libvpx-vp9() {
 		FFREPORT=file=$LOGDIR/ffmpeg-pass$pass.log:level=32 \
 		$ffmpeg -y \
 		            -ss "${start[ts]}" \
-		            -t  "${duration[total_s_ms]}" \
+		            -to "${stop[ts]}" \
 		        -i "$video" \
 		        "${ffmpeg_color_primaries[@]}" \
 		        "${ffmpeg_color_trc[@]}" \
@@ -123,6 +123,7 @@ encode-libvpx-vp9() {
 		        -deadline $deadline \
 		            -cpu-used $cpu_used \
 		        "${extra_options[@]}" \
+		        -map_metadata -1 \
 		        -metadata title="$video_title" \
 		        -metadata comment="Converted with Nadeshiko v$version" \
 		        "${ffmpeg_command_end[@]}" \
