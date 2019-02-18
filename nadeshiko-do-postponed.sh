@@ -23,7 +23,7 @@ set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 
-declare -r version="2.2.5"
+declare -r version="2.2.6"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -61,7 +61,7 @@ cd "$TMPDIR"
 #    was Time2 or the line with source video.
 #  Avoiding this bug by assembling all commands first and running them later.
 process_file() {
-	declare -g failed_jobs_count
+	declare -g failed_jobs
 	local i=0  comcom_0=()  ref  com  last_log
 	while IFS= read -r -d $'\n'; do
 		if [ "$REPLY" ]; then
@@ -83,7 +83,7 @@ process_file() {
 			else
 				warn "Cannot get last log."
 			fi
-			let ++failed_jobs_count
+			let ++failed_jobs
 		}
 	done
 
@@ -95,7 +95,7 @@ process_file() {
  # Process $postponed_commands_dir (new format)
 #
 process_dir() {
-	declare -g failed_jobs_count
+	declare -g failed_jobs
 	local last_log
 	while IFS= read -r -d '' jobfile; do
 		if ${nice_cmd:-} ${taskset_cmd:-} "$jobfile";  then
@@ -108,7 +108,7 @@ process_dir() {
 			else
 				warn "Cannot get last log."
 			fi
-			let ++failed_jobs_count
+			let ++failed_jobs
 		fi
 	done < <( find "$postponed_commands_dir" -maxdepth 1 -type f -print0 )
 	return 0
@@ -126,64 +126,64 @@ run_jobs() {
 
  # Return true, if there are jobs, return false, if there are no jobs to do.
 #
-are_there_any_jobs() {
-	declare -g file_jobs_count  dir_jobs_count  total_jobs
-	file_jobs_count=0
-	dir_jobs_count=0
-	total_jobs=0
-	local jobs_in_file=t  jobs_in_dir=t
+collect_jobs() {
 	if [ -f "$postponed_commands" ]; then
 		if [ "$(<"$postponed_commands")" ]; then
 			#  count jobs
-			file_jobs_count=$(grep -cF 'nadeshiko.sh' "$postponed_commands") ||:
-			[[ "$file_jobs_count" =~ ^[0-9]+$ ]] \
+			jobs_in_file=$(grep -cF 'nadeshiko.sh' "$postponed_commands") ||:
+			[[ "$jobs_in_file" =~ ^[0-9]+$ ]] \
 				|| err 'Couldn’t get the count of jobs in the file.'
-		else
-			unset jobs_in_file
 		fi
-	else
-		unset jobs_in_file
 	fi
 
 	if [ -d "$postponed_commands_dir" ]; then
 		if [ "$(ls -A "$postponed_commands_dir")" ]; then
 			while IFS='' read -r -d ''; do
-				let ++dir_jobs_count
-			done < <( find "$postponed_commands_dir" -type f -print0 )
-		else
-			unset jobs_in_dir
+				let ++jobs_in_dir
+			done < <( find "$postponed_commands_dir" -maxdepth 1 \
+			               -type f -print0 )
 		fi
-	else
-		unset jobs_in_dir
 	fi
 
-	total_jobs=$(( file_jobs_count + dir_jobs_count ))
-	info "Jobs in file: $file_jobs_count
-	      Jobs in directory: $dir_jobs_count
-	      Total jobs: $total_jobs"
-	((total_jobs > 0)) \
-		&& return 0 \
-		|| return 1
+	if [ -d "$failed_jobs_dir" ]; then
+		if [ "$(ls -A "$failed_jobs_dir")" ]; then
+			while IFS='' read -r -d ''; do
+				let ++failed_jobs
+			done < <( find "$failed_jobs_dir" -maxdepth 1 -iname "*.sh"  \
+			               -type f -print0 )
+		fi
+	fi
+
+	jobs_to_run=$(( jobs_in_file + jobs_in_dir ))
+	total_jobs=$(( jobs_in_file + jobs_in_dir + failed_jobs ))
+	info "Job count
+	      ─────────────────
+	      in the file: $jobs_in_file
+	      in the directory: $jobs_in_dir
+	          total for the launch: $jobs_to_run
+
+	      in failed: $failed_jobs"
+	return 0
 }
 
 
 
-failed_jobs_count=0
+jobs_in_file=0
+jobs_in_dir=0
+jobs_to_run=0
+failed_jobs=0
+total_jobs=0
 
 if [ -v DISPLAY ]; then
 	. "$MODULESDIR/nadeshiko-do-postponed_dialogues_${dialog:=gtk}.sh"
-	if are_there_any_jobs; then
-		info "There are jobs to run, asking to confirm."
-	 	show_dialogue_launch_jobs "$total_jobs"
-	 	IFS=$'\n' read -r -d ''  resp_action  < <(echo -e "$dialog_output\0")
-	 	if [ "$resp_action" = 'run_jobs' ]; then
-			run_jobs
-			# show_dialogue_jobs_result
-		else
-			abort 'Cancelled.'
-		fi
+	collect_jobs
+	show_dialogue_launch_jobs "$jobs_to_run" "$failed_jobs"
+	IFS=$'\n' read -r -d ''  resp_action  < <(echo -e "$dialog_output\0")
+	if [ "$resp_action" = 'run_jobs' ]; then
+		run_jobs
+		# show_dialogue_jobs_result
 	else
-		show_dialogue_no_jobs
+		exit 0
 	fi
 else
 	run_jobs

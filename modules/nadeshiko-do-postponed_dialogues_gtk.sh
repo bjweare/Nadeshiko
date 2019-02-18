@@ -1,8 +1,8 @@
 #  Should be sourced.
 
-#  nadeshiko-mpv_dialogues_gtk.sh
-#  Dialogues implemented with Python and Glade. I rate them 4.5/5.
-#  © deterenkelt 2018
+#  nadeshiko-do-postponed_dialogues_gtk.sh
+#  Dialogues implemented with Python and Glade. Can be rated 4.5/5.
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
@@ -23,11 +23,46 @@ entire_py_code=$( <"$py_file" )
 
 #  $1 – number of jobs, that are postponed.
 prepare_dotglade_for_launch_jobs() {
-	local jobs_count="$1"
+	local jobs_to_run="$1" failed_jobs="$2" message=''  run_job_button_text
+	if [ "$jobs_to_run" -eq 0 ]; then
+		message+='There are no jobs to run!'
+	else
+		message+="There $(plural_s $jobs_to_run are is) $jobs_to_run"
+		message+=" job$(plural_s $jobs_to_run)."
+		message+=$'\n'
+		message+='Run them?'
+	fi
+	[ "$failed_jobs" -gt 0 ] && {
+		message+=$'\n\n\n'
+		[ "$jobs_to_run" -eq 0 ]  \
+			&& message+="(But there $(plural_s $failed_jobs are is) $failed_jobs"  \
+			|| message+="(There $(plural_s $failed_jobs are is) also $failed_jobs"
+		message+=" failed job$(plural_s $failed_jobs),"
+		message+=$'\n'
+		message+="that await$(plural_s $failed_jobs '' s) your attention.)"
+	}
 	edit_attr_in_xml 'entire_xml' \
-                 "//object[@id='label_there_are_N_jobs']/property[@name='label']" \
-                 "There are ${jobs_count:-N} jobs."$'\n'"Run them?"
-    write_dotglade_and_dotpy_files
+	                 "//object[@id='label_there_are_N_jobs']/property[@name='label']" \
+	                 "$message"
+	#  Buttons
+	[ "$jobs_to_run" -eq 0 ] && {
+		delete_entity_in_xml 'entire_xml' \
+		                     "//child[child::object[@id='but_launch_jobs_cancel']]"
+	}
+	if [ "$jobs_to_run" -eq 0 ]; then
+		run_job_button_text='OK'
+		edit_attr_in_xml 'entire_xml' \
+		                 "//object[@id='but_launch_jobs_ok1']/property[@name='image']" \
+		                 'img_ok_no_jobs'
+	elif [ "$jobs_to_run" -eq 1 ]; then
+		run_job_button_text='Run job'
+	else
+		run_job_button_text='Run jobs'
+	fi
+	edit_attr_in_xml 'entire_xml' \
+	                 "//object[@id='but_launch_jobs_ok1']/property[@name='label']" \
+	                 "$run_job_button_text"
+	write_dotglade_and_dotpy_files
 	return 0
 }
 
@@ -72,22 +107,10 @@ check_pyfile_exit_code() {
 #  $1 – number of jobs, that are postponed.
 show_dialogue_launch_jobs() {
 	declare -g dialog_output
-	local jobs_count="$1"  dialog_retval
+	local dialog_retval
 	prepare_dotglade_for_launch_jobs "$@"
 	errexit_off
 	dialog_output=$( "$py_file"  startpage=gtkbox_launch_jobs )
-	dialog_retval=$?
-	errexit_on
-	declare -p dialog_output
-	check_pyfile_exit_code $dialog_retval
-	return 0
-}
-
-show_dialogue_no_jobs() {
-	declare -g dialog_output
-	local dialog_retval
-	errexit_off
-	dialog_output=$( "$py_file"  startpage=gtkbox_no_jobs )
 	dialog_retval=$?
 	errexit_on
 	declare -p dialog_output

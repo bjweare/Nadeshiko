@@ -205,12 +205,13 @@ xtrace_on() {
 }
 
  # To turn off errexit (set -e) and disable trap on ERR temporarily.
+#  traponerr() is defined in bahelite_error_handling.sh, which is an optional
+#  module. Handling this optionality creates the need in simplifying of the
+#  way to turn errexit on and off – so here is this function.
 #
 errexit_off() {
 	[ -o errexit ] && {
 		set +e
-		# traponerr is set by bahelite_error_handling.sh,
-		# which is an optional module.
 		[ "$(type -t traponerr)" = 'function' ] && traponerr unset
 		declare -g BAHELITE_BRING_BACK_ERREXIT=t
 	}
@@ -224,6 +225,7 @@ errexit_on() {
 	}
 	return 0
 }
+
 
  # (For internal use) To turn off noglob (set -f) temporarily,
 #    but bring it back to the main script’s defaults afterwards.
@@ -246,7 +248,7 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.11"
+BAHELITE_VERSION="2.12"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -354,6 +356,61 @@ fi
 [ -v BAHELITE_MODULE_MESSAGES_VER ] || {
 	echo "Bahelite: cannot find bahelite_messages.sh." >&2
 	return 5
+}
+
+
+                        #  Module verbosity  #
+
+ # When everything goes right, modules do not output anything to stdout. Only
+#  in case of a potential trouble or an error they output messages. Sometimes
+#  however, it would be useful to make the modules print intermediate infor-
+#  mation, i.e. info messages. In regular use such messages would only unneces-
+#  sarily clog the output, so they are allowed only on the increased verbosity
+#  level.
+#     The array below controls displaying extra info and warn messages, that
+#  are normally not shown. Works per module. Redefine elements in the mother
+#  script after sourcing bahelite.sh, but before calling any bahelite func-
+#  tions. For example, to enable verbose messages for bahelite_rcfile.sh:
+#  BAHELITE_VERBOSE=( [rcfile]=t )
+#
+declare -A BAHELITE_VERBOSE=(
+	[bahelite]=f                  # the main module = bahelite.sh = this file.
+	[colours]=f                   # bahelite_colours.sh
+	[dialog]=f                    # etc.
+	[directories]=f
+	[error_handling]=f
+	[github]=f
+	[logging]=f
+	[menus]=f
+	[messages]=f
+	[misc]=f
+	[rcfile]=f
+	[versioning]=f
+	[x_desktop]=f
+)
+
+ # Checks whether verbosity is enabled for a certain module
+#  This function is supposed to be called from within a Bahelite module,
+#  i.e. bahelite_*.sh files, in the following manner:
+#      bahelite_check_module_verbosity \
+#          && info "Trying RC file:
+#                   $rcfile"
+#
+bahelite_check_module_verbosity() {
+	local caller_module_funcname=${FUNCNAME[1]}
+	local caller_module_filename=${BASH_SOURCE[1]}
+	caller_module_filename=${caller_module_filename##*/}
+	caller_module_filename=${caller_module_filename%.sh}
+	caller_module_filename=${caller_module_filename#bahelite_}
+	[ "${BAHELITE_VERBOSE[$caller_module_filename]}" = t ]  \
+		&& return 0  \
+		|| return 1
+}
+
+bahelite_module_verbosity_test() {
+	bahelite_check_module_verbosity \
+		&& info "Hai, dozo."
+	return 0
 }
 
 

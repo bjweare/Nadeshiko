@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MISC_VER='1.8.3'
+BAHELITE_MODULE_MISC_VER='1.9'
 
 INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # Single process check
@@ -204,6 +204,38 @@ expand_range() {
 		return 1
 	}
 	seq -s ' ' ${BASH_REMATCH[1]} ${BASH_REMATCH[2]}
+	return 0
+}
+
+
+ # Echo plural “s” to stdout, if the passed number is bigger than 1.
+#  $1 – number to test.
+# [$2] – custom ending to output instead of “s” (i.e. when you need “ies”).
+# [$3] – custom singular ending to output instead of nothing.
+#        (Use it when the plural ending of the word isn’t just a suffix
+#         added to it.)
+#
+plural_s() {
+	local num="$1"  plural_ending  singular_ending="${3:-}"
+	#  There is a case inverse to generic “plural s”: when it’s a verb that
+	#    has to be pluralised. Verbs’ plural forms have no ending, while in
+	#    singular form they take an “s” at the end.
+	#  Hence plural_ending=${2:-} is not going to work, as specifically
+	#    passed empty string ("") as the second parameter will make no diffe-
+	#    rence in this case, it would be as if the parameter was unset.
+	#    The number of the parameters should be checked in order to set
+	#    plural_ending explicitly to whatever is passed (including an empty
+	#    string) or “s” if the parameter wasn’t in the command line.
+	if [ $# -ge 2 ]; then
+		plural_ending="$2"
+	else
+		plural_ending='s'
+	fi
+	if [[ "$num" =~ ^1$ ]]; then
+		echo -n "$singular_ending"
+	else
+		echo -n "$plural_ending"
+	fi
 	return 0
 }
 

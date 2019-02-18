@@ -564,13 +564,13 @@ prepare_audio_track() { : "dummy"; return 0; }
 #
 determine_scene_complexity() {
 	declare -g  scene_complexity  scene_complexity_assumed
-	local video="$1" start_time="$2" duration_total_s_ms="$3" \
+	local video="$1" start_time="$2" stop_time="$3" \
 	      duration_total_s="$4" total_scenes is_dynamic
 	info 'Determining video complexity.
 	      It takes 2–20 seconds depending on video.'
 	total_scenes=$(
 		FFREPORT=file=$LOGDIR/ffmpeg-scene-complexity.log:level=32 \
-		$ffmpeg  -ss "$start_time"  -t "$duration_total_s_ms"  -i "$video" \
+		$ffmpeg  -ss "$start_time"  -to "$stop_time"  -i "$video" \
 		         -vf "select='gte(scene,0.3)',metadata=print:file=-" \
 		         -an -sn -f null -
 	) || err "Couldn’t determine scene complexity: ffmpeg error."
@@ -769,7 +769,7 @@ set_vars() {
 	[ -v scene_complexity ] \
 		|| determine_scene_complexity "$video" \
 		                              "${start[ts]}" \
-		                              "${duration[total_s_ms]}" \
+		                              "${stop[ts]}" \
 		                              "${duration[total_s]}"
 	[ "$scene_complexity" = dynamic ] && bitrates_locked_on_desired=t
 

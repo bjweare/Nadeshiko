@@ -13,7 +13,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_COLOURS_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_COLOURS_VER='1.0.2'
+BAHELITE_MODULE_COLOURS_VER='1.0.3'
 
  # Colours for messages.
 #  If you don’t use single-letter variables, better use them for colours.
@@ -37,10 +37,6 @@ export __hid='\e[8m'     # hidden
 
 export __rb='\e[21m'   # reset bold/bright
 export __d='\e[39m'    # default fg
-
-export info_colour=$__g
-export warn_colour=$__y
-export err_colour=$__r
 
 
  # Strip colours from the string

@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_VER='2.1.3'
+BAHELITE_MODULE_MESSAGES_VER='2.1.4'
 
  # Define this variable for info messages to have icon
 #
@@ -319,7 +319,11 @@ msg() {
 	# Internal! There should be no xtrace_off!
 	# xtrace_off && trap xtrace_on RETURN
 	declare -g  BAHELITE_EXIT_FROM_ERR_FUNC
-	local  colour cs="$__s"  nonl  asterisk='  '  message  message_nocolours  \
+	local  colour  cs="$__s"  nonl  asterisk='  '  \
+	       info_colour=$__g  \
+	       warn_colour=$__y  \
+	        err_colour=$__r  \
+	       message  message_nocolours  \
 	       redir=stdout  code=5  internal  key  msg_key_exists  \
 	       notifysend_rank  notifysend_icon
 	case "${FUNCNAME[1]}" in
@@ -355,7 +359,7 @@ msg() {
 		*err*)
 			msgtype=err redir='stderr'
 			local -n  msg_array=ERROR_MESSAGES
-			local -n  c=err_colour
+			local -n  colour=err_colour
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+ERROR: }"
 			notifysend_rank=1
 			notifysend_icon='dialog-error'

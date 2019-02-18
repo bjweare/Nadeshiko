@@ -68,7 +68,7 @@ check_for_new_release() {
 	xtrace_off && trap xtrace_on RETURN
 	create_updater_timestamp
 	local days_since_last_check=$((
-		(   $(date +%s)
+		(    $(date +%s)
 		   - $(stat -L --format %Y "$RELEASE_CHECK_TIMESTAMP")
 		) / 60 / 60 / 24                                        ,1 ))
 	[ $days_since_last_check -lt $NEW_RELEASE_CHECK_INTERVAL ] \

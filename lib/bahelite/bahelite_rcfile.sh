@@ -231,7 +231,7 @@ read_rcfile() {
 		example_rcfile="$3"
 	else
 		[ -v EXAMPLE_RCFILE ] \
-			|| err "No example rc file provided and EXAMPLE_RCFILE is not set.
+			|| err "No example RC file provided and EXAMPLE_RCFILE is not set.
 		            Did you forget to run place_rc_and_examplerc?"
 		example_rcfile="$EXAMPLE_RCFILE"
 	fi
@@ -240,8 +240,6 @@ read_rcfile() {
 	#  just overrides them.
 	. "$example_rcfile"
 
-	info "Sourcing RC file
-	      $rcfile"
 	if [ -r "$rcfile" ]; then
 		#  Verifying RC file version
 		rcfile_ver=$(
@@ -250,12 +248,16 @@ read_rcfile() {
 		)
 		which_is_newer=$(compare_versions "$rcfile_ver" "$rcfile_min_ver")
 		[ "$which_is_newer" = "$rcfile_min_ver" ] && {
+			warn "RC file format changed!
+			      Current RC version: $rcfile_ver
+			      Minimum compatible version: $rcfile_min_ver"
 			warn-ns 'Please COPY and EDIT the new RC file!'
 			exit 7
 		}
 		. "$rcfile"
 	else
-		err "RC file doesn’t exist"
+		err "RC file doesn’t exist:
+		     $rcfile"
 	fi
 
 	#  Unsetting variables with a negative value

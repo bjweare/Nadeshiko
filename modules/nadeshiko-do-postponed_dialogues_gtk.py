@@ -67,15 +67,10 @@ class Nadeshiko_do_postponed_dialogues:
 
 	def on_window_destroy(self, object, data=None):
 		Gtk.main_quit()
-		sys.exit(4)
+		sys.exit(0)
 
 	def on_launch_jobs_ok1_but_click(self, widget, *args):
 		print ('run_jobs')
-		Gtk.main_quit()
-		sys.exit(0)
-
-	def on_launch_jobs_ok2_but_click(self, widget, *args):
-		print ('no_jobs')
 		Gtk.main_quit()
 		sys.exit(0)
 

@@ -1,3 +1,18 @@
+——— v 2.3.21 —————————————————————————————————————————————————————————————————
+
+1. **Improvement:** Nadeshiko-do-postponed will now report, if there are
+   failed jobs left. (Failed jobs are never encoded again, you’ll have
+   to copy thier job files back to postponed_commands_dir.)
+   Also the interface now differentiates between singular and plural forms.
+2. Decreased log verbosity for RC including stage (now by default it will
+   print info only on the warning level or above).
+3. The code determining scene complexity now uses -to <timestamp> method
+   of specifying end time.
+4. Fixed colour that was not added for error messages to console.
+
+
+
+
 ——— v 2.3.20 —————————————————————————————————————————————————————————————————
 
 1. **Bugfix:** improved stability by stripping user functions from the envi-
