@@ -15,7 +15,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_LOGGING_VER='1.4.2'
+BAHELITE_MODULE_LOGGING_VER='1.5'
 INTERNALLY_REQUIRED_UTILS+=(
 	date  #  to add date to $LOG file name and to the log itself.
 	pkill  #  to find and kill the logging tee nicely, so it wouldn’t hang.
@@ -62,10 +62,10 @@ start_log() {
 		| xargs rm -v &>/dev/null || :
 	noglob_on
 	popd >/dev/null
-	echo "Log started at $(LC_TIME=C date)." >"$LOG"
-	echo "Command line: $CMDLINE" >>"$LOG"
+	echo "${MI}Log started at $(LC_TIME=C date)." >"$LOG"
+	echo "${MI}Command line: $CMDLINE" >>"$LOG"
 	for ((i=0; i<${#ARGS[@]}; i++)) do
-		echo "ARGS[$i] = ${ARGS[i]}" >>"$LOG"
+		echo "${MI}ARGS[$i] = ${ARGS[i]}" >>"$LOG"
 	done
 	#  When we will be exiting (even successfully), we will need to send
 	#  SIGPIPE to that tee, so it would quit nicely, without terminating
@@ -134,12 +134,75 @@ set_last_log_path() {
 }
 
 
+ # Reads the contents of the log file by path set in LAST_LOG_PATH
+#    into LAST_LOG_TEXT.
+#  Also checks, if the last log has an error message, and if it does, then
+#    copies the portion from where the error message starts in LAST_LOG_TEXT
+#    up to the end of file, and sets this text as the value for LAST_LOG_ERROR
+#    variable. The indicator of an error message is whatever is specified in
+#    BAHELITE_ERR_MESSAGE_COLOUR varaible (should be set to $__r from the
+#    bahelite_colours.sh). As all error handling functions in bahelite (that
+#    is err, abort, errw and ierr) are final commands resulting in the call
+#    to the “exit” builtin, there can be only one error message in the log.
+#
 read_last_log() {
 	xtrace_off && trap xtrace_on RETURN
+	# declare -g LAST_LOG_ERROR
+	local err_msg_marker  err_msg_text
 	set_last_log_path "$@" || return $?
 	declare -g LAST_LOG
 	#  Stripping control characters, primarily to delete colours codes.
-	LAST_LOG=$(sed -r 's/[[:cntrl:]]\[[0-9]{1,3}[mKG]//g' "$LAST_LOG_PATH")
+	LAST_LOG_TEXT=$(
+		sed -r 's/[[:cntrl:]]\[[0-9]{1,3}[mKG]//g' "$LAST_LOG_PATH"
+	)
+
+	 # Setting LAST_LOG_ERROR is disabled, for it’s easier to just
+	#  heave-ho the entire log into another log, than to parse its errors.
+	#
+	#  However, the following two methods can be consiedered:
+	#  1. Finding “--- Call stack”
+	#     Conditions:
+	#       - the error must be caught by bahelite (some are still not).
+	#       - catching one line before “--- Call stack” sometimes is very
+	#         useful in understanding the real error.
+	#     How to grab:
+	#         log_call_stack=$(
+	#             grep -B 1 -A 99999 '\-\-\- Call stack ' "$LAST_LOG_PATH"
+	#         )
+	#  2. Finding the first entrance of the red colour, or whatever sequence
+	#     is put into BAHELITE_ERR_MESSAGE_COLOUR.
+	#     Conditions:
+	#       - the error must be caught.
+	#       - catching it is equally necessary as the error with call stack,
+	#         because error messages with red colour are expected and there-
+	#         fore, do not print the call stack. And vice versa unexpected
+	#         errors do not use an error message, they just print the trace.
+	#         So there are at least two types, and both of them are important.
+	#     How to grab:
+	#       Replace shell’s own alias for the escape sequence (\e)
+	#       with its real hex code (\x1b), so that it could be used
+	#       in the pattern for sed.
+	#         err_msg_marker="${BAHELITE_ERR_MESSAGE_COLOUR//\\e/\\x1b}"
+	#         err_msg_marker="${err_msg_marker//\[/\\\[}"
+	#         sed -rn "/$err_msg_marker/,$ p" "$LAST_LOG_PATH"
+	#       or simply
+	#         log_err_message=$(
+	#             sed -rn "/\x1b\[31m/,$ p" "$LAST_LOG_PATH"
+	#         )
+	#  3. Finding uncaught errors. There is no way to tell for sure,
+	#       if a line in the log would, so, unless all of the error could be
+	#       caught, it is more reasonable to perform all these checks from
+	#       a script above the one, whose LOG is parsed, i.e. the script call-
+	#       ing the mother script. The script above should receive a non-zero
+	#       exit code from the inner script, and this provides the reason
+	#       to do every possible check for an error, including this one.
+	#     Indeed, this check should be the last one among the three.
+	#     How to grab:
+	#         log_last_line=$(
+	#             tac "$LAST_LOG_PATH" | grep -vE '^\s*$' | head -n1  \
+	#                 | sed -r "s/.*/$MI&/" >&2
+	#         )
+
 	return 0
 }
 

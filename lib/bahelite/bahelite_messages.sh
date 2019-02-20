@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_VER='2.1.4'
+BAHELITE_MODULE_MESSAGES_VER='2.2'
 
  # Define this variable for info messages to have icon
 #
@@ -23,15 +23,17 @@ BAHELITE_MODULE_MESSAGES_VER='2.1.4'
 # Bahelite offers keyword-based messages, which allows
 # for creation of localised programs.
 
- # List of informational messages
+ # Message lists
+#
+#  List of informational messages
 #
 declare -A BAHELITE_INFO_MESSAGES=()
-
- # List of warning messages
+#
+#  List of warning messages
 #
 declare -A BAHELITE_WARNING_MESSAGES=()
-
- # List of error messages
+#
+#  List of error messages
 #  Keys are used as parameters to err() and values are printed via msg().
 #  Keys may contain spaces – e.g. ‘my key’. Passing them to err()
 #  doesn’t require quoting and the number of spaces is not important.
@@ -45,6 +47,13 @@ declare -A BAHELITE_ERROR_MESSAGES=(
 	[no such msg]='Bahelite: No such message: “$1”.'
 	[no util]='Utils are missing: $1.'
 )
+
+ # Colours for the console and log messages
+#  Regular functions (info, warn, err) apply the colour only to the asterisk.
+#
+BAHELITE_INFO_MESSAGE_COLOUR=$__g
+BAHELITE_WARN_MESSAGE_COLOUR=$__y
+BAHELITE_ERR_MESSAGE_COLOUR=$__r
 
 
  # Desktop notifications
@@ -96,21 +105,6 @@ bahelite_notify_send() {
 	return 0
 }
 
- # Message Indentation Level.
-#  Each time you go deeper one level, call milinc – and the messages
-#  will be indented one level more. mildec decreases one level.
-#  See also: milset, mildrop.
-#
-#  Indentation level
-[ -v MI_LEVEL  -a  -v MI ] || {
-	MI_LEVEL=0
-	#  Whitespace indentation itself.
-	MI=''
-	export MI_LEVEL MI
-}
-MI_SPACENUM=4  # Number of spaces to use per indentation level.
-MI_CHARS=''  # Accumulates spaces for one level of indentation.
-for ((i=0; i<MI_SPACENUM; i++)); do MI_CHARS+=' '; done
 
 mi_assemble() {
 	# Internal! There should be no xtrace_off!
@@ -122,9 +116,7 @@ mi_assemble() {
 	[ "$MI" ] || MI='  '
 	return 0
 }
-xtrace_off
-mi_assemble
-xtrace_on
+
 
  # Increments the indentation level.
 #  [$1] — number of times to increment $MI_LEVEL.
@@ -137,6 +129,7 @@ milinc() {
 	mi_assemble; mi_as_result=$?
 	return $mi_as_result
 }
+
 
  # Decrements the indentation level.
 #  [$1] — number of times to decrement $MI_LEVEL.
@@ -326,9 +319,6 @@ msg() {
 	# xtrace_off && trap xtrace_on RETURN
 	declare -g  BAHELITE_EXIT_FROM_ERR_FUNC
 	local  colour  cs="$__s"  nonl  asterisk='  '  \
-	       info_colour=$__g  \
-	       warn_colour=$__y  \
-	        err_colour=$__r  \
 	       message  message_nocolours  \
 	       redir=stdout  code=5  internal  key  msg_key_exists  \
 	       notifysend_rank  notifysend_icon
@@ -336,7 +326,7 @@ msg() {
 		*info*|abort)  # all *info*
 			msgtype=info
 			local -n  msg_array=INFO_MESSAGES
-			local -n  colour=info_colour
+			local -n  colour=BAHELITE_INFO_MESSAGE_COLOUR
 			;;&
 		info|infon|info-ns|abort)
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+INFO: }"
@@ -355,7 +345,7 @@ msg() {
 		*warn*)
 			msgtype=warn redir='stderr'
 			local -n  msg_array=WARNING_MESSAGES
-			local -n  colour=warn_colour
+			local -n  colour=BAHELITE_WARN_MESSAGE_COLOUR
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+WARNING: }"
 		    ;;&
 		warn-ns)
@@ -365,14 +355,14 @@ msg() {
 		*err*)
 			msgtype=err redir='stderr'
 			local -n  msg_array=ERROR_MESSAGES
-			local -n  colour=err_colour
+			local -n  colour=BAHELITE_ERR_MESSAGE_COLOUR
 			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+ERROR: }"
 			notifysend_rank=1
 			notifysend_icon='dialog-error'
 			;;&
 		errw)
 			asterisk='  '
-			unset cs  # print whole line in red, no asterisk.
+			cs=''  # print whole line in red, no asterisk.
 			;;
 		iwarn|ierr|iinfo)
 			internal=t
@@ -459,6 +449,26 @@ msg() {
 		return $code
 	}
 	return 0
+}
+
+
+ # Message Indentation Level.
+#  Each time you go deeper one level, call milinc – and the messages
+#  will be indented one level more. mildec decreases one level.
+#  See also: milset, mildrop.
+#
+#  Indentation level
+[ -v MI_LEVEL  -a  -v MI ] || {
+	MI_LEVEL=0
+	#  Whitespace indentation itself.
+	MI=''
+	MI_SPACENUM=4  # Number of spaces to use per indentation level.
+	MI_CHARS=''  # Accumulates spaces for one level of indentation.
+	for ((i=0; i<MI_SPACENUM; i++)); do MI_CHARS+=' '; done
+	export MI_LEVEL MI MI_SPACENUM MI_CHARS
+	xtrace_off
+	mi_assemble
+	xtrace_on
 }
 
 

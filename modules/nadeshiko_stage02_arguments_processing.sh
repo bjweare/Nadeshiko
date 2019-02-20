@@ -222,10 +222,10 @@ check_util_support() {
 	done
 	[ -v ffmpeg_is_too_old ] && {
 		warn 'The FFmpeg version you are running is too old!'
-		cat <<-EOF | column -t  -o '    '  -N ' ','Needed','In your FFmpeg'
-		  libavutil      ${ffmpeg_minver[1]}+    ${ffmpeg_ver[1]}
-		  libavcodec     ${ffmpeg_minver[2]}+    ${ffmpeg_ver[2]}
-		  libavformat    ${ffmpeg_minver[3]}+    ${ffmpeg_ver[3]}
+		cat <<-EOF | column -t  -o '    '  -N ' ','Needed','In your FFmpeg' | sed -r "s/.*/$MI&/g"
+		libavutil      ${ffmpeg_minver[1]}+    ${ffmpeg_ver[1]}
+		libavcodec     ${ffmpeg_minver[2]}+    ${ffmpeg_ver[2]}
+		libavformat    ${ffmpeg_minver[3]}+    ${ffmpeg_ver[3]}
 		EOF
 		err 'FFmpeg is too old.'
 	}

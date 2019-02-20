@@ -1,8 +1,23 @@
+——— v 2.3.22 —————————————————————————————————————————————————————————————————
+
+1. **Bugfix:** Main script now should receive signals like SIGINT.
+2. **Bugfix:** Display messages for catching TERM/INT/HUP/PIPE signals.
+3. Nadeshiko-mpv will include full dryrun log of Nadeshiko – now there is
+   no need to open several files.
+4. Nadeshiko-mpv and Nadeshiko-do-postponed now write their version
+   to log file.
+5. Improved description for ffmpeg_pix_fmt in example.nadeshiko.rc.sh.
+6. Fixed collisions in message indentation levels, when Nadeshiko runs
+   within Nadeshiko-mpv.
+
+
+
+
 ——— v 2.3.21 —————————————————————————————————————————————————————————————————
 
 1. **Improvement:** Nadeshiko-do-postponed will now report, if there are
    failed jobs left. (Failed jobs are never encoded again, you’ll have
-   to copy thier job files back to postponed_commands_dir.)
+   to copy their job files back to postponed_commands_dir.)
    Also the interface now differentiates between singular and plural forms.
 2. Decreased log verbosity for RC including stage (now by default it will
    print info only on the warning level or above).

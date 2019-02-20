@@ -37,7 +37,7 @@ prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 place_rc_and_examplerc 'nadeshiko'
 
-declare -r version="2.3.8"
+declare -r version="2.3.9"
 info "Nadeshiko-mpv v$version" >>"$LOG"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
@@ -75,20 +75,23 @@ on_error() {
 		#  If we couldn’t prepare option list, because we hit an error
 		#  with Nadeshiko in dryrun mode…
 		if [ "$func" = choose_preset ]; then
-			LOGDIR="$TMPDIR" \
-			set_last_log_path 'nadeshiko'
-			[ -v LAST_LOG_PATH ] && [ -r "$LAST_LOG_PATH" ] && {
-				cp "$LAST_LOG_PATH" "$LOGDIR"
-				info "Nadeshiko dryrun log:
-				      $LOGDIR/${LAST_LOG_PATH##*/}"
-				which xclip &>/dev/null && {
-					# trapondebug unset
-					echo -n "$LOGDIR/${LAST_LOG_PATH##*/}" | xclip
-					# trapondebug set
-					info 'Copied path to clipboard.'
-				}
-			}
-
+			#  This probably isn’t needed any more, as the dryrun log
+			#  of nadeshiko is copied entirely into nadeshiko-mpv log itself.
+			#
+			# LOGDIR="$TMPDIR" \
+			# set_last_log_path 'nadeshiko'
+			# [ -v LAST_LOG_PATH ] && [ -r "$LAST_LOG_PATH" ] && {
+			# 	cp "$LAST_LOG_PATH" "$LOGDIR"
+			# 	info "Nadeshiko dryrun log:
+			# 	      $LOGDIR/${LAST_LOG_PATH##*/}"
+			# 	which xclip &>/dev/null && {
+			# 		# trapondebug unset
+			# 		echo -n "$LOGDIR/${LAST_LOG_PATH##*/}" | xclip
+			# 		# trapondebug set
+			# 		info 'Copied path to clipboard.'
+			# 	}
+			# }
+			:
 		#  If we hit an error while parsing .glade or .py files
 		#  or while running the .py file…
 		elif [ "$func" = show_dialogue_choose_preset ]; then
@@ -560,12 +563,15 @@ choose_preset() {
 	       resp_postpone
 	check_needed_vars
 
-	 # Composes a list of options for a preset_option_array_N.
-	#  In a subshell reads Nadeshiko configs and executes Nadeshiko in dry run
-	#  mode several times to get information about how the video clip
-	#  would (or would not) fit at the possible maximum file size presets.
-	#   $1  – nadeshiko config in CONFDIR to use.
-	#  [$2] – scene_complexity to assume (for the second run and further).
+	 # Composes a list of options for a preset_option_array_N
+	#    and returns it on stdout.
+	#  Being launched within a subshell, this function reads Nadeshiko config
+	#    files (rc files, presets) and executes Nadeshiko in dry run mode
+	#    several times to get information about how the video clip would
+	#    (or would not) fit at the possible maximum file size from the preset.
+	#  $1 – nadeshiko config in CONFDIR to use.
+	# [$2] – scene_complexity to assume (for the second run and further).
+	#
 	prepare_preset_options() {
 		local nadeshiko_preset="$1"  nadeshiko_preset_name="$2"  size  \
 		      scene_complexity  option_list=()  last_line_in_last_log  \
@@ -764,15 +770,26 @@ choose_preset() {
 			info 'Getting the path to the last log.'  >&2
 			LOGDIR="$TMPDIR" \
 			read_last_log 'nadeshiko'
-			last_line_in_last_log=$(sed -rn '$ p' <<<"$LAST_LOG" 2>&1)
-			grep -qE '(Encoding with|Cannot fit)' <<<"$last_line_in_last_log" \
-				|| err 'Error while parsing Nadeshiko log.'
+			last_line_in_last_log=$(sed -rn '$ p' <<<"$LAST_LOG_TEXT" 2>&1)
+			grep -qE '(Encoding with|Cannot fit)' <<<"$last_line_in_last_log" || {
+				warn 'Nadeshiko couldn’t perform the scene complexity test!'
+				echo -en "$MI${__y}${__b}+++ Nadeshiko log " >&2
+				for ((i=0; i<TERM_COLS-18; i++)); do  echo -n '+';  done
+				echo
+				echo -e "${__s}" >&2
+				sed -r "s/.*/$MI&/" "$LAST_LOG_PATH" >&2
+				echo
+				echo -en "$MI${__y}${__b}+++ End of Nadeshiko log " >&2
+				for ((i=0; i<TERM_COLS-25; i++)); do  echo -n '+';  done
+				echo -e "${__s}" >&2
+				err 'Error while parsing Nadeshiko log.'
+			}
 
 			[ -v scene_complexity ] || {    #  Once.
 				info 'Reading scene complexity from the log.'  >&2
 				scene_complexity=$(
 					sed -rn 's/\s*\*\s*Scene complexity:\s(static|dynamic).*/\1/p' \
-						<<<"$LAST_LOG"
+						<<<"$LAST_LOG_TEXT"
 				)
 				if [[ "$scene_complexity" =~ ^(static|dynamic)$ ]]; then
 					info "Determined scene complexity as $scene_complexity."  >&2
@@ -790,18 +807,18 @@ choose_preset() {
 			}
 
 			unset bitrate_corrections
-			grep -qF 'Bitrate corrections to be applied' <<<"$LAST_LOG" \
+			grep -qF 'Bitrate corrections to be applied' <<<"$LAST_LOG_TEXT" \
 				&& bitrate_corrections=t
 
 			container=$(
-				sed -rn 's/\s*\*\s*.*\+.*→\s*(.+)\s*.*/\1/p'  <<<"$LAST_LOG"
+				sed -rn 's/\s*\*\s*.*\+.*→\s*(.+)\s*.*/\1/p'  <<<"$LAST_LOG_TEXT"
 			)
 			[ "$container" ] || warn-ns 'Couldn’t determine container.'
 			info "Container to be used: $container"  >&2
 
 			native_profile=$(
 				sed -rn 's/\s*\* Starting bitres profile: ([0-9]{3,4}p)\./\1/p' \
-					<<<"$LAST_LOG"
+					<<<"$LAST_LOG_TEXT"
 			)
 			[[ "$native_profile" =~ ^[0-9]{3,4}p$ ]] \
 				|| warn-ns 'Couldn’t determine native bitres profile.' >&2
@@ -886,13 +903,13 @@ choose_preset() {
 			&& scene_complexity=$(<"$TMPDIR/scene_complexity")
 		#  Subshell call is necessary here.
 		#  It is to sandbox the sourcing of Nadeshiko configs.
-		errexit_off
+#		errexit_off
 		param_list=$(
 			prepare_preset_options "$nadeshiko_preset"  \
 			                       "$nadeshiko_preset_name"   \
 			                       ${scene_complexity:-}
 		) || exit $?
-
+# errexit_on  # forgotten?
 		echo
 		info "Options for preset $nadeshiko_preset:"
 		declare -p param_list
@@ -1070,7 +1087,7 @@ play_encoded_file() {
 		return 1
 	}
 	info "last_log: $LAST_LOG_PATH"
-	last_file=$(sed -rn '/Encoded successfully/ {n; s/^..//p}' <<<"$LAST_LOG")
+	last_file=$(sed -rn '/Encoded successfully/ {n; s/^..//p}' <<<"$LAST_LOG_TEXT")
 	info "last_file: $last_file"
 
 	[ -e "/proc/${mpv_pid:-not exists}" ] && pause_and_leave_fullscreen

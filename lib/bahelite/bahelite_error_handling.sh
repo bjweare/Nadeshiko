@@ -249,9 +249,10 @@ bahelite_on_exit() {
 		#    and both of them use Bahelite.
 		#
 		#  Since the “tee” is made to ignore signals (tee -i), there is no
-		#  need to kill it, as the main process catches all the signals, and
-		#  tee now receives SIGPIPE (or SIGHUP) in a natural way.
-		: pkill -PIPE  --session 0  -f "tee -a $LOG"
+		#    need to kill it, as the main process catches all the signals,
+		#    and tee now receives SIGPIPE (or SIGHUP) in a natural way.
+		#  No, this is still neded.
+		pkill -PIPE  --session 0  -f "tee -a $LOG" || true
 		#
 		#  This code code belongs to the unsuccessful attempts to avoid tee
 		#  at all and do the logging by using only redicrections.
