@@ -118,7 +118,6 @@ set() {
 		}
 		command=(builtin set -x)
 	elif [ "$1" = +x ]; then
-		command=(builtin set +x)
 		[ -v BAHELITE_BRING_BACK_TRAPONDEBUG ] && {
 			unset BAHELITE_BRING_BACK_TRAPONDEBUG
 			#  When xtrace if switched off, we can bring the trap on debug
@@ -128,6 +127,7 @@ set() {
 			#  Functions will inherit trap on RETURN!
 			trapondebug set
 		}
+		command=(builtin set +x)
 	else
 		#  For any arguments, that are not ‘-x’ or ‘+x’,
 		#    pass them as they are.

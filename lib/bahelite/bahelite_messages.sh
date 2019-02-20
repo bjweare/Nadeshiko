@@ -232,12 +232,14 @@ infow() {
 	return 0
 }
 
+
  # Like info, but the output goes to stderr.
 #
 warn() {
 	xtrace_off && trap xtrace_on RETURN
 	msg "$@"
 }
+
 
  # Like warn(), but has a higher rank than usual info(),
 #  which allows its message to be also shown on desktop.
@@ -247,6 +249,7 @@ warn-ns() {
 	xtrace_off && trap xtrace_on RETURN
 	msg "$@"
 }
+
 
  # Shows an error message and calls “exit”.
 #  Error messages always go
@@ -261,6 +264,7 @@ err() {
 	msg "$@" || exit $?
 }
 
+
  # Same as err(), but prints the whole line in red.
 #
 errw() {
@@ -268,10 +272,12 @@ errw() {
 	msg "$@" || exit $?
 }
 
+
 abort() {
 	xtrace_off && trap xtrace_on RETURN
 	msg "$@" || exit $?
 }
+
 
  # For Bahelite internal warnings and errors.
 #  These functions use BAHELITE_*_MESSAGES and should be preferred

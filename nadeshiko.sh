@@ -150,7 +150,7 @@ show_version() {
 
 #  Stage 1
 set_rcfile_from_args "$@"
-read_rcfile  "$rcfile_minver"
+read_rcfile "$rcfile_minver"
 post_read_rcfile
 #  Stage 2
 parse_args "${args[@]}"
