@@ -23,13 +23,14 @@ set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 
-declare -r version="2.2.6"
+declare -r version="2.2.7"
+info "Nadeshiko-do-postponed v$version" >>"$LOG"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 declare -r failed_jobs_dir="$postponed_commands_dir/failed"
 
-read_rcfile  "$rcfile_minver"
+read_rcfile "$rcfile_minver"
 [ "${taskset_cpulist:-}" ] && {
 	[[ "$taskset_cpulist" =~ ^[0-9,-]+$ ]] \
 		|| err 'Invalid CPU list for taskset.'

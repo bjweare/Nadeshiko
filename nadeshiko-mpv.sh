@@ -37,7 +37,8 @@ prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 place_rc_and_examplerc 'nadeshiko'
 
-declare -r version="2.3.7"
+declare -r version="2.3.8"
+info "Nadeshiko-mpv v$version" >>"$LOG"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
 	show_preview
@@ -1093,7 +1094,7 @@ play_encoded_file() {
 
 
 
-read_rcfile  "$rcfile_minver"
+read_rcfile "$rcfile_minver"
 post_read_rcfile
 REQUIRED_UTILS+=(
 	python3     # Dialogue windows.
