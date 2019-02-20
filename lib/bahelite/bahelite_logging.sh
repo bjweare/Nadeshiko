@@ -15,7 +15,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_LOGGING_VER='1.4.1'
+BAHELITE_MODULE_LOGGING_VER='1.4.2'
 INTERNALLY_REQUIRED_UTILS+=(
 	date  #  to add date to $LOG file name and to the log itself.
 	pkill  #  to find and kill the logging tee nicely, so it wouldn’t hang.
@@ -71,7 +71,7 @@ start_log() {
 	#  SIGPIPE to that tee, so it would quit nicely, without terminating
 	#  and triggering an error. It will, however, quit with a code >0,
 	#  so we catch it here with “||:”.
-	exec &> >(tee -a "$LOG" ||:)
+	exec &> >(tee -i -a "$LOG" ||:)
 
 	#  An attempt to avoid sending tee signals at exit, and just use
 	#  a separate file descriptor for a copy of stdin and stdout.
