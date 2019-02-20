@@ -99,7 +99,8 @@ ffmpeg='ffmpeg -v error -nostdin'
 #
 #  Chroma subsampling
 #  Not all browsers support yuv422 or yuv444p yet.
-#  VP9 encodes well with yuv444p! Plays in the old FF-52 ESR.
+#  VP9 encodes with yuv444p play well in FF-52 ESR, Chromium-72,
+#    but not in Vivaldi-2.3.
 #  Default value: 'yuv420p'
 ffmpeg_pix_fmt='yuv420p'
 #
