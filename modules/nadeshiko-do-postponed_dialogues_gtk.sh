@@ -30,7 +30,7 @@ prepare_dotglade_for_launch_jobs() {
 		message+="There $(plural_s $jobs_to_run are is) $jobs_to_run"
 		message+=" job$(plural_s $jobs_to_run)."
 		message+=$'\n'
-		message+='Run them?'
+		message+="Run $(plural_s $jobs_to_run them it)?"
 	fi
 	[ "$failed_jobs" -gt 0 ] && {
 		message+=$'\n\n\n'
