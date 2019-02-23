@@ -222,7 +222,7 @@ check_util_support() {
 	done
 	[ -v ffmpeg_is_too_old ] && {
 		warn 'The FFmpeg version you are running is too old!'
-		cat <<-EOF | column -t  -o '    '  -N ' ','Needed','In your FFmpeg' | sed -r "s/.*/$MI&/g"
+		cat <<-EOF | column -t  -o '    '  -N ' ','Needed','In your FFmpeg' | sed -r "s/.*/$__mi&/g"
 		libavutil      ${ffmpeg_minver[1]}+    ${ffmpeg_ver[1]}
 		libavcodec     ${ffmpeg_minver[2]}+    ${ffmpeg_ver[2]}
 		libavformat    ${ffmpeg_minver[3]}+    ${ffmpeg_ver[3]}
@@ -247,6 +247,11 @@ check_util_support() {
 				}
 				;;
 			subs)
+				#  libass filter is needed for two reasons:
+				#  - something with hardsubbing requires them to be
+				#    in SSA format;
+				#  - OpenType font features can be enabled only with
+				#    “ass” filter, not available with “subtitles” filter.
 				grep -qE "\s.ES... ass" <<<"$codec_list" || {
 					warn "FFmpeg doesn’t support encoding ASS/SSA subtitles."
 					missing_encoders=t
@@ -796,27 +801,27 @@ display_settings() {
 	# The defaults are defined in $rc_file.
 	[ -v rc_default_subs -a -v subs ] \
 		&& sub_hl="${__g}" \
-		|| sub_hl="${__b}"
+		|| sub_hl="${__bri}"
 	[ -v subs ] \
 		&& info "Subtitles are ${sub_hl}ON${__s}." \
 		|| info "Subtitles are ${sub_hl}OFF${__s}."
 	[ -v rc_default_audio -a -v audio ] \
 		&& audio_hl="${__g}" \
-		|| audio_hl="${__b}"
+		|| audio_hl="${__bri}"
 	[ -v audio ] \
 		&& info "Audio is ${audio_hl}ON${__s}." \
 		|| info "Audio is ${audio_hl}OFF${__s}."
 	[ -v scale ] && {
-		[ "${rc_default_scale:-}" != "${scale:-}" ] && scale_hl=${__b}
+		[ "${rc_default_scale:-}" != "${scale:-}" ] && scale_hl=${__bri}
 		info "Scaling to ${scale_hl:-}${scale}p${__s}."
 	}
 	[ -v crop ] && {
-		crop_string="${__b}$crop_w×$crop_h${__s}, X:$crop_x, Y:$crop_y"
+		crop_string="${__bri}$crop_w×$crop_h${__s}, X:$crop_x, Y:$crop_y"
 		info "Cropping to: $crop_string."
 	}
 	[ "$max_size" = "$max_size_default" ] \
 		&& info "Size to fit into: $max_size (kilo=$kilo)." \
-		|| info "Size to fit into: ${__b}$max_size${__s} (kilo=$kilo)."
+		|| info "Size to fit into: ${__bri}$max_size${__s} (kilo=$kilo)."
 	info "Slice duration: ${duration[ts_short_no_ms]} (exactly ${duration[total_s_ms]})."
 
 	mildec
@@ -827,7 +832,7 @@ display_settings() {
 		&& info "Resolution: $orig_width×$orig_height." \
 		|| warn "Resolution: ${__y}–${__s}."
 	case "${orig_ar:-}" in
-		'')  warn "Aspect ratio: ${__b}${__y}undefined${__s}";;
+		'')  warn "Aspect ratio: ${__y}${__bri}undefined${__s}";;
 		'16:9')  info "Aspect ratio: 16:9.";;
 		*)  info "Aspect ratio: ${__y}not 16:9${__s}.";;
 	esac
@@ -838,7 +843,7 @@ display_settings() {
 		warn "Scene complexity: assumed to be $scene_complexity."
 	else
 		[ -v forced_scene_complexity ] \
-			&& info "Scene complexity: ${__b}$scene_complexity${__s}." \
+			&& info "Scene complexity: ${__bri}$scene_complexity${__s}." \
 			|| info "Scene complexity: $scene_complexity."
 	fi
 	milinc
@@ -848,16 +853,16 @@ display_settings() {
 	[ -v sps_ratio ] && info "SPS ratio: $sps_ratio."
 	mildec 2
 	[ "$ffmpeg_pix_fmt" != "yuv420p" ] \
-		&& info "Encoding to pixel format “${__b}$ffmpeg_pix_fmt${__s}”."
+		&& info "Encoding to pixel format “${__bri}$ffmpeg_pix_fmt${__s}”."
 	[ -v ffmpeg_colorspace ] \
-		&& info "Converting to colourspace “${__b}$ffmpeg_colorspace${__s}”."
+		&& info "Converting to colourspace “${__bri}$ffmpeg_colorspace${__s}”."
 	[    -v needs_bitrate_correction_by_origres \
 	  -o -v needs_bitrate_correction_by_cropres ] && {
 	  	infon 'Bitrate corrections to be applied: '
 		[ -v needs_bitrate_correction_by_origres ] \
-			&& echo -en "by ${__y}${__b}orig_res${__s} "
+			&& echo -en "by ${__y}${__bri}orig_res${__s} "
 		[ -v needs_bitrate_correction_by_cropres ] \
-			&& echo -en "by ${__y}${__b}crop_res${__s} "
+			&& echo -en "by ${__y}${__bri}crop_res${__s} "
 		echo
 	}
 	return 0

@@ -28,7 +28,7 @@ print_minmax() {
 	# Finding minidx and maxidx values within the group.
 	read -d '' minidx maxidx < <(find_min_max "$1" size_B; echo -e '\0')
 	declare -n minval=file${minidx}_size_MiB
-	echo -en "size: ${__b}${minval%\.*}"
+	echo -en "size: ${__bri}${minval%\.*}"
 	[ "$maxidx" ] && {
 		declare -n maxval=file${maxidx}_size_MiB
 		[ "$minval" = "$maxval" ] && range_char='~' || range_char='…'
@@ -42,7 +42,7 @@ print_minmax() {
 # [ $((++counter)) -eq 1 ] && set -x
 	read -d '' minidx maxidx < <(find_min_max "$1" duration_ms; echo -e '\0')
 	declare -n minval=file${minidx}_duration
-	echo -en "duration: ${__b}${minval}"
+	echo -en "duration: ${__bri}${minval}"
 	[ "$maxidx" ] && {
 		declare -n maxval=file${maxidx}_duration
 		[ "$minval" = "$maxval" ] && range_char='~' || range_char='…'
@@ -56,7 +56,7 @@ print_minmax() {
 
 	read -d '' minidx maxidx < <(find_min_max "$1" vbitrate; echo -e '\0')
 	declare -n minval=file${minidx}_vbitrate
-	echo -en "vbitrate: ${__b}${minval}"
+	echo -en "vbitrate: ${__bri}${minval}"
 	[ "$maxidx" ] && {
 		declare -n maxval=file${maxidx}_vbitrate
 		[ "$minval" = "$maxval" ] && range_char='~' || range_char='…'
@@ -111,19 +111,19 @@ find_peculiarities() {
 	done
 	[ ${#unusual_ar[@]} -ne 0 ] \
 		&& echo -en " ${__r}not_a_16x9${__s}" \
-		&& echo -en "${__b}(${!unusual_ar[@]})${__s}"
+		&& echo -en "${__bri}(${!unusual_ar[@]})${__s}"
 
 	[ ${#unusual_chroma[@]} -ne 0 ] \
 		&& echo -en " ${__r}not_yuv420${__s}" \
-		&& echo -en "${__b}(${!unusual_chroma[@]})${__s}"
+		&& echo -en "${__bri}(${!unusual_chroma[@]})${__s}"
 
 	[ ${#unusual_bit_depth[@]} -ne 0 ] \
 		&& echo -en " ${__r}not_8bit${__s}" \
-		&& echo -en "${__b}(${!unusual_bit_depth[@]})${__s}"
+		&& echo -en "${__bri}(${!unusual_bit_depth[@]})${__s}"
 
 	[ ${#unusual_vcodec_profile[@]} -ne 0 ] \
 		&& echo -en " ${__r}vc_profile${__s}" \
-		&& echo -en "${__b}(${!unusual_vcodec_profile[@]})${__s}"
+		&& echo -en "${__bri}(${!unusual_vcodec_profile[@]})${__s}"
 	return 0
 }
 
@@ -132,7 +132,7 @@ print_ids() {
 	declare -n arr="$1"
 	local i val
 	for i in ${!arr[@]}; do
-		echo -en " ${__b}$i${__s}"
+		echo -en " ${__bri}$i${__s}"
 	done
 	echo
 	return 0
@@ -143,7 +143,7 @@ print_values() {
 	declare -n arr="$1"
 	local i val
 	for i in ${!arr[@]}; do
-		echo -en " ${__b}${arr[i]}${__s}"
+		echo -en " ${__bri}${arr[i]}${__s}"
 	done
 	echo
 	return 0
@@ -219,7 +219,7 @@ done
 modes=( 'minmax' 'values' 'ids' )
 mode_idx=0
 until [ -v quit ]; do
-	echo -e "\n\n    Mode: ${__b}${modes[mode_idx]^^}${__s} \n"
+	echo -e "\n\n    Mode: ${__bri}${modes[mode_idx]^^}${__s} \n"
 	echo "Header+footer to file size ratio:"
 	[ ${#container_to_ovsize_le_01[@]} -ne 0 ] \
 	&& { echo -n '<= 0.1% | '; print_${modes[mode_idx]} container_to_ovsize_le_01; }

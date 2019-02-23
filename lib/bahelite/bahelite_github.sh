@@ -1,8 +1,8 @@
 # Should be sourced.
 
 #  bahelite_github.sh
-#  Functions to work with github.com.
-#  deterenkelt © 2018
+#  Functions to check for the latest release page on github.com.
+#  © deterenkelt 2018–2019
 
 # Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
@@ -15,9 +15,9 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_GITHUB_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_GITHUB_VER='1.0.5'
-INTERNALLY_REQUIRED_UTILS+=(date stat ps wget xdg-open)
-INTERNALLY_REQUIRED_UTILS_HINTS+=(
+BAHELITE_MODULE_GITHUB_VER='1.0.6'
+BAHELITE_INTERNALLY_REQUIRED_UTILS+=(date stat ps wget xdg-open)
+BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	[ps]='ps is a part of procps-ng.
 	http://procps-ng.sourceforge.net/
 	https://gitlab.com/procps-ng/procps'
@@ -35,7 +35,7 @@ NEW_RELEASE_CHECK_INTERVAL=21  # each N days
 #  The timestamp is used to maintain the specified interval between checks.
 #  Can be overriden after sourcing bahelite.sh.
 #
-create_updater_timestamp() {
+bahelite_create_updater_timestamp() {
 	#  Default path, where release check timestamp should be placed.
 	declare -g RELEASE_CHECK_TIMESTAMP="${CACHEDIR:-$MYDIR}/updater_timestamp"
 	[ -f "$RELEASE_CHECK_TIMESTAMP" ] || touch "$RELEASE_CHECK_TIMESTAMP"
@@ -66,7 +66,7 @@ create_updater_timestamp() {
 #
 check_for_new_release() {
 	xtrace_off && trap xtrace_on RETURN
-	create_updater_timestamp
+	bahelite_create_updater_timestamp
 	local days_since_last_check=$((
 		(    $(date +%s)
 		   - $(stat -L --format %Y "$RELEASE_CHECK_TIMESTAMP")
@@ -92,7 +92,7 @@ check_for_new_release() {
 	which_is_newer=$(compare_versions "$our_ver" "$latest_release_ver")
 
 	if [ "$which_is_newer" = "$latest_release_ver" ]; then
-		info-ns "${__b}v$latest_release_ver is available!${__s}"
+		info-ns "${__bri}v$latest_release_ver is available!${__s}"
 		[ "$relnotes_url" ] && {
 			case "$relnotes_action" in
 				ask_to_open)

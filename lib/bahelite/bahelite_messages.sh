@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_VER='2.2'
+BAHELITE_MODULE_MESSAGES_VER='2.2.1'
 
  # Define this variable for info messages to have icon
 #
@@ -51,9 +51,106 @@ declare -A BAHELITE_ERROR_MESSAGES=(
  # Colours for the console and log messages
 #  Regular functions (info, warn, err) apply the colour only to the asterisk.
 #
-BAHELITE_INFO_MESSAGE_COLOUR=$__g
-BAHELITE_WARN_MESSAGE_COLOUR=$__y
-BAHELITE_ERR_MESSAGE_COLOUR=$__r
+BAHELITE_INFO_MESSAGE_COLOUR=$__green
+BAHELITE_WARN_MESSAGE_COLOUR=$__yellow
+BAHELITE_ERR_MESSAGE_COLOUR=$__red
+
+
+ # Message indentation level
+#  Checking, if it’s already set, in case one script calls another –
+#  so that indentaion would be inherited in the inner script.
+#
+[ -v BAHELITE_MI_LEVEL ] || BAHELITE_MI_LEVEL=0
+#
+#  The whitespace indentation itself.
+#  As it belongs to markup, that user may use, it follows
+#  the corresponding style, akin to terminal sequences.
+[ -v __mi ] || __mi=''
+#
+#
+#  Number of spaces to use per indentation level.
+#  No tabs, because predicting the tab length in a particular terminal
+#  is impossible anyway.
+[ -v BAHELITE_MI_SPACENUM ] || BAHELITE_MI_SPACENUM=4
+#
+export BAHELITE_MI_LEVEL     \
+       BAHELITE_MI_SPACENUM  \
+       __mi
+
+
+ # Assembles __mi according to the current BAHELITE_MI_LEVEL
+#
+mi_assemble() {
+	#  Internal – called in the module itself!
+	#  There should be no xtrace_on/off, as the main code in the module
+	#  should do this!
+	declare -g __mi=''
+	local i
+	for (( i=0; i < (BAHELITE_MI_LEVEL*BAHELITE_MI_SPACENUM); i++ )); do
+		__mi+=' '
+	done
+	#  Without this, multiline messages that occur on BAHELITE_MI_LEVEL=0,
+	#  when $__mi is empty, won’t be indented properly. ‘* ’, remember?
+	[ "$__mi" ] || __mi='  '
+	return 0
+}
+
+
+ # Increments the indentation level.
+#  [$1] — number of times to increment $MI_LEVEL.
+#         The default is to increment by 1.
+#
+milinc() {
+	xtrace_off && trap xtrace_on RETURN
+	local count=${1:-1}  z
+	for ((z=0; z<count; z++)); do
+		let '++BAHELITE_MI_LEVEL || 1'
+	done
+	mi_assemble || return $?
+}
+
+
+ # Decrements the indentation level.
+#  [$1] — number of times to decrement $MI_LEVEL.
+#  The default is to decrement by 1.
+#
+mildec() {
+	xtrace_off && trap xtrace_on RETURN
+	local count=${1:-1}  z
+	if (( BAHELITE_MI_LEVEL == 0 )); then
+		warn "No need to decrease indentation, it’s on the minimum."
+	else
+		for ((z=0; z<count; z++)); do
+			let '--BAHELITE_MI_LEVEL || 1'
+		done
+		mi_assemble || return $?
+	fi
+	return 0
+}
+
+
+ # Sets the indentation level to a specified number.
+#  $1 – desired indentation level, 0..9999.
+#
+milset () {
+	xtrace_off && trap xtrace_on RETURN
+	local mi_level=${1:-}
+	[[ "$mi_level" =~ ^[0-9]{1,4}$ ]] || {
+		warn "Indentation level should be an integer between 0 and 9999."
+		return 0
+	}
+	BAHELITE_MI_LEVEL=$mi_level
+	mi_assemble || return $?
+}
+
+
+ # Removes any indentation.
+#
+mildrop() {
+	xtrace_off && trap xtrace_on RETURN
+	BAHELITE_MI_LEVEL=0
+	mi_assemble || return $?
+}
 
 
  # Desktop notifications
@@ -106,70 +203,6 @@ bahelite_notify_send() {
 }
 
 
-mi_assemble() {
-	# Internal! There should be no xtrace_off!
-	local z
-	MI=''
-	for ((z=0; z<MI_LEVEL; z++)); do MI+=$MI_CHARS; done
-	# Without this, multiline messages that occur on MI_LEVEL=0,
-	# when $MI is empty, won’t be indented properly. ‘* ’, remember?
-	[ "$MI" ] || MI='  '
-	return 0
-}
-
-
- # Increments the indentation level.
-#  [$1] — number of times to increment $MI_LEVEL.
-#         The default is to increment by 1.
-#
-milinc() {
-	xtrace_off && trap xtrace_on RETURN
-	local count=${1:-1} z mi_as_result
-	for ((z=0; z<count; z++)); do ((MI_LEVEL++, 1)); done
-	mi_assemble; mi_as_result=$?
-	return $mi_as_result
-}
-
-
- # Decrements the indentation level.
-#  [$1] — number of times to decrement $MI_LEVEL.
-#  The default is to decrement by 1.
-#
-mildec() {
-	xtrace_off && trap xtrace_on RETURN
-	local count=${1:-1} z mi_as_result
-	if [ $MI_LEVEL -eq 0 ]; then
-		warn "No need to decrease indentation, it’s on the minimum."
-	else
-		for ((z=0; z<count; z++)); do ((MI_LEVEL--, 1)); done
-		mi_assemble; mi_as_result=$?
-	fi
-	return $mi_as_result
-}
-
- # Sets the indentation level to a specified number.
-#  $1 – desired indentation level, 0..9999.
-#
-milset () {
-	xtrace_off && trap xtrace_on RETURN
-	local _mi_level=$1 mi_as_result
-	[[ "$_mi_level" =~ ^[0-9]{1,4}$ ]] || {
-		warn "Indentation level should be an integer between 0 and 9999."
-		return 0
-	}
-	MI_LEVEL=$_mi_level
-	mi_assemble; mi_as_result=$?
-	return $mi_as_result
-}
-
- # Removes any indentation.
-#
-mildrop() {
-	xtrace_off && trap xtrace_on RETURN
-	MI_LEVEL=0
-	mi_assemble; local mi_as_result=$?
-	return $mi_as_result
-}
 
  # Shows an info message.
 #  Features asterisk, automatic indentation with mil*, keeps lines
@@ -214,8 +247,8 @@ infow() {
 	outp=$( bash -c "$command" 2>&1 )
 	result=$?
 	[ $result -eq 0 ] \
-		&& printf "${__b}%s${__g}%s${__s}${__b}%s${__s}\n"  ' [ ' OK ' ]' \
-		|| printf "${__b}%s${__r}%s${__s}${__b}%s${__s}\n"  ' [ ' Fail ' ]'
+		&& printf "${__bri}%s${__g}%s${__s}${__bri}%s${__s}\n"  ' [ ' OK ' ]' \
+		|| printf "${__bri}%s${__r}%s${__s}${__bri}%s${__s}\n"  ' [ ' Fail ' ]'
 	[ $result -ne 0 -o "$force_output" ] && {
 		milinc
 		info "Here is the output of ‘$command’:"
@@ -411,11 +444,11 @@ msg() {
 	#  if they deal with non-Latin characters.
 	if [ -v BAHELITE_FOLD_MESSAGES ]; then
 		message=$(echo -e ${nonl:-} "${colour:-}$asterisk$cs$message$cs" \
-		          | fold  -w $((TERM_COLS - MI_LEVEL*MI_SPACENUM -2)) -s \
-		          | sed -r "1s/^/${MI#  }/; 1!s/^/$MI/g" )
+		              | fold  -w $((TERM_COLS - ${#__mi} -2)) -s \
+		              | sed -r "1s/^/${__mi#  }/; 1!s/^/$__mi/g" )
 	else
 		message=$(echo -e ${nonl:-} "${colour:-}$asterisk$cs$message$cs" \
-		          | sed -r "1s/^/${MI#  }/; 1!s/^/$MI/g" )
+		              | sed -r "1s/^/${__mi#  }/; 1!s/^/$__mi/g" )
 	fi
 	case $redir in
 		stdout)  echo ${nonl:-} "$message";;
@@ -452,24 +485,9 @@ msg() {
 }
 
 
- # Message Indentation Level.
-#  Each time you go deeper one level, call milinc – and the messages
-#  will be indented one level more. mildec decreases one level.
-#  See also: milset, mildrop.
-#
-#  Indentation level
-[ -v MI_LEVEL  -a  -v MI ] || {
-	MI_LEVEL=0
-	#  Whitespace indentation itself.
-	MI=''
-	MI_SPACENUM=4  # Number of spaces to use per indentation level.
-	MI_CHARS=''  # Accumulates spaces for one level of indentation.
-	for ((i=0; i<MI_SPACENUM; i++)); do MI_CHARS+=' '; done
-	export MI_LEVEL MI MI_SPACENUM MI_CHARS
-	xtrace_off
-	mi_assemble
-	xtrace_on
-}
+xtrace_off
+mi_assemble
+xtrace_on
 
 
 return 0

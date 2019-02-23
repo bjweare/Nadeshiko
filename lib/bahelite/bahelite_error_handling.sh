@@ -7,7 +7,7 @@
 #  On error prints call stack trace, the failed command and its return code,
 #    all highlighted distinctively.
 #  Each trap calls user subroutine, if it’s defined.
-#  deterenkelt © 2018
+#  © deterenkelt 2018–2019
 
 # Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
@@ -19,8 +19,8 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_ERROR_HANDLING_VER='1.5'
-INTERNALLY_REQUIRED_UTILS+=(
+BAHELITE_MODULE_ERROR_HANDLING_VER='1.5.2'
+BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	mountpoint   # Prevent clearing TMPDIR, if it’s a mountpoint.
 )
 
@@ -107,8 +107,8 @@ BAHELITE_STORED_LNOS=()
 #    Due to the different nature of bash errors – see the huge comment above –
 #    the regular means are not sufficient.
 #  Requires trap on debug to be set and functions, subshells and command sub-
-#    stitutions to inherit it, i.e. trapondebug set must be set below and
-#    the mother script should have “set -T”.
+#    stitutions to inherit it, i.e.  bahelite_toggle_ondebug_trap  must be
+#    called below to set DEBUG trap and the mother script should have “set -T”.
 #
 bahelite_on_each_command() {
 	xtrace_off && trap xtrace_on RETURN
@@ -143,11 +143,11 @@ bahelite_on_each_command() {
 #    wrapper in bahelite.sh.
 #  Trap on DEBUG may or may not cause pipes hang (still in bash 4.4).
 #    Try “echo "something" | xclip” in your script, where “set -T” is set.
-#    trapondebug set/unset allows to temporarily disable the trap and run
-#    failing pipes safely. The problem is not around any more, so hanging
-#    pipes might be caused by something else.
+#    bahelite_toggle_ondebug_trap  set/unset allows to temporarily disable
+#    the trap and run failing pipes safely. The problem is not around
+#    any more, so hanging pipes might be caused by something else.
 #
-trapondebug() {
+bahelite_toggle_ondebug_trap() {
 	xtrace_off && trap xtrace_on RETURN
 	case "$1" in
 		set)
@@ -235,7 +235,7 @@ bahelite_on_exit() {
 				                     "from_on_exit"  \
 				                     "${stored_lnos##* }"
 			#  ^ user’s on_error() will be launched from within
-			#    bahelite_show_error()
+			#    bahelite_on_error()
 		fi
 	}
 	#  Run user’s on_exit().
@@ -251,7 +251,7 @@ bahelite_on_exit() {
 		#  Since the “tee” is made to ignore signals (tee -i), there is no
 		#    need to kill it, as the main process catches all the signals,
 		#    and tee now receives SIGPIPE (or SIGHUP) in a natural way.
-		#  No, this is still neded.
+		#  Is this still needed?
 		pkill -PIPE  --session 0  -f "tee -a $LOG" || true
 		#
 		#  This code code belongs to the unsuccessful attempts to avoid tee
@@ -299,7 +299,7 @@ bahelite_on_error() {
 	[ "$(type -t on_error)" = 'function' ] && on_error
 	trap '' DEBUG
 	xtrace_off && trap xtrace_on RETURN
-	echo -en "${__b}--- Call stack " >&2
+	echo -en "${__bright}--- Call stack " >&2
 	for ((i=0; i<TERM_COLS-15; i++)); do  echo -n '-';  done
 	echo -e "${__s}" >&2
 	for ((f=${#FUNCNAME[@]}-1; f>0; f--)); do
@@ -317,12 +317,12 @@ bahelite_on_error() {
 			}
 		}
 		# echo "Printing FUNCNAME[$f], BASH_LINENO[$((f-1))], BASH_SOURCE[$f]"
-		echo -en "${__b}${FUNCNAME[f]}${__s}, " >&2
+		echo -en "${__bri}${FUNCNAME[f]}${__s}, " >&2
 		echo -e  "line $line_number_to_print in ${BASH_SOURCE[f]}" >&2
 	done
 	echo -en "Command: " >&2
-	( echo -en  "${__b}$failed_command${__s} ${__b}${__r}"
-	  echo -en  "(exit code: $failed_command_code)${__s}." ) \
+	( echo -en  "${__bri}$failed_command${__s} "
+	  echo -en  "${__r}${__bri}(exit code: $failed_command_code)${__s}." ) \
 	    | fold -w $((TERM_COLS-9)) -s \
 	    | sed -r '1 !s/^/         /g' >&2
 	echo
@@ -359,7 +359,7 @@ bahelite_on_error() {
 #  temporarily. However disabling errexit (with set +e) doesn’t remove
 #  the associated trap.
 #
-traponerr() {
+bahelite_toggle_onerror_trap() {
 	xtrace_off && trap xtrace_on RETURN
 	case "$1" in
 		set)
@@ -378,12 +378,16 @@ traponerr() {
 
 
  # If functrace (set -T) enabled, enable the trap on DEBUG for better error
-#  tracing. See also the descriptions to bahelite_on_each_command, trapondebug,
-#  and bahelite_on_exit functions above.
+#  tracing. See also the descriptions to
+#    - bahelite_on_each_command;
+#    - bahelite_toggle_ondebug_trap;
+#    - and bahelite_on_exit
+#  functions above.
 #
 [ -o functrace ] && {
-	# info "BAHELITE: enabling functrace for better error handling."
-	trapondebug set
+	bahelite_check_module_verbosity \
+		&& info "Bahelite: enabling functrace for better error handling."
+	bahelite_toggle_ondebug_trap  set
 }
 
 trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" EXIT' EXIT
@@ -392,7 +396,7 @@ trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" INT' IN
 trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" HUP' HUP
 trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" PIPE' PIPE
 #  SIGERR is handled separately:
-traponerr set
+bahelite_toggle_onerror_trap  set
 
 
 return 0

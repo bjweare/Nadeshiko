@@ -2,7 +2,7 @@
 
 #  bahelite_logging.sh
 #  Organises logging and maintains logs in a separate folder.
-#  deterenkelt © 2018
+#  © deterenkelt 2018–2019
 
 # Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
@@ -15,8 +15,8 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_LOGGING_VER='1.5'
-INTERNALLY_REQUIRED_UTILS+=(
+BAHELITE_MODULE_LOGGING_VER='1.5.1'
+BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	date  #  to add date to $LOG file name and to the log itself.
 	pkill  #  to find and kill the logging tee nicely, so it wouldn’t hang.
 )
@@ -62,10 +62,10 @@ start_log() {
 		| xargs rm -v &>/dev/null || :
 	noglob_on
 	popd >/dev/null
-	echo "${MI}Log started at $(LC_TIME=C date)." >"$LOG"
-	echo "${MI}Command line: $CMDLINE" >>"$LOG"
+	echo "${__mi}Log started at $(LC_TIME=C date)." >"$LOG"
+	echo "${__mi}Command line: $CMDLINE" >>"$LOG"
 	for ((i=0; i<${#ARGS[@]}; i++)) do
-		echo "${MI}ARGS[$i] = ${ARGS[i]}" >>"$LOG"
+		echo "${__mi}ARGS[$i] = ${ARGS[i]}" >>"$LOG"
 	done
 	#  When we will be exiting (even successfully), we will need to send
 	#  SIGPIPE to that tee, so it would quit nicely, without terminating
@@ -150,7 +150,7 @@ read_last_log() {
 	# declare -g LAST_LOG_ERROR
 	local err_msg_marker  err_msg_text
 	set_last_log_path "$@" || return $?
-	declare -g LAST_LOG
+	declare -g LAST_LOG_TEXT
 	#  Stripping control characters, primarily to delete colours codes.
 	LAST_LOG_TEXT=$(
 		sed -r 's/[[:cntrl:]]\[[0-9]{1,3}[mKG]//g' "$LAST_LOG_PATH"
@@ -200,7 +200,7 @@ read_last_log() {
 	#     How to grab:
 	#         log_last_line=$(
 	#             tac "$LAST_LOG_PATH" | grep -vE '^\s*$' | head -n1  \
-	#                 | sed -r "s/.*/$MI&/" >&2
+	#                 | sed -r "s/.*/$__mi&/" >&2
 	#         )
 
 	return 0

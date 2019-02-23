@@ -93,7 +93,7 @@ unset  major minor
 
  # Overrides ‘set’ bash builtin to change beahviour of set ±x:
 #    regular set -x output would include traponeachcommand(),
-#    which is triggered by trapondebug(), which is necessary for precise
+#    which is triggered by bahelite_toggle_ondebug_trap(), which is necessary for precise
 #    tracing in case of an error, but it clogs the normal trace, when user
 #    calls set -x.
 #  Thus there needs to be a hook on set -x that will temporarily
@@ -108,12 +108,13 @@ set() {
 	local command=()
 	if [ "$1" = -x ]; then
 		[ -v BAHELITE_TRAPONDEBUG_SET ] && {
-			#  The purpose of trapondebug is to catch the line, where
-			#  an error happened, better and provide a sensible trace stack.
-			#  When the programmer enables xtrace, he already got the infor-
-			#  mation from the trapondebug, so we disable it on the time
-			#  of enabling xtrace, for it will clog the output dramatically.
-			trapondebug unset
+			#  The purpose of  bahelite_toggle_ondebug_trap  is to catch the
+			#  line, where an error happened, better and provide a sensible
+			#  trace stack. When the programmer enables xtrace, he already
+			#  got the information from the bahelite_toggle_ondebug_trap, so
+			#  we disable it on the time of enabling xtrace, for it will clog
+			#  the output dramatically.
+			bahelite_toggle_ondebug_trap  unset
 			declare -g BAHELITE_BRING_BACK_TRAPONDEBUG=t
 		}
 		command=(builtin set -x)
@@ -125,7 +126,7 @@ set() {
 			#  from bahelite functions.
 			#  This enables functrace / set -T!
 			#  Functions will inherit trap on RETURN!
-			trapondebug set
+			bahelite_toggle_ondebug_trap  set
 		}
 		command=(builtin set +x)
 	else
@@ -142,8 +143,13 @@ set() {
 }
 
 
- # To turn off xtrace (set -x) output during the execution
-#  of Bahelite own functions.
+ # To turn off xtrace output (enabled with set -x) during the execution
+#    of Bahelite own functions. You don’t need them in mother script, just
+#    use set +x/-x, as usual.
+#  What these functions essentially do is hiding Bahelite code from xtrace,
+#    so that you could run set -x and see *only your code*, as you used to.
+#    To show Bahelite code anyway, add “unset BAHELITE_HIDE_FROM_XTRACE”
+#    in the mother script someplace after sourcing bahelite.sh.
 #
 xtrace_off() {
 	 # This prevents disabling xtrace recursively.
@@ -205,14 +211,16 @@ xtrace_on() {
 }
 
  # To turn off errexit (set -e) and disable trap on ERR temporarily.
-#  traponerr() is defined in bahelite_error_handling.sh, which is an optional
-#  module. Handling this optionality creates the need in simplifying of the
-#  way to turn errexit on and off – so here is this function.
+#  bahelite_toggle_onerror_trap() is defined in bahelite_error_handling.sh,
+#  which is an optional module. Handling this optionality creates the need
+#  in simplifying of the way to turn errexit on and off – so here is this
+#  function.
 #
 errexit_off() {
 	[ -o errexit ] && {
 		set +e
-		[ "$(type -t traponerr)" = 'function' ] && traponerr unset
+		[ "$(type -t bahelite_toggle_onerror_trap)" = 'function' ]  \
+			&& bahelite_toggle_onerror_trap  unset
 		declare -g BAHELITE_BRING_BACK_ERREXIT=t
 	}
 	return 0
@@ -221,7 +229,8 @@ errexit_on() {
 	[ -v BAHELITE_BRING_BACK_ERREXIT ] && {
 		unset BAHELITE_BRING_BACK_ERREXIT
 		set -e
-		[ "$(type -t traponerr)" = 'function' ] && traponerr set
+		[ "$(type -t bahelite_toggle_onerror_trap)" = 'function' ]  \
+			&& bahelite_toggle_onerror_trap  set
 	}
 	return 0
 }
@@ -248,7 +257,7 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.12"
+BAHELITE_VERSION="2.13"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -257,8 +266,8 @@ BAHELITE_VERSION="2.12"
 	MYNAME_AS_IN_DOLLARZERO="$0"
 	MYPATH=$(realpath --logical "$0")
 	MYDIR=${MYPATH%/*}
-	#  Used for desktop notification in bahelite_messages
-	#  and in the title for Xdilog windows in bahelite_xdialog.sh
+	#  Used for desktop notifications in bahelite_messages.sh
+	#  and in the title for dialog windows in bahelite_dialog.sh
 	[ -v MY_DESKTOP_NAME ] || {
 		MY_DESKTOP_NAME="${MYNAME%.*}"
 		MY_DESKTOP_NAME="${MY_DESKTOP_NAME^}"
@@ -310,15 +319,24 @@ BAHELITE_HIDE_FROM_XTRACE=t
 
 
  # Lists of utilities, the lack of which must trigger an error.
+#  For internal dependencies of bahelite.sh and bahelite_*.sh.
+#  Long name to make it distinctive from the REQUIRED_UTILS, which is
+#    the facility for the mother script. This array was separated from
+#    REQUIRED_UTILS to avoid accidental redefinition in the mother script
+#    instead of extension. It would be good to set this array readonly
+#    at the end of the bahelite.sh execution, but it’s not possible, because
+#    modules must remain optional – mother script may want to include addi-
+#    tional modules after receiving certain options, e.g. include
+#    bahelite_github.sh
 #
-INTERNALLY_REQUIRED_UTILS=(
+BAHELITE_INTERNALLY_REQUIRED_UTILS=(
 	getopt
 	grep
 	sed
 )
 #
 #  Holds a short info on which package a missing binary may be found in.
-declare -A INTERNALLY_REQUIRED_UTILS_HINTS=()
+declare -A BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS=()
 #
 #  User list for required utils
 #  Ex. REQUIRED_LIST=( mimetype ffmpeg )
@@ -340,23 +358,6 @@ declare -A REQUIRED_UTILS_HINTS=()
 #  or that grep is GNU grep and not BSD grep.
 #declare -A REQUIRED_UTILS_CHECKFUNCS=()
 
-if [ -v BAHELITE_CHERRYPICK_MODULES ]; then
-	for module in "${BAHELITE_CHERRYPICK_MODULES[@]}"; do
-		. "$BAHELITE_DIR/bahelite_$module.sh" || return 5
-	done
-else
-	noglob_off
-	for bahelite_module in "$BAHELITE_DIR"/bahelite_*.sh; do
-		. "$bahelite_module" || return 5
-	done
-	noglob_on
-fi
-
-
-[ -v BAHELITE_MODULE_MESSAGES_VER ] || {
-	echo "Bahelite: cannot find bahelite_messages.sh." >&2
-	return 5
-}
 
 
                         #  Module verbosity  #
@@ -389,6 +390,7 @@ declare -A BAHELITE_VERBOSE=(
 	[x_desktop]=f
 )
 
+
  # Checks whether verbosity is enabled for a certain module
 #  This function is supposed to be called from within a Bahelite module,
 #  i.e. bahelite_*.sh files, in the following manner:
@@ -413,12 +415,32 @@ bahelite_module_verbosity_test() {
 	return 0
 }
 
+if [ -v BAHELITE_CHERRYPICK_MODULES ]; then
+	for module in "${BAHELITE_CHERRYPICK_MODULES[@]}"; do
+		. "$BAHELITE_DIR/bahelite_$module.sh" || return 5
+	done
+else
+	noglob_off
+	for bahelite_module in "$BAHELITE_DIR"/bahelite_*.sh; do
+		. "$bahelite_module" || return 5
+	done
+	noglob_on
+fi
+
+
+[ -v BAHELITE_MODULE_MESSAGES_VER ] || {
+	echo "Bahelite: cannot find bahelite_messages.sh." >&2
+	return 5
+}
+
+
+
 
  # Call this function in your script after extending the array above.
 #
 check_required_utils() {
 	local  util  missing_utils req_utils=()
-	req_utils=$(printf "%s\n" ${INTERNALLY_REQUIRED_UTILS[@]} \
+	req_utils=$(printf "%s\n" ${BAHELITE_INTERNALLY_REQUIRED_UTILS[@]} \
 	                          ${REQUIRED_UTILS[@]} \
 	                | sort -u  )
 	for util in ${req_utils[@]}; do
@@ -427,9 +449,9 @@ check_required_utils() {
 			if [ "${REQUIRED_UTILS_HINTS[$util]:-}" ]; then
 				warn "$util was not found on this system!
 				      ${REQUIRED_UTILS_HINTS[$util]}"
-			elif [ "${INTERNALLY_REQUIRED_UTILS_HINTS[$util]:-}" ]; then
+			elif [ "${BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS[$util]:-}" ]; then
 				warn "$util was not found on this system!
-				      ${INTERNALLY_REQUIRED_UTILS_HINTS[$util]}"
+				      ${BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS[$util]}"
 			else
 				warn "$util was not found on this system!"
 			fi

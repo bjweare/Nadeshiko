@@ -14,14 +14,14 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MISC_VER='1.9'
+BAHELITE_MODULE_MISC_VER='1.9.1'
 
-INTERNALLY_REQUIRED_UTILS+=(
+BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # Single process check
 	wc      # Single process check
 	shuf    # random(), that works better than $RANDOM
 )
-INTERNALLY_REQUIRED_UTILS_HINTS+=(
+BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	[pgrep]='pgrep is a part of procps-ng.
 	http://procps-ng.sourceforge.net/
 	https://gitlab.com/procps-ng/procps'
@@ -98,15 +98,14 @@ dumpvar() {
 #  and variables to it.
 #
 bahelite_export() {
-	export  __g  __b  __s
 	export -f  info  warn  err  msg  strip_colours  \
 	           xtrace_off  xtrace_on  milinc  mildec
 	return 0
 }
 bahelite_unexport() {
-	export -n  __g  __b  __s
 	export -nf  info  warn  err  msg  strip_colours  \
 	            xtrace_off  xtrace_on  milinc  mildec
+	return 0
 }
 
 

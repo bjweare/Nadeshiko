@@ -14,27 +14,27 @@ print_encoding_info() {
 	#  Bright (bold) white for command line overrides.
 	#  Yellow for automatic scaling.
 	encoding_info="Encoding with "
-	[ -v forced_vbitrate ] && vbr_c="${__b}"
-	[ -v autocorr_vbitrate ] && vbr_c="${__b}${__y}"
+	[ -v forced_vbitrate ] && vbr_c="${__bri}"
+	[ -v autocorr_vbitrate ] && vbr_c="${__bri}${__y}"
 	encoding_info+="${vbr_c:-}$vbitrate_pretty${__s} / "
 	[ -v audio ] && {
-		[ -v forced_abitrate ] && abr_c="${__b}"
-		[ -v autocorr_abitrate ] && abr_c="${__b}${__y}"
+		[ -v forced_abitrate ] && abr_c="${__bri}"
+		[ -v autocorr_abitrate ] && abr_c="${__bri}${__y}"
 		encoding_info+="${abr_c:-}$abitrate${__s} "
 	}
-	[ -v autocorr_scale ] && sc_c="${__b}${__y}"  scale_text="${scale}p"
-	[ -v forced_scale ] && sc_c="${__b}"  scale_text="${scale}p"
+	[ -v autocorr_scale ] && sc_c="${__bri}${__y}"  scale_text="${scale}p"
+	[ -v forced_scale ] && sc_c="${__bri}"  scale_text="${scale}p"
 	[ -v crop ] && scale_text="Cropped"
 	[ -v scale_text ] || scale_text='Native'
 	encoding_info+="${sc_c:-}$scale_text${__s}"
 	[ -v rc_default_subs -a ! -v subs ] \
-		&& encoding_info+=", ${__b}nosubs${__s}"
+		&& encoding_info+=", ${__bri}nosubs${__s}"
 	[ ! -v rc_default_subs -a -v subs ] \
-		&& encoding_info+=", ${__b}subs${__s}"
+		&& encoding_info+=", ${__bri}subs${__s}"
 	[ -v rc_default_audio -a ! -v audio ] \
-		&& encoding_info+=", ${__b}noaudio${__s}"
+		&& encoding_info+=", ${__bri}noaudio${__s}"
 	[ ! -v rc_default_audio -a -v subs ] \
-		&& encoding_info+=", ${__b}audio${__s}"
+		&& encoding_info+=", ${__bri}audio${__s}"
 	encoding_info+='.'
 	info  "$encoding_info"
 	return 0
@@ -86,7 +86,6 @@ assemble_vf_string() {
 					filter_list="${filter_list:+$filter_list,}"
 					filter_list+="setpts=PTS+$(( ${start[total_ms]}/1000 )).${start[ms]}/TB,"
 					filter_list+='subtitles='
-					filter_list+="filename=$TMPDIR/subs.ass"
 					font_list="$(
 						find "$TMPDIR/fonts" \( -iname "*.otf" -o -iname "*.ttf" \)
 					)"
@@ -218,7 +217,7 @@ print_stats() {
 	new_time_array $pass2_s pass2_time
 	new_time_array $pass1_and_pass2_s pass1_and_pass2_time
 	speed_ratio=$(echo "scale=2; $pass1_and_pass2_s/${duration[total_s]}" | bc)
-	speed_ratio="${__b}${__y}$speed_ratio${__s}"
+	speed_ratio="${__bri}${__y}$speed_ratio${__s}"
 	info "Stats:
 	      Pass 1 – ${pass1_time[ts_no_ms]}.
 	      Pass 2 – ${pass2_time[ts_no_ms]}.
@@ -242,7 +241,7 @@ on_size_overshoot() {
 	overshot_size_pct=$((  diff_in_bytes / (max_size_in_bytes / 100) ))
 	[ $overshot_size_pct -eq 0 ] && overshot_size_pct=1 less_than='<'
 	[ $diff_in_bytes -ge $crit_overshoot_in_bytes ] && {
-		err "${__r}${__b}Overshot size on $overshot_size_pct%.${__s}${__y}${__b}
+		err "${__r}${__bri}Overshot size on $overshot_size_pct%.${__s}${__y}${__bri}
 		     It’s probably impossible to encode this clip to $max_size.
 		     If you think that it could be fixed, report a bug.${__s}"
 	}
@@ -250,7 +249,7 @@ on_size_overshoot() {
 	#  that we avoid with additionally multiplying $correction_pct by two.
 	correction_pct=$((overshot_size_pct*3/4))
 	[ $correction_pct -eq 0 ] && correction_pct=1  # or it’ll stuck.
-	warn-ns "${__b}${__y}Overshot size on ${less_than:-}$overshot_size_pct%${__s}.
+	warn-ns "${__bri}${__y}Overshot size on ${less_than:-}$overshot_size_pct%${__s}.
 	    Increasing space, reserved for container on $correction_pct%."
 	milinc
 	info "Total size in bytes: $new_file_size_in_bytes."

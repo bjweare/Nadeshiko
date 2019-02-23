@@ -1,53 +1,79 @@
 # Should be sourced.
 
 #  bahelite_colours.sh
-#  Defines variables, that will contain colour setting combinations.
-#  They can be used with echo -e, for example.
+#  Defines character sequences, that control font colour and style
+#  in terminal. They can be used with “echo -e”.
+#  © deterenkelt 2018–2019
 
-# Require bahelite.sh to be sourced first.
+#  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
 	echo 'Must be sourced from bahelite.sh.' >&2
 	return 5
 }
 
-# Avoid sourcing twice
+#  Avoid sourcing twice
 [ -v BAHELITE_MODULE_COLOURS_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_COLOURS_VER='1.0.3'
+BAHELITE_MODULE_COLOURS_VER='1.1'
 
- # Colours for messages.
-#  If you don’t use single-letter variables, better use them for colours.
+ # Controlling sequences
 #
-export __bk='\e[30m'     # black
-export __r='\e[31m'    # red
-export __g='\e[32m'    # green
-export __y='\e[33m'    # yellow
-export __bl='\e[34m'    # blue
-export __ma='\e[35m'    # magenta
-export __cy='\e[36m'    # cyan
-export __wh='\e[37m'    # white
-
-export __s='\e[0m'     # stop
-export __b='\e[1m'     # bright/bold.
-export __dim='\e[2m'     # dim.
-export __blink='\e[3m'     # blink (usually disabled).
-export __u='\e[4m'     # underlined
-export __inv='\e[7m'     # inverted fg and bg
-export __hid='\e[8m'     # hidden
-
-export __rb='\e[21m'   # reset bold/bright
-export __d='\e[39m'    # default fg
+#  Colours for messages
+export __k='\e[30m'  __bla='\e[30m'  __black='\e[30m'    # former __bk
+export               __blk='\e[30m'                      # ——»——
+export __r='\e[31m'  __red='\e[31m'                      # former __r
+export __g='\e[32m'  __gre='\e[32m'  __green='\e[32m'    # former __g
+export               __grn='\e[32m'                      # ——»——
+export __y='\e[33m'  __yel='\e[33m'  __yellow='\e[33m'   # former __y
+export               __ylw='\e[33m'                      # ——»——
+export __b='\e[34m'  __blu='\e[34m'  __blue='\e[34m'     # former __bl
+export __m='\e[35m'  __mag='\e[35m'  __magenta='\e[35m'  # former __ma
+export               __mgn='\e[35m'                      # ——»——
+export               __mgt='\e[35m'                      # ——»——
+export __c='\e[36m'  __cya='\e[36m'  __cyan='\e[36m'     # former __cy
+export               __cyn='\e[36m'                      # ——»——
+export __w='\e[37m'  __whi='\e[37m'  __white='\e[37m'    # former __wh
+export               __wht='\e[37m'                      # ——»——
+#
+#  Style control sequences
+#  Blink is usually disabled in terminals
+#  Bright/bold style depends on the way terminal does it.
+export __s='\e[0m'  __sto='\e[0m'  __stop='\e[0m'           # former __s
+export              __stp='\e[0m'                           # ——»——
+export __o='\e[1m'  __bri='\e[1m'  __bright='\e[1m'         # former __b
+export              __brt='\e[1m'                           # ——»——
+export              __bol='\e[1m'  __bold='\e[1m'           # ——»——
+export              __bld='\e[1m'                           # ——»——
+export __d='\e[2m'  __dim='\e[2m'                           # former __dim
+export __l='\e[3m'  __bli='\e[3m'  __blink='\e[3m'          # former __blink
+export              __bln='\e[3m'                           # ——»——
+export __u='\e[4m'  __und='\e[4m'  __underline='\e[4m'      # former __u
+export __i='\e[7m'  __inv='\e[7m'  __invert_bg_fg='\e[7m'   # former __inv
+export __h='\e[8m'  __hid='\e[8m'  __hidden='\e[8m'         # former __hid
+#
+#  Sequences that reset style and colour
+export __bri_rst='\e[21m'  __bright_reset='\e[21m'  # reset bold/bright,
+export __brt_rst='\e[21m'                           # former __rb
+export __bol_rst='\e[21m'  __bold_reset='\e[21m'
+export __bld_rst='\e[21m'
+export __fg_rst='\e[39m'  __fg_reset='\e[39m'  # reset fg to its default
+#                                              # colour, former __d
+#
+#  Extra
+export __clearline='\r\e[K'
 
 
  # Strip colours from the string
 #  Useful for when the message should go somewhere where terminal control
-#  combinations wouldn’t be recognised.
+#  sequences wouldn’t be recognised.
 #
 strip_colours() {
 	xtrace_off && trap xtrace_on RETURN
-	local str="$1" c c_val
-	for c in __bk __r __g __y __bl __ma __cy __wh __s __b __dim __u __inv \
-	         __hid __rb __d; do
+	local c str="$1"  c_val
+	for c in   __k  __r  __g  __y  __b  __m  __c  __w  \
+	          __s  __o  __d  __l  __u  __i  __h  \
+	         __bri_rst  __fg_rst
+	do
 	    declare -n c_val=$c
 	    str=${str//${c_val//\\/\\\\}/}
 	done

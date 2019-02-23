@@ -773,13 +773,13 @@ choose_preset() {
 			last_line_in_last_log=$(sed -rn '$ p' <<<"$LAST_LOG_TEXT" 2>&1)
 			grep -qE '(Encoding with|Cannot fit)' <<<"$last_line_in_last_log" || {
 				warn 'Nadeshiko couldn’t perform the scene complexity test!'
-				echo -en "$MI${__y}${__b}+++ Nadeshiko log " >&2
+				echo -en "${__mi}${__y}${__bri}+++ Nadeshiko log " >&2
 				for ((i=0; i<TERM_COLS-18; i++)); do  echo -n '+';  done
 				echo
 				echo -e "${__s}" >&2
-				sed -r "s/.*/$MI&/" "$LAST_LOG_PATH" >&2
+				sed -r "s/.*/${__mi}&/" "$LAST_LOG_PATH" >&2
 				echo
-				echo -en "$MI${__y}${__b}+++ End of Nadeshiko log " >&2
+				echo -en "${__mi}${__y}${__bri}+++ End of Nadeshiko log " >&2
 				for ((i=0; i<TERM_COLS-25; i++)); do  echo -n '+';  done
 				echo -e "${__s}" >&2
 				err 'Error while parsing Nadeshiko log.'

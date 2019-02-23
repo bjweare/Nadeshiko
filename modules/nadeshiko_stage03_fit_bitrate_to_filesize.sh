@@ -329,7 +329,7 @@ fit_bitrate_to_filesize() {
 				#  Showing the info message only if the difference was big
 				#  enough to be shown in “pretty” values, visible to the user.
 				info "Headpat to the poor downscaled video:
-				      vbitrate=${__y}${__b}$vbitrate_pretty${__s}"
+				      vbitrate=${__y}${__bri}$vbitrate_pretty${__s}"
 			}
 		}
 	}

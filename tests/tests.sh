@@ -93,7 +93,7 @@ prepare_test() {
 		fname_prefix=${FUNCNAME[1]}
 	fi
 	echo
-	info "${__b}$test_description${__s}"
+	info "${__bri}$test_description${__s}"
 	declare -g where_to_place_new_file="$tests_dir"
 	set +f
 	#  Removing old files. If the test wouldn’t generate new file(s),
@@ -662,8 +662,8 @@ pick_a_test() {
 			declare -p ${all_tests[i]}_result &>/dev/null && {
 				declare -n result=${all_tests[i]}_result
 				case "$result" in
-					OK)  result=" ${__b}– OK –${__s}";;
-					Fail)  result=" ${__b}${__r}– Fail –${__s}";;
+					OK)  result=" ${__bri}– OK –${__s}";;
+					Fail)  result=" ${__bri}${__r}– Fail –${__s}";;
 				esac
 			}
 			all_tests[$i]="${all_tests[i]#test_}${result:-}  ${desc:-}"

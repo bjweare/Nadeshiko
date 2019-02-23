@@ -2,7 +2,7 @@
 
 #  bahelite_misc.sh
 #  Functions to set paths to internal and user directories.
-#  deterenkelt © 2019
+#  © deterenkelt 2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
