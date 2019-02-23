@@ -1,3 +1,20 @@
+——— v 2.4 ————————————————————————————————————————————————————————————————————
+
+Nadeshiko-mpv 2.3.10
+Nadeshiko-do-postponed 2.2.8
+
+1. Switched hardsubbing filter from “subtitle” to “ass”. This allows to use
+   better font rendering, e.g. enabling ligatures, kerning and other features.
+   https://git.io/fhbtC
+   Sadly, the “ass” filter doesn’t recognise option “forced_style”, so for
+   rendering styleless subtitles (SubRip and VTT), the old “subtitles” filter
+   is used.
+2. Update for Bahelite 2.13.
+3. Nadeshiko-do-postponed: fix singular/plural discrepancy in the window text.
+
+
+
+
 ——— v 2.3.22 —————————————————————————————————————————————————————————————————
 
 1. **Bugfix:** Main script now should receive signals like SIGINT.
