@@ -431,12 +431,14 @@ check_subtitles() {
 			prepped_ext_subs="$TMPDIR/ext.srt"
 			subs_need_extraction=t
 			subs_need_conversion=t
+			subs_need_style_from_rc=t
 		elif [[ "$codec_name" =~ ^(vtt|webvtt)$ ]]; then
 			subs_source_format='SubRip/WebVTT'
 			#  FFmpeg differentiates between srt and vtt formats.
 			prepped_ext_subs="$TMPDIR/ext.vtt"
 			subs_need_extraction=t
 			subs_need_conversion=t
+			subs_need_style_from_rc=t
 		elif [[ "$codec_name" =~ ^(dvd_subtitle)$ ]]; then
 			subs_source_format='VobSub'
 			subs_need_overlay=t

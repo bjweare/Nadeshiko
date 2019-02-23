@@ -85,13 +85,21 @@ assemble_vf_string() {
 				[ -r "$TMPDIR/subs.ass" ] && {
 					filter_list="${filter_list:+$filter_list,}"
 					filter_list+="setpts=PTS+$(( ${start[total_ms]}/1000 )).${start[ms]}/TB,"
-					filter_list+='subtitles='
+					#  “ass” filter has an option “shaping” for better font
+					#  rendering, that’s not available in the “subtitles”
+					#  filter. But on the other hand, “ass” doesn’t recognise
+					#  option “force_style”, so we can’t use it for converted
+					#  SubRip/VTT subs.
+					[ -v subs_need_style_from_rc ] \
+						&& filter_list+='subtitles=' \
+						|| filter_list+='ass=shaping=auto:'
+					filter_list+="filename=$TMPDIR/subs.ass"
 					font_list="$(
 						find "$TMPDIR/fonts" \( -iname "*.otf" -o -iname "*.ttf" \)
 					)"
-					if [ "$font_list" ]; then
-						filter_list+=":fontsdir=$TMPDIR/fonts"
-					else
+					[ "$font_list" ] \
+						&& filter_list+=":fontsdir=$TMPDIR/fonts"
+					[ -v subs_need_style_from_rc ] && {
 						[ ${#ffmpeg_subtitle_fallback_style[*]} -gt 0 ] && {
 							for key in ${!ffmpeg_subtitle_fallback_style[@]}; do
 								forced_style="${forced_style:+$forced_style,}"
@@ -100,7 +108,7 @@ assemble_vf_string() {
 							done
 							filter_list+=":force_style='$forced_style'"
 						}
-					fi
+					}
 					#  There may be three variants:
 					#  - subtitles=$TMPDIR/subs.ass:fontsdir=…,
 					#  - subtitles=$TMPDIR/subs.ass:force_style=…,
