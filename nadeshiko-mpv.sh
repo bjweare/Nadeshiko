@@ -37,7 +37,7 @@ prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 place_rc_and_examplerc 'nadeshiko'
 
-declare -r version="2.3.10"
+declare -r version="2.3.11"
 info "Nadeshiko-mpv v$version" >>"$LOG"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
@@ -537,6 +537,7 @@ play_preview() {
 	$mpv --x11-name mpv-nadeshiko-preview \
 	     --title "Preview – $MY_DESKTOP_NAME" \
 	     --input-ipc-server="$temp_sock" \
+	     --pause=no \
 	     --start="$time1" \
 	     --ab-loop-a="$time1" --ab-loop-b="$time2" \
 	     --mute=$mute \
@@ -1098,6 +1099,7 @@ play_encoded_file() {
 	$mpv --x11-name mpv-nadeshiko-preview \
 	     --title "Encoded file – $MY_DESKTOP_NAME" \
 	     --input-ipc-server="$temp_sock" \
+	     --pause=no \
 	     --loop-file=inf \
 	     --mute=no \
 	     --volume=$volume \

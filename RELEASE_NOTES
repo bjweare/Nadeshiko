@@ -1,3 +1,13 @@
+——— v 2.4.1 ——————————————————————————————————————————————————————————————————
+
+Nadeshiko-mpv-2.3.11
+
+1. **Bugfix:** force mpv running previews to launch in unpaused state.
+   The bug seems to have appeared in the newer mpv.
+
+
+
+
 ——— v 2.4 ————————————————————————————————————————————————————————————————————
 
 Nadeshiko-mpv 2.3.10
