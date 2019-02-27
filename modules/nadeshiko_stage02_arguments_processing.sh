@@ -188,7 +188,7 @@ check_util_support() {
 				)
 				;;
 			check_for_updates)
-				. "$MYDIR/lib/bahelite/bahelite_github.sh"
+				. "$LIBDIR/bahelite/bahelite_github.sh"
 				;;
 		esac
 	done
