@@ -34,10 +34,8 @@ RDEPEND="
 
 	mpv? (
 		>=media-video/mpv-0.28
-		||(
-			x11-libs/libnotify
-			x11-libs/libtinynotify
-		)
+		|| (  x11-libs/libnotify
+			  x11-libs/libtinynotify  )
 		>=dev-lang/python-3.0
 		>=dev-python/pygobject-3.20
 		>=x11-libs/gtk+-3.20
@@ -56,16 +54,16 @@ RDEPEND="
 		>=media-video/ffmpeg-4.0[fdk]
 	)
 
-	vp9=(
+	vp9? (
 		>=media-video/ffmpeg-4.0[vpx]
 		>=media-libs/libvpx-1.7.0
 	)
 
-	opus=(
+	opus? (
 		>=media-video/ffmpeg-4.0[opus]
 	)
 
-	vorbis=(
+	vorbis? (
 		>=media-video/ffmpeg-4.0[vorbis]
 	)
 
@@ -87,13 +85,19 @@ REQUIRED_USE="
 	"
 
 
+src_unpack() {
+	unpack ${A}
+	cd "${S}"
+	mv ${PN^}-${PV}  ${PN,}-${PV}
+}
+
+
 src_prepare() {
-	epatch_user
+	default
 }
 
 
 src_install() {
-	emake DESTDIR="${D}" -f packaging/gentoo/Makefile install \
-		|| die "make install failed"
-	dodoc RELEASE_NOTES  LICENCE
+	emake DESTDIR="${D}" -f packaging/gentoo/Makefile install
+	# dodoc RELEASE_NOTES  LICENCE
 }
