@@ -34,13 +34,13 @@ read_rcfile "$rcfile_minver"
 [ "${taskset_cpulist:-}" ] && {
 	[[ "$taskset_cpulist" =~ ^[0-9,-]+$ ]] \
 		|| err 'Invalid CPU list for taskset.'
-	REQUIRED_UTILS+=(taskset)
+	REQUIRED_UTILS+=(taskset)  # (util-linux)
 	taskset_cmd="taskset --cpu-list $taskset_cpulist"
 }
 [ "${niceness_level:-}" ] && {
 	[[ "$niceness_level" =~ ^-?[0-9]{1,2}$ ]] \
 		|| err 'Invalid level for nice.'
-	REQUIRED_UTILS+=(nice)
+	REQUIRED_UTILS+=(nice)  # (coreutils)
 	nice_cmd="nice -n $niceness_level"
 }
 check_required_utils
