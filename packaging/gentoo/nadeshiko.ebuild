@@ -35,7 +35,7 @@ RDEPEND="
 	mpv? (
 		>=media-video/mpv-0.28
 		|| (  x11-libs/libnotify
-			  x11-libs/libtinynotify  )
+		      x11-libs/libtinynotify  )
 		>=dev-lang/python-3.0
 		>=dev-python/pygobject-3.20
 		>=x11-libs/gtk+-3.20
