@@ -37,7 +37,7 @@ prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 place_rc_and_examplerc 'nadeshiko'
 
-declare -r version="2.3.12"
+declare -r version="2.3.13"
 info "Nadeshiko-mpv v$version" >>"$LOG"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
@@ -535,7 +535,7 @@ play_preview() {
 	[ -v crop ] && vfcrop="--vf=crop=$crop"
 
 	$mpv --x11-name mpv-nadeshiko-preview \
-	     --title "Preview – $MY_DESKTOP_NAME" \
+	     --title "Preview – $MY_DISPLAY_NAME" \
 	     --input-ipc-server="$temp_sock" \
 	     --pause=no \
 	     --start="$time1" \
@@ -1097,7 +1097,7 @@ play_encoded_file() {
 	#  taken from that video would fall into $datadir, and it’s not
 	#  obvious to seek for them there.
 	$mpv --x11-name mpv-nadeshiko-preview \
-	     --title "Encoded file – $MY_DESKTOP_NAME" \
+	     --title "Encoded file – $MY_DISPLAY_NAME" \
 	     --input-ipc-server="$temp_sock" \
 	     --pause=no \
 	     --loop-file=inf \
