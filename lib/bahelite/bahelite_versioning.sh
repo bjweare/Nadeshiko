@@ -15,7 +15,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_VERSIONING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_VERSIONING_VER='1.1.1'
+BAHELITE_MODULE_VERSIONING_VER='2.0'
 
 # It is *highly* recommended to use “set -eE” in whatever script
 # you’re going to source it from.
@@ -28,11 +28,11 @@ BAHELITE_MODULE_VERSIONING_VER='1.1.1'
 #
 update_version() {
 	xtrace_off && trap xtrace_on RETURN
-	local file="$1" varname="$2" old_version new_version \
-	      old_major old_minor old_patch \
-	      major_nines minor_nines patch_nines \
-	      new_major new_minor new_patch \
-	      v v_val i xdialog_text which_is_newer
+	local file="$1" varname="$2"  old_version  new_version \
+	      old_major  old_minor  old_patch \
+	      major_nines  minor_nines  patch_nines \
+	      new_major  new_minor  new_patch \
+	      v  v_val  i  xdialog_text
 	[ -w "$file" ] || err "“$file”
 		                   is not a writeable file."
 	grep -qE "^\s*(declare\s+-r\s+|)$varname=" "$file" \
@@ -102,8 +102,7 @@ update_version() {
 	fi
 	unset old_version
 	local old_version=$old_major.$old_minor.$old_patch
-	which_is_newer=$(compare_versions "$old_version" "$new_version" )
-	if [ "$which_is_newer" = "$old_version" ]; then
+	if compare_versions "$old_version" '>' "$new_version"; then
 		xdialog_text="$old_version → $new_version"
 		xdialog_text+="\nThe old version seems to be newer."
 		xdialog_text+="\nStill write?"
@@ -140,33 +139,71 @@ is_version_valid() {
 }
 
  # Compares two versions, and returns either the bigger one or “equal”.
-#    $1 – version string.
-#    $2 – version string.
+#  Version strings are numbers separated with dots: 1, 1.0, 1.0.0.1 are all
+#    fine. Last “-rcXXX” and “-pXXX” are discarded.
+#  $1 – version string A.
+#  $2 – arithmetic condition: one of ==, !=, >, <, >=, <=.
+#  $3 – version string B.
 #
 compare_versions() {
 	xtrace_off && trap xtrace_on RETURN
-	local i old_version="$1" new_version="$2"
-	IFS='.' old_version=( $1 )
-	IFS='.' new_version=( $2 )
-	[ ${#new_version[@]} -ge ${#old_version[@]} ] \
-		&& shortest_length=${#old_version[@]} \
-		|| shortest_length=${#new_version[@]}
-	# +2 is needed to compare implied digits, e.g. with 0 vs 0.0.1 the latter
-	# should be considered bigger. The comparison shouldn’t end on the first
-	# or the second digit and consider them equal.
+	local i version_a=${1%%-*}  condition="$2"  version_b=${3%%-*}  \
+	      state='A and B are equal'
+	version_a=(  $(IFS='.';  echo $version_a)  )
+	version_b=(  $(IFS='.';  echo $version_b)  )
+	[ ${#version_b[@]} -ge ${#version_a[@]} ] \
+		&& shortest_length=${#version_a[@]}   \
+		|| shortest_length=${#version_b[@]}
+	#  +2 is needed to compare implied digits, e.g. with 0 vs 0.0.1 the latter
+	#  should be considered bigger. The comparison shouldn’t end on the first
+	#  or the second digit and consider them equal.
 	for ((i=0; i<shortest_length+2; i++)); do
-		[[ "${old_version[i]:-}" =~ ^[0-9]+$ ]] || old_version[$i]=0
-		[[ "${new_version[i]:-}" =~ ^[0-9]+$ ]] || new_version[$i]=0
-		if [ ${new_version[i]} -gt ${old_version[i]} ]; then
-			echo "$2"
-			return 0
-		elif [ ${old_version[i]} -gt ${new_version[i]} ]; then
-			echo "$1"
-			return 0
+		[[ "${version_a[i]:-}" =~ ^[0-9]+$ ]] || version_a[i]=0
+		[[ "${version_b[i]:-}" =~ ^[0-9]+$ ]] || version_b[i]=0
+		if [ ${version_b[i]} -gt ${version_a[i]} ]; then
+			state='B is bigger'
+			break
+		elif [ ${version_a[i]} -gt ${version_b[i]} ]; then
+			state='A is bigger'
+			break
 		fi
 	done
-	echo 'equal'
+
+	case "$condition" in
+		'==')	[ "$state" = 'A and B are equal' ] \
+					&& return 0 \
+					|| return 1
+				;;
+
+		'!=')	[ "$state" != 'A and B are equal' ] \
+					&& return 0 \
+					|| return 1
+				;;
+
+		'>')	[ "$state" = 'A is bigger' ] \
+					&& return 0 \
+					|| return 1
+				;;
+
+		'<')	[ "$state" = 'B is bigger' ] \
+					&& return 0 \
+					|| return 1
+				;;
+
+		'>=')	[ "$state" = 'A is bigger'  -o  "$state" = 'A and B are equal' ] \
+					&& return 0 \
+					|| return 1
+				;;
+
+		'<=')	[ "$state" = 'B is bigger'  -o  "$state" = 'A and B are equal' ] \
+					&& return 0 \
+					|| return 1
+				;;
+
+		*)		err "Unknown condition: “$condition”"
+	esac
 	return 0
 }
+
 
 return 0

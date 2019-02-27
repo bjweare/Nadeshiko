@@ -15,7 +15,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_GITHUB_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_GITHUB_VER='1.0.6'
+BAHELITE_MODULE_GITHUB_VER='1.0.7'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(date stat ps wget xdg-open)
 BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	[ps]='ps is a part of procps-ng.
@@ -75,7 +75,7 @@ check_for_new_release() {
 		&& return 1
 	local user="$1" repo="$2" our_ver="$3" relnotes_url="${4:-}" \
 	      relnotes_action="${5:-}"  latest_release_ver  \
-	      which_is_newer  message  open_relnotes_url
+	      message  open_relnotes_url
 	is_version_valid "$our_ver" || {
 		warn "Our version “$our_ver” is not a valid string."
 		return 5
@@ -89,9 +89,8 @@ check_for_new_release() {
 		return 5
 	}
 	touch "$RELEASE_CHECK_TIMESTAMP"
-	which_is_newer=$(compare_versions "$our_ver" "$latest_release_ver")
 
-	if [ "$which_is_newer" = "$latest_release_ver" ]; then
+	if compare_versions "$latest_release_ver" '>' "$our_ver"; then
 		info-ns "${__bri}v$latest_release_ver is available!${__s}"
 		[ "$relnotes_url" ] && {
 			case "$relnotes_action" in

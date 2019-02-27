@@ -215,7 +215,7 @@ place_rc_and_examplerc() {
 #
 read_rcfile() {
 	xtrace_off && trap xtrace_on RETURN
-	local  rcfile_min_ver="$1"  rcfile  example_rcfile  which_is_newer \
+	local  rcfile_min_ver="$1"  rcfile  example_rcfile  \
 	       rcfile_ver  varname  old_vars  new_vars  missing_variable_list=() \
 	       plural_s  verb
 
@@ -246,15 +246,15 @@ read_rcfile() {
 			sed -rn "1 s/\s*#\s*(${rcfile##*/}|${MYNAME%.sh}.rc.sh)\s+v([0-9\.]+)\s*$/\2/p" \
 			        "$rcfile"
 		)
-		which_is_newer=$(compare_versions "$rcfile_ver" "$rcfile_min_ver")
-		[ "$which_is_newer" = "$rcfile_min_ver" ] && {
+		if	compare_versions "$rcfile_min_ver" '>' "$rcfile_ver"; then
 			warn "RC file format changed!
 			      Current RC version: $rcfile_ver
 			      Minimum compatible version: $rcfile_min_ver"
 			warn-ns 'Please COPY and EDIT the new RC file!'
 			exit 7
-		}
+		fi
 		. "$rcfile"
+
 	else
 		err "RC file doesn’t exist:
 		     $rcfile"
