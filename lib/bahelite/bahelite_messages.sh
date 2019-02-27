@@ -4,17 +4,24 @@
 #  Provides messages for console and desktop.
 #  deterenkelt © 2018
 
-# Require bahelite.sh to be sourced first.
+#  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
 	echo 'Must be sourced from bahelite.sh.' >&2
 	return 5
 }
 . "$BAHELITE_DIR/bahelite_colours.sh" || return 5
 
-# Avoid sourcing twice
+#  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_VER='2.2.1'
+BAHELITE_MODULE_MESSAGES_VER='2.2.2'
+
+ # If there would be no notify-send, there still are logs,
+#  so this utility is not critical.
+#
+# BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
+# 	notify-send
+# )
 
  # Define this variable for info messages to have icon
 #
@@ -26,11 +33,9 @@ BAHELITE_MODULE_MESSAGES_VER='2.2.1'
  # Message lists
 #
 #  List of informational messages
-#
 declare -A BAHELITE_INFO_MESSAGES=()
 #
 #  List of warning messages
-#
 declare -A BAHELITE_WARNING_MESSAGES=()
 #
 #  List of error messages
@@ -39,7 +44,6 @@ declare -A BAHELITE_WARNING_MESSAGES=()
 #  doesn’t require quoting and the number of spaces is not important.
 #  You can add your messages just by adding elements to this array,
 #  and perform localisation just by redefining it after sourcing this file!
-#
 declare -A BAHELITE_ERROR_MESSAGES=(
 	[just quit]='Quitting.'
 	[old util-linux]='Need util-linux-2.20 or higher.'
@@ -59,19 +63,17 @@ BAHELITE_ERR_MESSAGE_COLOUR=$__red
  # Message indentation level
 #  Checking, if it’s already set, in case one script calls another –
 #  so that indentaion would be inherited in the inner script.
-#
-[ -v BAHELITE_MI_LEVEL ] || BAHELITE_MI_LEVEL=0
+: ${BAHELITE_MI_LEVEL:=0}
 #
 #  The whitespace indentation itself.
 #  As it belongs to markup, that user may use, it follows
 #  the corresponding style, akin to terminal sequences.
-[ -v __mi ] || __mi=''
-#
+: ${__mi:=}
 #
 #  Number of spaces to use per indentation level.
 #  No tabs, because predicting the tab length in a particular terminal
 #  is impossible anyway.
-[ -v BAHELITE_MI_SPACENUM ] || BAHELITE_MI_SPACENUM=4
+: ${BAHELITE_MI_SPACENUM:=4}
 #
 export BAHELITE_MI_LEVEL     \
        BAHELITE_MI_SPACENUM  \
@@ -173,6 +175,10 @@ mildrop() {
 bahelite_notify_send() {
 	xtrace_off && trap xtrace_on RETURN
 	[ -v NO_DESKTOP_NOTIFICATIONS ] && return 0
+	which notify-send &>/dev/null  || {
+		warn 'Cannot show desktop message: notify-send not found.'
+		return 0
+	}
 	local msg="$1" icon="$2" duration urgency='normal'
 	case "$icon" in
 		error)
@@ -190,15 +196,12 @@ bahelite_notify_send() {
 			;;
 		*) duration=3000;;  # info: 3s
 	esac
-	# The hint is for the message to not pile in the stack – it is limited.
-	# ||:  is for running safely under set -e.
-	which notify-send &>/dev/null \
-		|| warn 'Cannot show error message on desktop: notify-send not found.'
-	notify-send --hint int:transient:1 \
-	            --urgency "$urgency" \
-	            -t $duration \
-	            "$MY_DESKTOP_NAME"  "$msg" \
-	            ${icon:+--icon=$icon} || :
+	#  The hint is for the message to not pile in the stack – it is limited.
+	notify-send --hint int:transient:1  \
+	            --urgency "$urgency"  \
+	            -t $duration  \
+	            "${MY_DISPLAY_NAME^}"  "$msg"  \
+	            ${icon:+--icon=$icon}
 	return 0
 }
 

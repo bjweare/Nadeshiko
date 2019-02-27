@@ -17,9 +17,9 @@
 BAHELITE_MODULE_MISC_VER='1.9.1'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
-	pgrep   # Single process check
-	wc      # Single process check
-	shuf    # random(), that works better than $RANDOM
+	pgrep   # Single process check (procps-ng)
+	wc      # Single process check (coreutils)
+	shuf    # random(), that works better than $RANDOM (coreutils)
 )
 BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	[pgrep]='pgrep is a part of procps-ng.

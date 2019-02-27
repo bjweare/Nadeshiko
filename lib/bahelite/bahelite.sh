@@ -257,7 +257,7 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.13"
+BAHELITE_VERSION="2.13.1"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -268,10 +268,7 @@ BAHELITE_VERSION="2.13"
 	MYDIR=${MYPATH%/*}
 	#  Used for desktop notifications in bahelite_messages.sh
 	#  and in the title for dialog windows in bahelite_dialog.sh
-	[ -v MY_DESKTOP_NAME ] || {
-		MY_DESKTOP_NAME="${MYNAME%.*}"
-		MY_DESKTOP_NAME="${MY_DESKTOP_NAME^}"
-	}
+	: ${MY_DISPLAY_NAME:=${MYNAME%.*}}
 	BAHELITE_DIR=${BASH_SOURCE[0]%/*}  # The directory of this file.
 }
 

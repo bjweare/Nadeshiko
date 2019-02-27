@@ -16,7 +16,13 @@
 [ -v BAHELITE_MODULE_GITHUB_VER ] && return 0
 #  Declaring presence of this module for other modules.
 BAHELITE_MODULE_GITHUB_VER='1.0.7'
-BAHELITE_INTERNALLY_REQUIRED_UTILS+=(date stat ps wget xdg-open)
+BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
+	date      # (coreutils)
+	stat      # (coreutils)
+	ps        # (procps)
+	wget      # (wget)
+	xdg-open  # (xdg-utils)
+)
 BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	[ps]='ps is a part of procps-ng.
 	http://procps-ng.sourceforge.net/
