@@ -10,7 +10,7 @@
 set -feE
 . "$(dirname "$0")/../lib/bahelite/bahelite.sh"
 . "$(dirname "$0")/../lib/gather_file_info.sh"
-MY_DESKTOP_NAME="Nadeshiko test suite"
+MY_DISPLAY_NAME="Nadeshiko test suite"
 nadeshiko_dir="$MYDIR/.."
 exampleconf_dir="$MYDIR/../exampleconf"
 config_dir="$HOME/.config/nadeshiko"
