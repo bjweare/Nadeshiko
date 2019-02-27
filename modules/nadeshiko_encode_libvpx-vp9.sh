@@ -16,19 +16,23 @@
 RCFILE_BOOLEAN_VARS+=( libvpx_adaptive_tile_columns )
 
 
-encode-libvpx-vp9() {
-	local encoding_res tile_column_min_width=256 minrate maxrate
-	log2() {
-		local x=$1 n=2 l=-1
-		while ((x)); do ((l+=1, x/=n, 1)); done
-		echo $l
-	}
-	#  Since -threads works as a cap, it is useful to cap the number
-	#  of threads to the point it is useful. For example, a 640×480 video
-	#  would make use only of two tile columns (1 or 2 threads per each).
+log2() {
+	local x=$1 n=2 l=-1
+	while ((x)); do ((l+=1, x/=n, 1)); done
+	echo $l
+}
+
+
+ # Calculate the optimal amount of -tile-columns and -threads.
+#  Since -threads works as a cap, it is useful to cap the number
+#  of threads to the point it is useful. For example, a 640×480 video
+#  would make use only of two tile columns (1 or 2 threads per each).
+#
+calc_adaptive_tile_columns() {
+	declare -g  libvpx_tile_columns  libvpx_threads
+	local tile_column_min_width=256  scaled_width
 	[ -v libvpx_adaptive_tile_columns ] && {
 		if [ -v scale ]; then
-			encoding_res=$scale
 			if [ -v have_orig_res ]; then
 				scaled_width=$(( orig_width * scale / orig_height /2 *2 ))
 				libvpx_tile_columns=$((    scaled_width
@@ -64,7 +68,12 @@ encode-libvpx-vp9() {
 		# 	                   + 2**(libvpx_tile_columns-1)  ))
 		# fi
 	}
+	return 0
+}
 
+
+set_quantiser_min_max() {
+	declare -g  libvpx_min_q  libvpx_max_q
 	if  [ ! -v libvpx_cq_level ]  \
 		&& [ ! -v libvpx_min_q ]  \
 		&& [ ! -v libvpx_max_q ]
@@ -72,16 +81,54 @@ encode-libvpx-vp9() {
 	  	#  If global (aka manual) overrides aren’t set, use the values
 	  	#  from bitrate-resolution profile.
 	  	[ "${bitres_profile[libvpx-vp9_min_q]:-}" ] \
-			&& declare -g libvpx_min_q=${bitres_profile[libvpx-vp9_min_q]}
+			&& libvpx_min_q=${bitres_profile[libvpx-vp9_min_q]}
 		[ "${bitres_profile[libvpx-vp9_max_q]:-}" ] \
-			&& declare -g libvpx_max_q=${bitres_profile[libvpx-vp9_max_q]}
+			&& libvpx_max_q=${bitres_profile[libvpx-vp9_max_q]}
 		#  Without setting -crf quality was slightly better.
 		#  declare -n libvpx_cq_level=${bitres_profile[libvpx-vp9_min_q]}
 	fi
+	return 0
+}
 
+
+calc_vbr_range() {
 	#  RC and vpxenc use percents, ffmpeg uses bitrate.
 	minrate=$((  vbitrate_bits*$libvpx_minsection_pct/100  ))
 	maxrate=$((  vbitrate_bits*$libvpx_maxsection_pct/100  ))
+	return 0
+}
+
+
+v18_check() {
+	declare -g libvpx_auto_alt_ref
+	local vpxenc_version=$(
+		vpxenc --help | sed -rn 's/.*WebM\sProject\sVP9\sEncoder\sv([0-9]+\.[0-9]+(\.[0-9]+|))\s.*/\1/p'
+	)
+	is_version_valid "$vpxenc_version" || {
+		(( libvpx_auto_alt_ref != 0 )) && {
+			warn 'Couldn’t determine libvpx version!
+			      Setting -auto-alt-ref to 1 for safe encoding.'
+			libvpx_auto_alt_ref=1
+		}
+		return 0
+	}
+	if	compare_versions "$vpxenc_version" '<' "1.8.0"  \
+		&& (( libvpx_auto_alt_ref > 1 ))
+	then
+		warn 'Libvpx version is lower than 1.8.0!
+		      Dropping -auto-alt-ref to 1.'
+		libvpx_auto_alt_ref=1
+	fi
+	return 0
+}
+
+
+encode-libvpx-vp9() {
+	local  minrate maxrate
+	calc_adaptive_tile_columns
+	set_quantiser_min_max
+	calc_vbr_range
+	v18_check
 
 	pass() {
 		local pass=$1 \
@@ -135,5 +182,6 @@ encode-libvpx-vp9() {
 	pass 2
 	return 0
 }
+
 
 return 0

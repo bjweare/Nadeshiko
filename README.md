@@ -47,7 +47,7 @@ Wrapper to be used with mpv player.
 
 ## Don’t look down
 
-Check the list of [known issues](https://github.com/deterenkelt/Nadeshiko/wiki/Known-issues-for-Nadeshiko) or [which codec should you use](https://github.com/deterenkelt/Nadeshiko/wiki/Tips#----differences-between-codec-sets), you d-don’t need to know the scary truth… Don’t look down.
+Read about [which codec is best at what](https://github.com/deterenkelt/Nadeshiko/wiki/Tips#----differences-between-codec-sets) or even better go through the [**Crash course**](https://github.com/deterenkelt/Nadeshiko/wiki/Crash-course), you d-don’t need to know the scary truth… Don’t look down.
 
 
 <p align="center">

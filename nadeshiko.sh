@@ -43,7 +43,7 @@ set_exampleconfdir
 prepare_confdir
 place_rc_and_examplerc
 
-declare -r version='2.4.1'
+declare -r version='2.4.2'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.2.4'
@@ -152,6 +152,7 @@ show_version() {
 set_rcfile_from_args "$@"
 read_rcfile "$rcfile_minver"
 post_read_rcfile
+
 #  Stage 2
 parse_args "${args[@]}"
 check_util_support  video  ${audio:+audio}  ${subs:+subs} \

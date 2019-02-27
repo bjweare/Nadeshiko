@@ -1,5 +1,4 @@
-#  nadeshiko.rc.sh v2.3.22
-
+#  nadeshiko.rc.sh v2.4.2
 
 #  RC file uses bash syntax:
 #    key=value
@@ -8,7 +7,6 @@
 #
 #  Nadeshiko wiki may answer a question before you ask it!
 #  https://github.com/deterenkelt/Nadeshiko/wiki
-
 
 
 
@@ -460,9 +458,10 @@ libvpx_pass2_cpu_used=0
 #   of time in the future.”
 #  “Use of --auto-alt-ref can substantially improve quality in many
 #   situations (though there are still a few where it may hurt).” > 2016
-#  0 – disabled (default).
-#  1 – enabled.
-libvpx_auto_alt_ref=1
+#               0 – disabled (default).
+#  libvpx-1.7:  1 – enabled.
+#  libvpx-1.8:  1–6 – enabled with a specific number of ref frames(?)
+libvpx_auto_alt_ref=6
 #
 #  Upper limit on the number of frames into the future,
 #  that the encoder can look for --auto-alt-ref.
