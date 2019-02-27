@@ -7,14 +7,15 @@
 #  For licence see nadeshiko.sh
 
 
-glade_file="$MYDIR/modules/nadeshiko-mpv_dialogues_gtk.glade"
-py_file="$MYDIR/modules/nadeshiko-mpv_dialogues_gtk.py"
+glade_file="$MODULESDIR/nadeshiko-mpv_dialogues_gtk.glade"
+py_file="$MODULESDIR/nadeshiko-mpv_dialogues_gtk.py"
 
 cp "$glade_file" "$TMPDIR"
 cp "$py_file" "$TMPDIR"
 
 glade_file="$TMPDIR/${glade_file##*/}"
 py_file="$TMPDIR/${py_file##*/}"
+chmod +x "$py_file"
 
 entire_xml=$( <"$glade_file" )
 entire_py_code=$( <"$py_file" )
