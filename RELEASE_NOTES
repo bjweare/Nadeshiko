@@ -1,3 +1,10 @@
+——— v 2.5.3 ——————————————————————————————————————————————————————————————————
+
+1. **Bugfix:** hotfix for misplaced install of exampleconf/* files
+
+
+
+
 ——— v 2.5.2 ——————————————————————————————————————————————————————————————————
 
 1. **Bugfix:** hotfix for installing exampleconf directory and setting
