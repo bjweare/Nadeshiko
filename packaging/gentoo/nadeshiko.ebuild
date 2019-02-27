@@ -88,6 +88,7 @@ REQUIRED_USE="
 src_unpack() {
 	unpack ${A}
 	cd "${S}"
+	#  Make will expect the directory name in lowercase.
 	mv ${PN^}-${PV}  ${PN,}-${PV}
 }
 

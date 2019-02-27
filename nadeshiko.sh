@@ -22,7 +22,15 @@ BAHELITE_CHERRYPICK_MODULES=(
 	rcfile
 	misc
 )
-. "$(dirname "$(realpath --logical "$0")")/lib/bahelite/bahelite.sh"
+mypath=$(dirname "$(realpath --logical "$0")")
+case "$mypath" in
+	'/usr/bin')
+		source "/usr/lib/nadeshiko/bahelite/bahelite.sh";;
+	'/usr/local/bin')
+		source "/usr/local/lib/nadeshiko/bahelite/bahelite.sh";;
+	*)
+		source "$mypath/lib/bahelite/bahelite.sh";;
+esac
 prepare_cachedir
 start_log
 set +f
@@ -43,7 +51,7 @@ set_exampleconfdir
 prepare_confdir
 place_rc_and_examplerc
 
-declare -r version='2.5'
+declare -r version='2.5.1'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.2.4'

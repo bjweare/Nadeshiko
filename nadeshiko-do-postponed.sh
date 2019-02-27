@@ -14,7 +14,15 @@ BAHELITE_CHERRYPICK_MODULES=(
 	rcfile
 	misc
 )
-. "$(dirname "$(realpath --logical "$0")")/lib/bahelite/bahelite.sh"
+mypath=$(dirname "$(realpath --logical "$0")")
+case "$mypath" in
+	'/usr/bin')
+		source "/usr/lib/nadeshiko/bahelite/bahelite.sh";;
+	'/usr/local/bin')
+		source "/usr/local/lib/nadeshiko/bahelite/bahelite.sh";;
+	*)
+		source "$mypath/lib/bahelite/bahelite.sh";;
+esac
 prepare_cachedir 'nadeshiko'
 start_log
 set_libdir 'nadeshiko'
@@ -23,7 +31,7 @@ set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 
-declare -r version="2.2.9"
+declare -r version="2.2.10"
 info "Nadeshiko-do-postponed v$version" >>"$LOG"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
