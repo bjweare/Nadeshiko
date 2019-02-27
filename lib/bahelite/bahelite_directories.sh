@@ -14,7 +14,7 @@
 # Avoid sourcing twice
 [ -v BAHELITE_MODULE_DIRECTORIES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_DIRECTORIES_VER='1.1'
+BAHELITE_MODULE_DIRECTORIES_VER='1.1.1'
 
 
                      #  Paths within user’s $HOME  #
@@ -216,11 +216,12 @@ set_source_dir() {
 	if [ -v BAHELITE_SPLIT_INSTALLATION ]; then
 		case "$whats_the_dir" in
 			lib|module)
+			;&
+			libs|modules)
 				possible_paths+=(
 					"/usr/local/lib/$own_subdir"
 					"/usr/lib/$own_subdir"
 					"/usr/share/$own_subdir/$whats_the_dir"
-					"/usr/share/$own_subdir/${whats_the_dir}s"
 				)
 				;;
 			*)

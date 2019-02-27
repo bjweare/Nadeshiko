@@ -29,6 +29,8 @@ install:
 		&& ln -s nadeshiko-do-postponed.sh  nadeshiko-do-postponed
 	cp -r --preserve=mode  lib/*  \
 	                       modules/*  -t ${LIBDIR}
+	cp -r --preserve=mode  exampleconf/*  \
+	                                  -t ${SHAREDIR}
 	install -m 0644 RELEASE_NOTES  LICENCE  \
 	        -t ${SHAREDIR}
 
