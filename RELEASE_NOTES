@@ -1,3 +1,10 @@
+——— v 2.5.1 ——————————————————————————————————————————————————————————————————
+
+1. **Bugfix:** hotfix for sourcing bahelite.sh the new way.
+
+
+
+
 ——— v 2.5 ————————————————————————————————————————————————————————————————————
 
 Nadeshiko-mpv 2.3.13
@@ -8,7 +15,9 @@ Nadeshiko-mpv 2.3.13
 3. Gentoo ebuild is added with all runtime dependencies. It is available
    in ::deter overlay. Package builders may use the ebuild to provide
    packages for other distributions.
-2. Bugfix: Made Python GUI path use MODULESDIR instead of MYDIR/modules.
+4. Bugfix: Made Python GUI path use MODULESDIR instead of MYDIR/modules.
+
+
 
 
 ——— v 2.4.2 ——————————————————————————————————————————————————————————————————
