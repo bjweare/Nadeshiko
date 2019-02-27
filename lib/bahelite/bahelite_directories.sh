@@ -240,7 +240,12 @@ set_source_dir() {
 		)
 	fi
 	for dir in "${possible_paths[@]}"; do
-		[ -d "$dir" ] && { declare -g $varname="$dir"; break; }
+		[ -d "$dir" ] && {
+			bahelite_check_module_verbosity \
+				&& info "$varname = $dir"
+			declare -g $varname="$dir"
+			break
+		}
 	done
 	[ -v "$varname" ] || err "Cannot find directory for $varname."
 	return 0

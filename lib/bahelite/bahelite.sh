@@ -257,7 +257,7 @@ noglob_on() {
 }
 
 
-BAHELITE_VERSION="2.13.1"
+BAHELITE_VERSION="2.13.2"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -430,7 +430,24 @@ fi
 	return 5
 }
 
+bahelite_check_module_verbosity  \
+	&& info "BAHELITE_VERSION = $BAHELITE_VERSION
+	         BAHELITE_DIRECTORY = $BAHELITE_DIRECTORY
+	         TMPDIR = $TMPDIR
+	         LOG = $LOG
+	         $(  [ -v BAHELITE_LOGGING_STARTED ] \
+	                 && echo "BAHELITE_LOGGING_STARTED = Yes" \
+	                 || echo "BAHELITE_LOGGING_STARTED = No"
+	         )
+	         $(	 for bahelite_module_var in ${!BAHELITE_MODULE*}; do
+	                 echo -n "$bahelite_module_var = "
+	                 declare -n bahelite_module_var_val=$bahelite_module_var
+	                 echo "$bahelite_module_var_val"
+	             done
+	         )
 
+	         MYNAME = $MYNAME
+	         MYDIR = $MYDIR"
 
 
  # Call this function in your script after extending the array above.

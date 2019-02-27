@@ -1,10 +1,11 @@
-——— v 2.5.1 – 2.5.4 ——————————————————————————————————————————————————————————
+——— v 2.5.1 – 2.5.5 ——————————————————————————————————————————————————————————
 
 1. **Bugfix:** hotfix for sourcing bahelite.sh the new way.
 2. **Bugfix:** hotfix for installing exampleconf directory and setting
    MODULESDIR.
 3. **Bugfix:** hotfix for misplaced install of exampleconf/* files
 4. **Bugfix:** hotfix for sourcing bahelite_github MYDIR/lib → LIBDIR.
+5. Add more logging hooks just in case.
 
 
 
