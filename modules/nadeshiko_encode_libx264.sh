@@ -37,7 +37,7 @@ encode-libx264() {
 		        -preset:v $libx264_preset -tune:v $libx264_tune \
 		        -profile:v $libx264_profile -level $libx264_level \
 		        "${extra_options[@]}" \
-		        -map_metadata -1 \
+		        -map_metadata -1  -map_chapters -1 \
 		        -metadata title="$video_title" \
 		        -metadata comment="Converted with Nadeshiko v$version" \
 		        "${ffmpeg_command_end[@]}" \

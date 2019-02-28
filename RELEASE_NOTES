@@ -1,3 +1,11 @@
+——— v  . .  ——————————————————————————————————————————————————————————————————
+
+1. Bugfix: remove chapter information from the encoded video.
+   `-map_metadata -1` wasn’t enough, added `-map_chapters -1`.
+
+
+
+
 ——— v 2.5.6 ——————————————————————————————————————————————————————————————————
 
 Nadeshiko-do-postponed 2.2.11
