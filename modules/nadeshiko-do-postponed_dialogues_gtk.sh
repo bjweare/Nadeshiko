@@ -46,15 +46,19 @@ prepare_dotglade_for_launch_jobs() {
 	                 "//object[@id='label_there_are_N_jobs']/property[@name='label']" \
 	                 "$message"
 	#  Buttons
-	[ "$jobs_to_run" -eq 0 ] && {
-		delete_entity_in_xml 'entire_xml' \
-		                     "//child[child::object[@id='but_launch_jobs_cancel']]"
-	}
 	if [ "$jobs_to_run" -eq 0 ]; then
 		run_job_button_text='OK'
+		delete_entity_in_xml 'entire_xml' \
+		                     "//child[child::object[@id='but_launch_jobs_cancel']]"
 		edit_attr_in_xml 'entire_xml' \
 		                 "//object[@id='but_launch_jobs_ok1']/property[@name='image']" \
 		                 'img_ok_no_jobs'
+		edit_attr_in_xml 'entire_xml' \
+		                 "//object[@id='butbox_runjobs']/property[@name='margin_top']" \
+		                 '6'
+		edit_attr_in_xml 'entire_xml' \
+		                 "//object[@id='butbox_runjobs']/property[@name='margin_bottom']" \
+		                 '6'
 	elif [ "$jobs_to_run" -eq 1 ]; then
 		run_job_button_text='Run job'
 	else

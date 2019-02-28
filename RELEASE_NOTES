@@ -1,3 +1,15 @@
+——— v 2.5.6 ——————————————————————————————————————————————————————————————————
+
+Nadeshiko-do-postponed 2.2.11
+
+1. GUI fix: when there are no postponed jobs, make the button bar smaller
+   in height (in this case the Cancel button is hidden, and for only one
+   button there’s too much space.)
+2. Trivial changes to metadata.xml and nadeshiko.ebuild.
+
+
+
+
 ——— v 2.5.1 – 2.5.5 ——————————————————————————————————————————————————————————
 
 1. **Bugfix:** hotfix for sourcing bahelite.sh the new way.

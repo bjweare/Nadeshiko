@@ -100,5 +100,4 @@ src_prepare() {
 
 src_install() {
 	emake DESTDIR="${D}" -f packaging/gentoo/Makefile install
-	# dodoc RELEASE_NOTES  LICENCE
 }
