@@ -51,7 +51,7 @@ set_exampleconfdir
 prepare_confdir
 place_rc_and_examplerc
 
-declare -r version='2.5.6'
+declare -r version='2.5.7'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.2.4'
@@ -153,6 +153,9 @@ show_version() {
 	EOF
 	exit 0
 }
+
+
+on_exit() {  [ -r ffmpeg2pass-0.log ] && rm ffmpeg2pass-0.log;  }
 
 
 

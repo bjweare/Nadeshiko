@@ -195,7 +195,7 @@ encode() {
 		#  Could be put in set_vars, but time is better to be applied after
 		#  $vf_string is assembled, or we get conditional third time.
 		ffmpeg="$(which time) -f %e -o $LOGDIR/time_output -a $ffmpeg"
-		decalre -g time_applied=t
+		declare -g time_applied=t
 	}
 	[ -v audio ] \
 		&& audio_opts="-c:a $ffmpeg_acodec  -b:a $abitrate  -ac 2" \
