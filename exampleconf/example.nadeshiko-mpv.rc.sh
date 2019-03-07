@@ -75,9 +75,9 @@ gui_default_preset='default'
 #    - you use only “unlimited” size;
 #    - you encode only the tiniest clips, which always fit
 #      in your size constraints.
-#  Default value: yes
+#  Default value: on
 #
-predictor=yes
+predictor=on
 
 
  # To save time, predictor runs only for the default maximum size (that is

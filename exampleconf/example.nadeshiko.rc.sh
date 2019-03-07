@@ -69,13 +69,13 @@ kilo=1024
 #  - the container is built exactly with the settings;
 #  - the encoded file is compatible with most devices.
 #  Only for libx264. Prints messages only to console.
-#  Default value: no
-pedantic=no
+#  Default value: off
+pedantic=off
 
 
  # Whether to show the time spent on encoding.
-#  Default value: no
-time_stat=no
+#  Default value: off
+time_stat=off
 
 
  # Save the encoded file with colons (:) and other windows-unfriendly
