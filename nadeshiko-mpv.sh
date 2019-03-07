@@ -912,13 +912,11 @@ choose_preset() {
 			&& scene_complexity=$(<"$TMPDIR/scene_complexity")
 		#  Subshell call is necessary here.
 		#  It is to sandbox the sourcing of Nadeshiko configs.
-#		errexit_off
 		param_list=$(
 			prepare_preset_options "$nadeshiko_preset"  \
 			                       "$nadeshiko_preset_name"   \
 			                       ${scene_complexity:-}
 		) || exit $?
-# errexit_on  # forgotten?
 		echo
 		info "Options for preset $nadeshiko_preset:"
 		declare -p param_list
