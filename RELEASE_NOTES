@@ -1,7 +1,29 @@
-——— v  . .  ——————————————————————————————————————————————————————————————————
+——— v 2.5.7 ——————————————————————————————————————————————————————————————————
 
-1. Bugfix: remove chapter information from the encoded video.
+1. **Bugfix:** Add a check on libavcodec version, and enable values >1 for
+   `-auto-alt-ref` only if it would be bigger than 58.39.100.
+2. **Makefile** unified and put in the root of the repo. **Ebuild** file
+   updated.
+3. Bugfix: remove chapter information from the encoded video.
    `-map_metadata -1` wasn’t enough, added `-map_chapters -1`.
+4. Bugfix: fix a typo in `declare`, that is executed only when time_stat
+   is on.
+5. Trivial changes to example.nadeshiko*.rc.sh
+6. Make sure to remove ffmpeg2pass-0.log on exit (it was left, if the encode
+   happened not in TMPDIR).
+7. Update to Bahelite-2.14, that brought
+   - better handling of subshell calls – now err() calls can be used safely
+     without catching them with `$( … ) || exit $?`. This allowed to improve
+     mpv IPC library: now errors from send_command() are shown as simple
+     “Protocol error”s, while to the console is printed call stack and
+     what the issue with `$mpv_answer` was;
+   - all the necessary library functions and variables are now exported
+     for subshells;
+   - better overridden “set” builtin, which allowed to ditch of the use of
+     the interntal errexit_off/on;
+   - better dependency checking. Now users from Mac or BSD userland will
+     get more descriptive errors about grep/sed/coreutils/util-linux.
+
 
 
 
