@@ -51,20 +51,19 @@ set_exampleconfdir
 prepare_confdir
 place_rc_and_examplerc
 
-declare -r version='2.5.7'
+declare -r version='2.5.6'
 info "Nadeshiko v$version" >>"$LOG"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.2.4'
-#  [0]=ffmpeg own full version (not compared, because it may be a commit hash)
-#  [1]=libavutil version
-#  [2]=libavcodec version
-#  [3]=libavformat version
-declare -r ffmpeg_minver=( 'any' 56  58  58
-	#  Reasons:
-	#  1) row-mt appeared after ffmpeg-3.4.2
-	#  2) -t <duration> doesn’t always grant precise end time,
-	#     but -to <timestamp> stopped causing problems only after ffmpeg-4.0.0.
-)
+
+ # Minimal libav libraries versions
+#  1) row-mt appeared after ffmpeg-3.4.2
+#  2) -t <duration> doesn’t always grant precise end time,
+#     but -to <timestamp> stopped causing problems only after ffmpeg-4.0.0.
+declare -r libavutil_minver='56.0.0'
+declare -r libavcodec_minver='58.0.0'
+declare -r libavformat_minver='58.0.0'
+
 declare where_to_place_new_file="$PWD"
 #  Defining them here, so that the definition in the RC file would be shorter
 #  and didn’t confuse users with “declare -gA …”.
@@ -155,7 +154,10 @@ show_version() {
 }
 
 
-on_exit() {  [ -r ffmpeg2pass-0.log ] && rm ffmpeg2pass-0.log;  }
+on_exit() {
+	[ -r ffmpeg2pass-0.log ] && rm ffmpeg2pass-0.log
+	return 0
+}
 
 
 

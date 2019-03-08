@@ -99,8 +99,19 @@ calc_vbr_range() {
 }
 
 
-v18_check() {
+libvpx18_auto_alt_ref_check() {
 	declare -g libvpx_auto_alt_ref
+
+	#  1. Checking ffmpeg version
+	if	compare_versions "$libavcodec_ver" '<' '58.39.100'  \
+		&& (( libvpx_auto_alt_ref > 1 ))
+	then
+		warn 'Libavcoedc version is lower than 58.39.100!
+		      Dropping -auto-alt-ref to 1.'
+		libvpx_auto_alt_ref=1
+	fi
+
+	#  2. Checking vpxenc version
 	local vpxenc_version=$(
 		vpxenc --help | sed -rn 's/.*WebM\sProject\sVP9\sEncoder\sv([0-9]+\.[0-9]+(\.[0-9]+|))\s.*/\1/p'
 	)
@@ -128,7 +139,7 @@ encode-libvpx-vp9() {
 	calc_adaptive_tile_columns
 	set_quantiser_min_max
 	calc_vbr_range
-	v18_check
+	libvpx18_auto_alt_ref_check
 
 	pass() {
 		local pass=$1 \

@@ -149,7 +149,10 @@ parse_args() {
 #  user’s encoders.
 #
 check_util_support() {
-	local codec_list missing_encoders arg ffmpeg_ver ffmpeg_is_too_old
+	#  Encoding modules may need to know versions of ffmpeg or its libraries.
+	declare -g  ffmpeg_version_output  ffmpeg_ver  \
+	            libavutil_ver  libavcodec_ver  libavformat_ver
+	local  codec_list  missing_encoders  arg  ffmpeg_is_too_old
 	for arg in "$@"; do
 		case "$arg" in
 			video)
@@ -210,25 +213,51 @@ check_util_support() {
 	)
 	check_required_utils
 	#  Checking ffmpeg version
-	readarray -t ffmpeg_ver < <( \
-		$ffmpeg -version \
-		    | sed -rn '1 s/ffmpeg version (\S+) .*/\1/p
-		               s/libav(util|codec|format)\s+([0-9]{2,3})\..*/\2/p'
+	ffmpeg_version_output=$($ffmpeg -version)
+	ffmpeg_ver=$(
+		sed -rn '1 s/ffmpeg version (\S+) .*/\1/p' <<<"$ffmpeg_version_output"
 	)
-	info "System ffmpeg: ${ffmpeg_ver[0]} ${ffmpeg_ver[1]}/${ffmpeg_ver[2]}/${ffmpeg_ver[3]}."
-	for ((i=1; i<4; i++)); do
-		[ ${ffmpeg_ver[i]} -lt ${ffmpeg_minver[i]} ] \
-			&& ffmpeg_is_too_old=t
-	done
-	[ -v ffmpeg_is_too_old ] && {
+	libavutil_ver=$(
+		sed -rn '/^libavutil/ { s/^[^\/]+\/(.+)$/\1/; s/\s//g; p }'  \
+			<<<"$ffmpeg_version_output"
+	)
+	libavcodec_ver=$(
+		sed -rn '/^libavcodec/ { s/^[^\/]+\/(.+)$/\1/; s/\s//g; p }'  \
+			<<<"$ffmpeg_version_output"
+	)
+	libavformat_ver=$(
+		sed -rn '/^libavformat/ { s/^[^\/]+\/(.+)$/\1/; s/\s//g; p }'  \
+			<<<"$ffmpeg_version_output"
+	)
+	is_version_valid "$libavutil_ver" || {
+		warn "Incorrect version for libavutil: “$libavutil_ver”."
+		err "Cannot determine libavutil version!"
+	}
+	is_version_valid "$libavcodec_ver" || {
+		warn "Incorrect version for libavcodec: “$libavcodec_ver”."
+		err "Cannot determine libavcodec version!"
+	}
+	is_version_valid "$libavformat_ver" || {
+		warn "Incorrect version for libavformat: “$libavformat_ver”."
+		err "Cannot determine libavformat version!"
+	}
+	info "System ffmpeg: $ffmpeg_ver
+	      libavutil   $libavutil_ver
+	      libavcodec  $libavcodec_ver
+	      libavformat $libavformat_ver"
+	if     compare_versions "$libavutil_ver" '<' "$libavutil_minver"  \
+		|| compare_versions "$libavcodec_ver" '<' "$libavcodec_minver"  \
+		|| compare_versions "$libavformat_ver" '<' "$libavformat_minver"
+	then
 		warn 'The FFmpeg version you are running is too old!'
 		cat <<-EOF | column -t  -o '    '  -N ' ','Needed','In your FFmpeg' | sed -r "s/.*/$__mi&/g"
-		libavutil      ${ffmpeg_minver[1]}+    ${ffmpeg_ver[1]}
-		libavcodec     ${ffmpeg_minver[2]}+    ${ffmpeg_ver[2]}
-		libavformat    ${ffmpeg_minver[3]}+    ${ffmpeg_ver[3]}
+		libavutil      $libavutil_minver+      $libavutil_ver
+		libavcodec     $libavcodec_minver+     $libavcodec_ver
+		libavformat    $libavformat_minver+    $libavformat_ver
 		EOF
 		err 'FFmpeg is too old.'
-	}
+	fi
+
 	codec_list=$($ffmpeg -hide_banner -codecs)
 	for arg in "$@"; do
 		case "$arg" in
