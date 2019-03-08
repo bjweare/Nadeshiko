@@ -3,7 +3,7 @@
 #  mpv_ipc.sh
 #  Implementation of a library, that reads and sets mpv properties (only
 #  a limited number of them), can verify values and assign to variables.
-#  © deterenkelt 2018
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
@@ -12,8 +12,8 @@
 #  A script on the higher level must do:
 #  - strict error checking (set -feEu and -o pipefail possibly);
 #  - logging;
-#  - source bahelite.sh for err() errexit_off() errexit_on()
-#    and other functions.
+#  - source bahelite.sh for err(), other functions and properly handled
+#    exits from subshell.
 
 
  # Known mpv properties (that tests are implemented for)
@@ -326,17 +326,17 @@ send_command() {
 	for arg in "$@"; do
 		command_args+=", \"$arg\""
 	done
-	# Would be good to implement check on request id – any string that
-	# should be returned as it was passed.
+	#  Would be good to implement check on request id – any string that
+	#  should be returned as it was passed.
 	#
-	# { "command": ["get_property", "time-pos"], "request_id": 100 }
-	# { "error": "success", "data": 1.468135, "request_id": 100 }
+	#  { "command": ["get_property", "time-pos"], "request_id": 100 }
+	#  { "error": "success", "data": 1.468135, "request_id": 100 }
 	mpv_answer=$(
-		# For consecutive runs.
-		# mpv devs use timeout 300 ms, but it seems, that Nadeshiko-mpv
-		# works fine just like that. A lag of 0.3 several times in a row
-		# is noticeable while setting Time1.
-		# sleep .3
+		#  Sleep for consecutive runs.
+		#  mpv devs use timeout 300 ms, but it seems, that Nadeshiko-mpv
+		#  works fine just like that. A lag of 0.3 several times in a row
+		#  is noticeable while setting Time1.
+		#  sleep .3
 		cat <<-EOF | socat - "$mpv_socket"
 		{ "command": ["$command"${command_args:-}] }
 		EOF
@@ -356,12 +356,24 @@ send_command() {
 	# {"error":"property not found"}
 	#
 	#  There may be no .data, it’s OK, and it returns OK.
-	data=$(echo "$mpv_answer" | jq -r .data) \
-		|| err "$FUNCNAME: “$command $*”: JSON error."
-	status=$(echo "$mpv_answer" | jq -r .error) \
-		|| err "$FUNCNAME: “$command $*”: JSON error."
+	data=$(echo "$mpv_answer" | jq -r .data) || {
+		bahelite_print_call_stack
+		warn "“$command $*”: no .data in JSON answer. The answer was:
+		      $mpv_answer"
+		err "Protocol error"
+	}
+	status=$(echo "$mpv_answer" | jq -r .error) || {
+		bahelite_print_call_stack
+		warn "“$command $*”: no .error in JSON answer. The answer was:
+		      $mpv_answer"
+		err "Protocol error"
+	}
 	#  If there’s no status, or status ≠ success, this is a problem.
-	[ "$status" != success ] && err "$FUNCNAME: $command $*: $status."
+	[ "$status" != success ] && {
+		bahelite_print_call_stack
+		warn "$command $*: the status in the error field is “$status”."
+		err "Protocol error"
+	}
 	[[ "$command" =~ ^($commands_that_dont_return_data)$ ]] || echo "$data"
 	return 0
 }
@@ -407,7 +419,7 @@ get_prop() {
 	#    triggered within send_command() – the actual error. And the bash
 	#    error on the line below: since send_command() runs in a subshell,
 	#    err function couldn’t really exit.
-	propdata=$(send_command 'get_property_string' "$propname") || exit $?
+	propdata=$(send_command 'get_property_string' "$propname")
 	[ "$propdata" = null ] && propdata=''
 	#  https://github.com/deterenkelt/Nadeshiko/issues/1
 	[ "$propname" = 'screenshot-directory'  -a  "$propdata" = '~~desktop/' ] \

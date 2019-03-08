@@ -114,10 +114,10 @@ show_dialogue_launch_jobs() {
 	declare -g dialog_output
 	local dialog_retval
 	prepare_dotglade_for_launch_jobs "$@"
-	errexit_off
+	set +e
 	dialog_output=$( "$py_file"  startpage=gtkbox_launch_jobs )
 	dialog_retval=$?
-	errexit_on
+	set -e
 	declare -p dialog_output
 	check_pyfile_exit_code $dialog_retval
 	return 0

@@ -45,7 +45,7 @@ prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 place_rc_and_examplerc 'nadeshiko'
 
-declare -r version="2.3.14"
+declare -r version="2.3.15"
 info "Nadeshiko-mpv v$version" >>"$LOG"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
@@ -207,8 +207,7 @@ populate_data_file() {
 	          sub-visibility \
 	          track-list \
 	          track-list/count \
-	          volume \
-	    || exit $?
+	          volume
 	write_var_to_datafile working_directory "$working_directory"
 	write_var_to_datafile screenshot_directory "$screenshot_directory"
 	if [ -e "$path" ]; then
@@ -323,19 +322,18 @@ check_needed_vars() {
 
 put_time() {
 	local mute_text subvis_text
-	get_prop time-pos || exit $?
+	get_prop time-pos
 	time_pos=${time_pos%???}
 	if [ ! -v time1 -o -v time2 ]; then
 		write_var_to_datafile time1 "$time_pos"
-		get_props sub-visibility mute || exit $?
+		get_props sub-visibility mute
 		[ -v sub_visibility_true ] \
 			&& subvis_text='Subs: ON' \
 			|| subvis_text='Subs: OFF'
 		[ -v mute_true ] \
 			&& mute_text='Sound: OFF' \
 			|| mute_text='Sound: ON'
-		send_command show-text "Time1 set\n$subvis_text\n$mute_text" "3000" \
-			|| exit $?
+		send_command show-text "Time1 set\n$subvis_text\n$mute_text" "3000"
 		unset time2
 		del_var_from_datafile time2
 
@@ -348,8 +346,7 @@ put_time() {
 		[ -v mute_true ] \
 			&& mute_text='Sound: OFF' \
 			|| mute_text='Sound: ON'
-		send_command show-text "Time2 set\n$subvis_text\n$mute_text" "3000" \
-			|| exit $?
+		send_command show-text "Time2 set\n$subvis_text\n$mute_text" "3000"
 	fi
 	return 0
 }
@@ -760,13 +757,13 @@ choose_preset() {
 				&& running_preset_mpv_msg+="\nSize: “default”" \
 				|| running_preset_mpv_msg+="\nSize: “$size”"
 			if [ -v scene_complexity ]; then
-				send_command show-text "$running_preset_mpv_msg" '10000' || exit $?
+				send_command  show-text "$running_preset_mpv_msg" '10000'
 			else
 				running_preset_mpv_msg+="\n\nDetermining scene complexity…"
-				send_command show-text "$running_preset_mpv_msg" '15000' || exit $?
+				send_command  show-text "$running_preset_mpv_msg" '15000'
 			fi
 			#  Expecting exit codes either 0 or 5  (fits or doesn’t fit)
-			errexit_off
+			set +e
 			LOGDIR="$TMPDIR"  \
 			NO_DESKTOP_NOTIFICATIONS=t  \
 			"$MYDIR/nadeshiko.sh" "$nadeshiko_preset"  \
@@ -775,7 +772,7 @@ choose_preset() {
 			                      dryrun  \
 			                      ${scene_complexity:+force_scene_complexity=$scene_complexity} \
 			                      &>/dev/null
-			errexit_on
+			set -e
 			info 'Getting the path to the last log.'  >&2
 			LOGDIR="$TMPDIR" \
 			read_last_log 'nadeshiko'
@@ -916,7 +913,7 @@ choose_preset() {
 			prepare_preset_options "$nadeshiko_preset"  \
 			                       "$nadeshiko_preset_name"   \
 			                       ${scene_complexity:-}
-		) || exit $?
+		)
 		echo
 		info "Options for preset $nadeshiko_preset:"
 		declare -p param_list
@@ -944,7 +941,7 @@ choose_preset() {
 	info "Dispatching options to dialogue window:"
 	declare -p ordered_preset_list
 	declare -p ${!preset_option_array_*}
-	send_command show-text 'Building GUI' '1000' || exit $?
+	send_command  show-text 'Building GUI' '1000'
 	show_dialogue_choose_preset "${ordered_preset_list[@]}"
 
 	IFS=$'\n' read -r -d ''  resp_nadeshiko_preset  \
@@ -1005,7 +1002,7 @@ encode() {
 	fi
 
 	if [ -e "/proc/${mpv_pid:-not exists}" ]; then
-		send_command show-text 'Encoding' '2000' || exit $?
+		send_command  show-text 'Encoding' '2000'
 	else
 		: warn-ns "Not sending anything to mpv: it was closed."
 	fi
@@ -1055,23 +1052,22 @@ encode() {
 		if [ -e "/proc/${mpv_pid:-not exists}" ]; then
 			send_command  show-text \
 			              "Command to encode saved for later."  \
-			              '2000' \
-				|| exit $?
+			              '2000'
 		fi
 		exit 0
 	else
-		errexit_off
+		set +e
 		set -x
 		"${nadeshiko_command[@]}"
 		nadeshiko_retval=$?
 		set +x
-		errexit_on
+		set -e
 		rm "$data_file"
 		if [ -e "/proc/${mpv_pid:-not exists}" ]; then
 			if [ $nadeshiko_retval -eq 0 ]; then
-				send_command show-text 'Encoding done.'  '2000' || exit $?
+				send_command  show-text 'Encoding done.' '2000'
 			else
-				send_command show-text 'Failed to encode.'  '3000' || exit $?
+				send_command  show-text 'Failed to encode.' '3000'
 				#  Don’t display a desktop notification with an error here –
 				#  nadeshiko.sh does this.
 				# err 'Encoding failed.'
@@ -1188,7 +1184,7 @@ put_time && [ -v time2 ] && {
 	choose_crop_settings
 	play_preview
 	choose_preset
-	#  Call Nadeshiko.
+	#  Call Nadeshiko and if it quits with non-zero code, convey that code.
 	encode || exit $?
 	#  Show the encoded file.
 	play_encoded_file
