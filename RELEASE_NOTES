@@ -1,5 +1,8 @@
 ——— v 2.5.7 ——————————————————————————————————————————————————————————————————
 
+Nadeshiko-mpv 2.3.15
+Nadeshiko-do-postponed 2.2.12
+
 1. **Bugfix:** Add a check on libavcodec version, and enable values >1 for
    `-auto-alt-ref` only if it would be bigger than 58.39.100.
 2. **Makefile** unified and put in the root of the repo. **Ebuild** file
@@ -20,7 +23,7 @@
    - all the necessary library functions and variables are now exported
      for subshells;
    - better overridden “set” builtin, which allowed to ditch of the use of
-     the interntal errexit_off/on;
+     the internal errexit_off/on;
    - better dependency checking. Now users from Mac or BSD userland will
      get more descriptive errors about grep/sed/coreutils/util-linux.
 
