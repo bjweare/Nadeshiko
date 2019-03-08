@@ -6,7 +6,7 @@
     <flag name='mpv'>Bindings for the mpv frontend.</flag>
     <flag name='x264'>Bindings for H.264 video codec. It encodes fast.</flag>
     <flag name='fdk-aac'>Fraunhofer FDK AAC – best lossy audio codec for MP4, i.e. to use with H.264.</flag>
-    <flag name='vp9'>Bindings for VP9 video codec. It’s more efficient than H.264 and provides better quality. Encodes slowly.</flag>
+    <flag name='vp9'>Bindings for VP9 video codec. It’s more efficient than H.264 and provides better quality, but with that it encodes slowly.</flag>
     <flag name='opus'>Opus audio codec. Best lossy audio codec. Can be used only in WebM, i.e. with VP9.</flag>
     <flag name='vorbis'>Vorbis audio codec. Second best for WebM. Can blow file size.</flag>
     <flag name='update-check'>Check for updates on Github. Only shows a notification, doesn’t perform updates.</flag>

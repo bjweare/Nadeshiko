@@ -1,7 +1,7 @@
 #  Nadeshiko Makefile
 #  © deterenkelt 2019
 
-PREFIX   := /usr
+PREFIX   ?= /usr/local
 BINDIR   := ${DESTDIR}${PREFIX}/bin/
 LIBDIR   := ${DESTDIR}${PREFIX}/lib/nadeshiko/
 SHAREDIR := ${DESTDIR}${PREFIX}/share/nadeshiko/
