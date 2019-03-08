@@ -106,7 +106,7 @@ libvpx18_auto_alt_ref_check() {
 	if	compare_versions "$libavcodec_ver" '<' '58.39.100'  \
 		&& (( libvpx_auto_alt_ref > 1 ))
 	then
-		warn 'Libavcoedc version is lower than 58.39.100!
+		warn 'Libavcodec version is lower than 58.39.100!
 		      Dropping -auto-alt-ref to 1.'
 		libvpx_auto_alt_ref=1
 	fi
