@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_VER='2.2.3'
+BAHELITE_MODULE_MESSAGES_VER='2.2.4'
 
  # If there would be no notify-send, there still are logs,
 #  so this utility is not critical.
@@ -377,7 +377,8 @@ msg() {
 __msg() {
 	#  Internal! There should be no xtrace_off!
 	declare -g  BAHELITE_STIPULATED_ERROR
-	local  colour  cs="$__s"  nonl  asterisk='  '  message  message_nocolours  \
+	local  colour  cs="$__s"  nonl  asterisk='  '  \
+	       message  msgtype  message_nocolours  \
 	       redir=stdout  code=5  internal  key  msg_key_exists  \
 	       notifysend_rank  notifysend_icon
 	case "${FUNCNAME[1]}" in

@@ -17,6 +17,7 @@ KEYWORDS="~*"
 IUSE="+hardsub +mpv +x264 +fdk-aac +vp9 +opus vorbis +update-check time-stat"
 
 RDEPEND="
+	>=app-shells/bash-4.4
 	sys-apps/coreutils
 	sys-apps/util-linux
 	>=sys-apps/grep-3.0

@@ -1,3 +1,14 @@
+——— v 2.5.9 ——————————————————————————————————————————————————————————————————
+
+1. **Bugfix:** a call to a non-code-issuing msg function like `info` or `warn`,
+   occurring inside `__msg()` would overwrite the variable `msgtype` leading
+   to a situation when the execution returns back to `err() → __msg()`, the
+   message type will be set wrong and `__msg()` won’t return with a non-zero
+   exit code like it should to stop the execution of the main script in `err()`.
+
+
+
+
 ——— v 2.5.8 ——————————————————————————————————————————————————————————————————
 
 1. Minor fixes to console messages.
