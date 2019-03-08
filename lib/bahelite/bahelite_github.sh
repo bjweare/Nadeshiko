@@ -4,7 +4,7 @@
 #  Functions to check for the latest release page on github.com.
 #  © deterenkelt 2018–2019
 
-# Require bahelite.sh to be sourced first.
+#  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
 	echo 'Must be sourced from bahelite.sh.' >&2
 	return 5
@@ -12,13 +12,13 @@
 . "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 . "$BAHELITE_DIR/bahelite_versioning.sh" || return 5
 
-# Avoid sourcing twice
+#  Avoid sourcing twice
 [ -v BAHELITE_MODULE_GITHUB_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_GITHUB_VER='1.0.7'
+BAHELITE_MODULE_GITHUB_VER='1.0.8'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
-	date      # (coreutils)
-	stat      # (coreutils)
+#	date      # (coreutils)
+#	stat      # (coreutils)
 	ps        # (procps)
 	wget      # (wget)
 	xdg-open  # (xdg-utils)
@@ -31,10 +31,12 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	https://www.freedesktop.org/wiki/Software/xdg-utils/'
 )
 
+
+
  # Default interval, that check_for_new_release() will use to look
 #  for a new release. You can redefine it after sourcing bahelite.sh
 #
-NEW_RELEASE_CHECK_INTERVAL=21  # each N days
+export NEW_RELEASE_CHECK_INTERVAL=21  # each N days
 
 
  # Confirms, that updater_timestamp exists.
@@ -42,6 +44,8 @@ NEW_RELEASE_CHECK_INTERVAL=21  # each N days
 #  Can be overriden after sourcing bahelite.sh.
 #
 bahelite_create_updater_timestamp() {
+	#  Internal! No xtrace on/off needed!
+	#
 	#  Default path, where release check timestamp should be placed.
 	declare -g RELEASE_CHECK_TIMESTAMP="${CACHEDIR:-$MYDIR}/updater_timestamp"
 	[ -f "$RELEASE_CHECK_TIMESTAMP" ] || touch "$RELEASE_CHECK_TIMESTAMP"
@@ -71,7 +75,7 @@ bahelite_create_updater_timestamp() {
 #    or parsing input.
 #
 check_for_new_release() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	bahelite_create_updater_timestamp
 	local days_since_last_check=$((
 		(    $(date +%s)
@@ -113,13 +117,13 @@ check_for_new_release() {
 					# else
 					# 	which Xdialog &>/dev/null && {
 					# 		local dialog=Xdialog
-					# 		errexit_off
+					# 		bahelite_errexit_off
 					# 		$dialog --stdout \
 					# 	            --ok-label Open \
 					# 	            --cancel-label No \
 					# 	            --yesno "$message" 400x110 \
 					# 			&& open_relnotes_url=t
-					# 		errexit_on
+					# 		bahelite_errexit_on
 					# 	}
 					# fi
 					;;
@@ -144,4 +148,6 @@ check_for_new_release() {
 }
 
 
+export -f  bahelite_create_updater_timestamp \
+           check_for_new_release
 return 0

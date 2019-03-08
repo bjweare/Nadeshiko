@@ -2,7 +2,7 @@
 
 #  bahelite_messages.sh
 #  Provides messages for console and desktop.
-#  deterenkelt © 2018
+#  deterenkelt © 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_VER='2.2.2'
+BAHELITE_MODULE_MESSAGES_VER='2.2.3'
 
  # If there would be no notify-send, there still are logs,
 #  so this utility is not critical.
@@ -23,69 +23,91 @@ BAHELITE_MODULE_MESSAGES_VER='2.2.2'
 # 	notify-send
 # )
 
+
+
  # Define this variable for info messages to have icon
 #
-# BAHELITE_INFO_MSG_USE_ICON=t
+# export BAHELITE_INFO_MSG_USE_ICON=t
 
-# Bahelite offers keyword-based messages, which allows
-# for creation of localised programs.
 
- # Message lists
+                         #  Message lists  #
+
+ # Internal message lists
 #
-#  List of informational messages
-declare -A BAHELITE_INFO_MESSAGES=()
+declare -Ax BAHELITE_INFO_MESSAGES=()
+declare -Ax BAHELITE_WARNING_MESSAGES=()
 #
-#  List of warning messages
-declare -A BAHELITE_WARNING_MESSAGES=()
-#
-#  List of error messages
+ # Error messages
 #  Keys are used as parameters to err() and values are printed via msg().
-#  Keys may contain spaces – e.g. ‘my key’. Passing them to err()
-#  doesn’t require quoting and the number of spaces is not important.
-#  You can add your messages just by adding elements to this array,
-#  and perform localisation just by redefining it after sourcing this file!
-declare -A BAHELITE_ERROR_MESSAGES=(
+#  The keys can contain spaces – e.g. ‘my key’. Passing them to err() doesn’t
+#    require quoting and the number of spaces is not important.
+#  You can localise messages by redefining this array in some file
+#    and sourcing it.
+#
+declare -Ax BAHELITE_ERROR_MESSAGES=(
 	[just quit]='Quitting.'
 	[old util-linux]='Need util-linux-2.20 or higher.'
 	[missing deps]='Dependencies are not satisfied.'
 	[no such msg]='Bahelite: No such message: “$1”.'
 	[no util]='Utils are missing: $1.'
 )
+#
+#
+ # User lists
+#  By default, functions like info(), warn(), err() will accept a text string
+#  and display it. However, it’s possible to replace strings with keywords
+#  and hold them separately. This comes handy, when
+#  - the messages are too big and ruin the length of lines in the code;
+#  - especially when you’d like to use the text of the message as a template,
+#    and pass parameters to err(), so that it would substitute them – making
+#    a big string with big variable names inside may be really ugly.
+#  - when you want to localise your script and keep language-agnostic keywords
+#    in the code while pulling the actual messages from a file with localisa-
+#    tion.
+#  In order to enable keyword-based messages, define MSG_USE_KEYWORDS with
+#  any value in the main script. This will switch off the messaging system
+#  to arrays.
+#
+# declare -x MSG_USE_KEYWORDS=t
+#
+declare -Ax INFO_MESSAGES=()
+declare -Ax WARNING_MESSAGES=()
+declare -Ax ERROR_MESSAGES=()
+#
+#  Custom exit codes, the keys should be the same as in ERROR_MESSAGES.
+declare -Ax ERROR_CODES=()
 
  # Colours for the console and log messages
 #  Regular functions (info, warn, err) apply the colour only to the asterisk.
 #
-BAHELITE_INFO_MESSAGE_COLOUR=$__green
-BAHELITE_WARN_MESSAGE_COLOUR=$__yellow
-BAHELITE_ERR_MESSAGE_COLOUR=$__red
+export BAHELITE_INFO_MESSAGE_COLOUR=$__green
+export BAHELITE_WARN_MESSAGE_COLOUR=$__yellow
+export BAHELITE_ERR_MESSAGE_COLOUR=$__red
 
 
  # Message indentation level
 #  Checking, if it’s already set, in case one script calls another –
 #  so that indentaion would be inherited in the inner script.
-: ${BAHELITE_MI_LEVEL:=0}
+[ -v BAHELITE_MI_LEVEL ]  \
+	|| export BAHELITE_MI_LEVEL=0
 #
 #  The whitespace indentation itself.
 #  As it belongs to markup, that user may use, it follows
 #  the corresponding style, akin to terminal sequences.
-: ${__mi:=}
+[ -v __mi ] \
+	|| export __mi=''
 #
 #  Number of spaces to use per indentation level.
 #  No tabs, because predicting the tab length in a particular terminal
 #  is impossible anyway.
-: ${BAHELITE_MI_SPACENUM:=4}
-#
-export BAHELITE_MI_LEVEL     \
-       BAHELITE_MI_SPACENUM  \
-       __mi
+[ -v BAHELITE_MI_SPACENUM ]  \
+	|| export BAHELITE_MI_SPACENUM=4
 
 
  # Assembles __mi according to the current BAHELITE_MI_LEVEL
 #
 mi_assemble() {
-	#  Internal – called in the module itself!
-	#  There should be no xtrace_on/off, as the main code in the module
-	#  should do this!
+	#  Internal! No xtrace_off/on needed!
 	declare -g __mi=''
 	local i
 	for (( i=0; i < (BAHELITE_MI_LEVEL*BAHELITE_MI_SPACENUM); i++ )); do
@@ -103,7 +125,7 @@ mi_assemble() {
 #         The default is to increment by 1.
 #
 milinc() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local count=${1:-1}  z
 	for ((z=0; z<count; z++)); do
 		let '++BAHELITE_MI_LEVEL || 1'
@@ -117,7 +139,7 @@ milinc() {
 #  The default is to decrement by 1.
 #
 mildec() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local count=${1:-1}  z
 	if (( BAHELITE_MI_LEVEL == 0 )); then
 		warn "No need to decrease indentation, it’s on the minimum."
@@ -135,7 +157,7 @@ mildec() {
 #  $1 – desired indentation level, 0..9999.
 #
 milset () {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local mi_level=${1:-}
 	[[ "$mi_level" =~ ^[0-9]{1,4}$ ]] || {
 		warn "Indentation level should be an integer between 0 and 9999."
@@ -149,7 +171,7 @@ milset () {
  # Removes any indentation.
 #
 mildrop() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	BAHELITE_MI_LEVEL=0
 	mi_assemble || return $?
 }
@@ -173,13 +195,15 @@ mildrop() {
 #  $2 – icon type: empty, “information”, “warning” or “error”.
 #
 bahelite_notify_send() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	[ -v NO_DESKTOP_NOTIFICATIONS ] && return 0
 	which notify-send &>/dev/null  || {
 		warn 'Cannot show desktop message: notify-send not found.'
 		return 0
 	}
 	local msg="$1" icon="$2" duration urgency='normal'
+	msg=${msg##+([[:space:]])}
+	msg=${msg%%+([[:space:]])}
 	case "$icon" in
 		error)
 			icon='dialog-error'
@@ -210,19 +234,19 @@ bahelite_notify_send() {
  # Shows an info message.
 #  Features asterisk, automatic indentation with mil*, keeps lines
 #  $1 — a message or a key of an item in the corresponding array containing
-#       the messages. Depends on whether $MSG_USE_ARRAYS is set (see above).
+#       the messages. Depends on whether $MSG_USE_KEYWORDS is set (see above).
 #
 info() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@"
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@"
 }
 
  # Same as info(), but omits the ending newline, like “echo -n” does.
 #  This allows to print whatever with just simple “echo” later.
 #
 infon() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@"
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@"
 }
 
  # Like info(), but has a higher rank than usual info(),
@@ -230,8 +254,8 @@ infon() {
 #  $1 – a message to be shown both in console and on desktop.
 #
 info-ns() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@"
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@"
 }
 
  # Shows an info message and waits for the given command to finish,
@@ -244,9 +268,9 @@ info-ns() {
 #       Handy for faulty programs that return 0 even on error.
 #
 infow() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local message=$1 command=$2 force_output="$3" outp result
-	msg "$message"
+	__msg "$message"
 	outp=$( bash -c "$command" 2>&1 )
 	result=$?
 	[ $result -eq 0 ] \
@@ -255,7 +279,7 @@ infow() {
 	[ $result -ne 0 -o "$force_output" ] && {
 		milinc
 		info "Here is the output of ‘$command’:"
-		plainmsg "$outp"
+		msg "$outp"
 		mildec
 	}
 	return 0
@@ -265,8 +289,8 @@ infow() {
  # Like info, but the output goes to stderr.
 #
 warn() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@"
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@"
 }
 
 
@@ -275,8 +299,8 @@ warn() {
 #  $1 – a message to be shown both in console and on desktop.
 #
 warn-ns() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@"
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@"
 }
 
 
@@ -285,26 +309,26 @@ warn-ns() {
 #    - to console in stderr, prepended with red asterisk;
 #    - to desktop with notify-send, with “crirical” urgency
 #      and a corresponding icon.
-#  The exit code is 5, unless you explicitly set MSG_USE_ARRAYS and defined
+#  The exit code is 5, unless you explicitly set MSG_USE_KEYWORDS and defined
 #    error messages with corresponding codes in the table.
 #
 err() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@" || exit $?
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@" || exit $?
 }
 
 
  # Same as err(), but prints the whole line in red.
 #
 errw() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@" || exit $?
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@" || exit $?
 }
 
 
 abort() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@" || exit $?
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@" || exit $?
 }
 
 
@@ -313,12 +337,12 @@ abort() {
 #  for use within Bahelite.
 #
 iwarn() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@"
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@"
 }
 ierr() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@" || exit $?
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@" || exit $?
 }
 
  # For internal use in alias functions, such as infow(), where we cannot use
@@ -326,15 +350,15 @@ ierr() {
 #  function. Hence, to avoid additions and get a plain msg(), we must call it
 #  from another function, for which no additions are specified in msg().
 #
-plainmsg() {
-	xtrace_off && trap xtrace_on RETURN
-	msg "$@"
+msg() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__msg "$@"
 }
 
 
  # Shows an info, a warning or an error message
 #  on console and optionally, on desktop too.
-#  $1 — a text message or, if MSG_USE_ARRAYS is set, a key from
+#  $1 — a text message or, if MSG_USE_KEYWORDS is set, a key from
 #       - INFO_MESSAGES, if called as info*();
 #       - WARNING_MESSAGES,  if called as warn*();
 #       - ERROR_MESSAGES, if called as err*().
@@ -350,12 +374,10 @@ plainmsg() {
 #    with exit/return code 5 or 5–∞, if ERROR_CODES is set.
 #    Returns zero otherwise.
 #
-msg() {
-	# Internal! There should be no xtrace_off!
-	# xtrace_off && trap xtrace_on RETURN
-	declare -g  BAHELITE_EXIT_FROM_ERR_FUNC
-	local  colour  cs="$__s"  nonl  asterisk='  '  \
-	       message  message_nocolours  \
+__msg() {
+	#  Internal! There should be no xtrace_off!
+	declare -g  BAHELITE_STIPULATED_ERROR
+	local  colour  cs="$__s"  nonl  asterisk='  '  message  message_nocolours  \
 	       redir=stdout  code=5  internal  key  msg_key_exists  \
 	       notifysend_rank  notifysend_icon
 	case "${FUNCNAME[1]}" in
@@ -412,6 +434,7 @@ msg() {
 		ierr)
 			# For internal messages.
 			local -n  msg_array=BAHELITE_ERROR_MESSAGES
+			code=4
 			;;
 		abort)
 			msgtype='abort'
@@ -420,7 +443,7 @@ msg() {
 	esac
 	[ -v nonl ] && nonl='-n'
 	[ -v QUIET ] && redir='devnull'
-	[ -v MSG_USE_ARRAYS -o -v internal ] && {
+	if [ -v MSG_USE_KEYWORDS -o -v internal ]; then
 		#  What was passed to us is not a message per se,
 		#  but a key in the messages array.
 		message_key="${1:-}"
@@ -436,13 +459,16 @@ msg() {
 		else
 			ierr 'no such msg' "$message_key"
 		fi
-	}|| message="${1:-No message?}"
+	else
+		message="${1:-No message?}"
+	fi
 	#  Removing blank space before message lines.
 	#  This allows strings to be split across lines and at the same time
 	#  be well-indented with tabs and/or spaces – indentation will be cut
 	#  from the output.
 	message=$(sed -r 's/^\s*//; s/\n\t/\n/g' <<<"$message")
-	message_nocolours=$(strip_colours "$message")
+	#  Before the message gets coloured, prepare a plain version.
+	message_nocolours="$(strip_colours "$message")"
 	#  Both fold and fmt use smaller width,
 	#  if they deal with non-Latin characters.
 	if [ -v BAHELITE_FOLD_MESSAGES ]; then
@@ -456,17 +482,15 @@ msg() {
 	case $redir in
 		stdout)  echo ${nonl:-} "$message";;
 		stderr)  echo ${nonl:-} "$message" >&2;;
-		devnull) : ;;
+		devnull) :  ;;
 	esac
-	[ ${notifysend_rank:--1} -ge 1 ] && {
-		#  Stripping colours, that might be placed in the $message by user.
-		bahelite_notify_send "$message_nocolours" "${notifysend_icon:-}"
-	}
-	[ "$msgtype" = err ] && BAHELITE_EXIT_FROM_ERR_FUNC=t
+	[ ${notifysend_rank:--1} -ge 1 ]  \
+		&& bahelite_notify_send "$message_nocolours"  "${notifysend_icon:-}"
+	[ "$msgtype" = err ] && BAHELITE_STIPULATED_ERROR=t
 	[[ "$msgtype" =~ ^(err|abort)$ ]] && {
 		#  If this is an error message, we must also quit
 		#  with a certain exit/return code.
-		[ -v MSG_USE_ARRAYS ] && [ ${#ERROR_CODES[@]} -ne 0 ] \
+		[ -v MSG_USE_KEYWORDS ] && [ ${#ERROR_CODES[@]} -ne 0 ] \
 			&& code=${ERROR_CODES[$*]}
 		#  Bahelite can be used in both sourced and standalone scripts.
 		#  Default error codes are 5 for an error, 7 for abort.
@@ -481,16 +505,36 @@ msg() {
 		#    trap functions) will expect those variables to be set. By check-
 		#    ing, if the exit code would be “from subshell”, these functions
 		#    may do their work without variables.
-		[ $BASH_SUBSHELL -ne 0 ] && let ++code
+		(( BASH_SUBSHELL > 0 ))  \
+			&& touch "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL.$BAHELITE_STARTUP_ID"
 		return $code
 	}
 	return 0
 }
 
 
-xtrace_off
+bahelite_xtrace_off
 mi_assemble
-xtrace_on
+bahelite_xtrace_on
 
+export -f  mi_assemble  \
+           milinc  \
+           mildec  \
+           milset  \
+           mildrop  \
+           bahelite_notify_send  \
+           __msg  \
+               info  \
+                   infon  \
+                   info-ns  \
+                   infow  \
+               warn  \
+                   warn-ns  \
+                   iwarn  \
+               err  \
+                   errw  \
+                   abort  \
+                   ierr  \
+               msg
 
 return 0

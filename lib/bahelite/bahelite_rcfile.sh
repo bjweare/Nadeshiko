@@ -2,8 +2,9 @@
 
 #  bahelite_rcfile.sh
 #  Functions to source an RC file and verify, that its version is compatible.
+#  deterenkelt © 2018–2019
 
-# Require bahelite.sh to be sourced first.
+#  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
 	echo 'Must be sourced from bahelite.sh.' >&2
 	return 5
@@ -12,10 +13,10 @@
 . "$BAHELITE_DIR/bahelite_versioning.sh" || return 5
 . "$BAHELITE_DIR/bahelite_directories.sh" || return 5
 
-# Avoid sourcing twice
+#  Avoid sourcing twice
 [ -v BAHELITE_MODULE_RCFILE_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_RCFILE_VER='1.4.6'
+BAHELITE_MODULE_RCFILE_VER='1.4.8'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -26,12 +27,15 @@ BAHELITE_ERROR_MESSAGES+=(
 	[rc: --rc-file needs an arg]='--rc-file needs an argument.'
 )
 
+
+
+
  # Expand this array with variable names in your script to check
 #  their value (yes/no, 0/1, enabled/disabled…), give an error,
 #  if there’s no such variable and unset the variables having negative
 #  value (so that they could be later checked with [ -v varname ]).
 #
-RCFILE_BOOLEAN_VARS=()
+declare -ax RCFILE_BOOLEAN_VARS=()
 
 
  # Pass the main script’s positional parameters to this function
@@ -70,6 +74,7 @@ RCFILE_BOOLEAN_VARS=()
 #            a custom RC file.
 #
 set_rcfile_from_args() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -g  RCFILE  args
 	[ $# -eq 0 ] &&	{ args=(); return 0; }
 
@@ -147,6 +152,7 @@ set_rcfile_from_args() {
 		unset temp_args[$i]
 	done
 	args=( "${temp_args[@]}" )
+	export RCFILE
 	return 0
 }
 
@@ -168,6 +174,7 @@ set_rcfile_from_args() {
 #  then RCFILE and EXAMPLE_RCFILE are set.
 #
 place_rc_and_examplerc() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -g  RCFILE  EXAMPLE_RCFILE
 	local config_name="${MYNAME%.*}"
 	[ "${1:-}" ] && config_name="$1"
@@ -199,6 +206,7 @@ place_rc_and_examplerc() {
 			RCFILE="$rc_path"
 			EXAMPLE_RCFILE="$local_examplerc_path"
 		}
+		export  RCFILE  EXAMPLE_RCFILE
 	else
 		err "EXAMPLECONFDIR is not set."
 	fi
@@ -214,7 +222,7 @@ place_rc_and_examplerc() {
 #         if there would be no RC file (it’s the first time program starts).
 #
 read_rcfile() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local  rcfile_min_ver="$1"  rcfile  example_rcfile  \
 	       rcfile_ver  varname  old_vars  new_vars  missing_variable_list=() \
 	       plural_s  verb
@@ -267,5 +275,9 @@ read_rcfile() {
 	return 0
 }
 
+
+export -f  set_rcfile_from_args  \
+           place_rc_and_examplerc  \
+           read_rcfile
 
 return 0

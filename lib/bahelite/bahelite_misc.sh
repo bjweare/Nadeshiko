@@ -4,22 +4,22 @@
 #  Miscellaneous helper functions.
 #  deterenkelt © 2018–2019
 
-# Require bahelite.sh to be sourced first.
+#  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
 	echo 'Must be sourced from bahelite.sh.' >&2
 	return 5
 }
 . "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 
-# Avoid sourcing twice
+#  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MISC_VER='1.9.1'
+BAHELITE_MODULE_MISC_VER='1.9.3'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
-	pgrep   # Single process check (procps-ng)
-	wc      # Single process check (coreutils)
-	shuf    # random(), that works better than $RANDOM (coreutils)
+	pgrep   # (procps) Single process check.
+#	wc      # (coreutils) Single process check.
+#	shuf    # (coreutils) For random(), it works better than $RANDOM.
 )
 BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	[pgrep]='pgrep is a part of procps-ng.
@@ -27,8 +27,6 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	https://gitlab.com/procps-ng/procps'
 )
 
-#  It is *highly* recommended to use “set -eE” in whatever script
-#  you’re going to source it from.
 
 
  # Returns 0 if the argument is a variable, that has a value, that can be
@@ -44,7 +42,7 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 #    [$2] – “-u” or “--unset-if-not” to unset a negative variable.
 #
 is_true() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local varname="${1:-}"
 	[ -v "$varname" ] || {
 		if [ "${FUNCNAME[1]}" = read_rcfile ]; then
@@ -83,7 +81,7 @@ is_true() {
 #  $1..n – variable names
 #
 dumpvar() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local var
 	for var in "$@"; do
 		msg "$(declare -p $var)"
@@ -92,35 +90,25 @@ dumpvar() {
 }
 
 
- # These two functions are handy to temporarily export bahelite
-#  functions into environment, so that when parallel, for example,
-#  when it runs a bash function, would pass Bahelite functions
-#  and variables to it.
-#
-bahelite_export() {
-	export -f  info  warn  err  msg  strip_colours  \
-	           xtrace_off  xtrace_on  milinc  mildec
-	return 0
-}
-bahelite_unexport() {
-	export -nf  info  warn  err  msg  strip_colours  \
-	            xtrace_off  xtrace_on  milinc  mildec
-	return 0
-}
-
-
  # Sets MYRANDOM global variable to a random number either fast or secure way
 #  Secure way may take seconds to complete.
 #  $1 – an integer number, which will define the range, [0..$1].
 #
-random-fast()   { random fast   "$@"; }
-random-secure() { random secure "$@"; }
+random-fast()   {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__random fast "$@"
+}
+random-secure() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__random secure "$@"
+}
 #
  # Generic function
 #  $1 – mode, either “fast” or “secure”
 #  $2 – an integer number, which will define the range, [0..$1].
 #
-random() {
+__random() {
+	#  Internal! No need for xtrace_off/on.
 	declare -g MYRANDOM
 	local mode="${1:-}" max_number="${2:-}"
 
@@ -151,6 +139,7 @@ random() {
 #  Returns a new string to stdout.
 #
 remove_windows_unfriendly_chars() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local str="${1:-}"
 	str=${str//\</\(}
 	str=${str//\>/\)}
@@ -168,6 +157,7 @@ remove_windows_unfriendly_chars() {
  # Allows only one instance of the main script to run.
 #
 single_process_check() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local our_processes        total_processes \
 	      our_processes_count  total_processes_count  our_command
 	[ ${#ARGS[*]} -eq 0 ]  \
@@ -197,6 +187,7 @@ single_process_check() {
 #  $1 – string with range, format: N-N, where N is an integer.
 #
 expand_range() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local range="$1" expanded_range
 	[[ "$range" =~ ^([0-9]+)-([0-9]+)$ ]] || {
 		warn "Invalid input range for expansion: “$range”."
@@ -215,6 +206,7 @@ expand_range() {
 #         added to it.)
 #
 plural_s() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local num="$1"  plural_ending  singular_ending="${3:-}"
 	#  There is a case inverse to generic “plural s”: when it’s a verb that
 	#    has to be pluralised. Verbs’ plural forms have no ending, while in
@@ -238,5 +230,15 @@ plural_s() {
 	return 0
 }
 
+
+export -f  is_true  \
+           dumpvar  \
+           __random  \
+               random-fast  \
+               random-secure  \
+           remove_windows_unfriendly_chars  \
+           single_process_check  \
+           expand_range  \
+           plural_s
 
 return 0

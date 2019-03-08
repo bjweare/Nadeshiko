@@ -3,22 +3,21 @@
 #  bahelite_versioning.sh
 #  Provides simple versioning in the form <major[.minor[.patch]]>.
 #  Doesn’t work with versions longer than three numbers, e.g. “1.2.3.4”!
-#  deterenkelt © 2018
+#  deterenkelt © 2018–2019
 
-# Require bahelite.sh to be sourced first.
+#  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
 	echo 'Must be sourced from bahelite.sh.' >&2
 	return 5
 }
 . "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 
-# Avoid sourcing twice
+#  Avoid sourcing twice
 [ -v BAHELITE_MODULE_VERSIONING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_VERSIONING_VER='2.0'
+BAHELITE_MODULE_VERSIONING_VER='2.0.2'
 
-# It is *highly* recommended to use “set -eE” in whatever script
-# you’re going to source it from.
+
 
  # Call a dialog to update version in the specified file.
 #  It’s supposed to be sourced from a pre-commit hook.
@@ -27,7 +26,7 @@ BAHELITE_MODULE_VERSIONING_VER='2.0'
 #       must occur in the code only once and be the only command on the line.
 #
 update_version() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local file="$1" varname="$2"  old_version  new_version \
 	      old_major  old_minor  old_patch \
 	      major_nines  minor_nines  patch_nines \
@@ -78,7 +77,7 @@ update_version() {
 	xdialog_text='Set new version for file'
 	xdialog_text+="\n${file##*/}"
 	xdialog_text+="\n\nOld version: $old_major.$old_minor.$old_patch."
-	errexit_off
+	bahelite_errexit_off
 	read -d '' new_major  new_minor  new_patch  < <(
 			Xdialog --stdout \
 			        --title "Set new version" \
@@ -91,7 +90,7 @@ update_version() {
 			echo -e '\0'
 			        # Fields: min max default label
 	)
-	errexit_on
+	bahelite_errexit_on
 	[ "$new_major" ] || err 'Aborted.'
 	if [ $new_minor -ne 0  -a  $new_patch -ne 0 ]; then
 		new_version="$new_major.$new_minor.$new_patch"
@@ -106,22 +105,22 @@ update_version() {
 		xdialog_text="$old_version → $new_version"
 		xdialog_text+="\nThe old version seems to be newer."
 		xdialog_text+="\nStill write?"
-		errexit_off
+		bahelite_errexit_off
 		Xdialog --stdout --title "Confirm new version" \
 		        --ok-label Write --cancel-label Cancel \
 		        --yesno "$xdialog_text" 400x110 \
 			|| err 'Aborted.'
-		errexit_on
+		bahelite_errexit_on
 	elif [ "$which_is_newer" = 'equal' ]; then
 		xdialog_text="$old_version = $new_version"
 		xdialog_text+="\nBoth versions are equal."
 		xdialog_text+="\nStill write?"
-		errexit_off
+		bahelite_errexit_off
 		Xdialog --stdout --title "Confirm new version" \
 		        --ok-label Write --cancel-label Cancel \
 		        --yesno "$xdialog_text" 400x110 \
 			|| err 'Aborted.'
-		errexit_on
+		bahelite_errexit_on
 	fi
 	sed -ri "s/^(\s*(declare\s+-r\s+|))$varname=['\"]?[0-9\.]+['\"]?\s*$/\1$varname='$new_version'/" "$file"
 	return 0
@@ -132,7 +131,7 @@ update_version() {
 #  $1 – version string
 #
 is_version_valid() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	[[ "$1" =~ ^[0-9]{1,12}(\.[0-9]{1,12}){0,2}$ ]] \
 		&& return 0 \
 		|| return 1
@@ -146,7 +145,7 @@ is_version_valid() {
 #  $3 – version string B.
 #
 compare_versions() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local i version_a=${1%%-*}  condition="$2"  version_b=${3%%-*}  \
 	      state='A and B are equal'
 	version_a=(  $(IFS='.';  echo $version_a)  )
@@ -205,5 +204,9 @@ compare_versions() {
 	return 0
 }
 
+
+export -f  update_version  \
+           is_version_valid  \
+           compare_versions
 
 return 0

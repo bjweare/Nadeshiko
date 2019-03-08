@@ -14,7 +14,9 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_COLOURS_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_COLOURS_VER='1.1'
+BAHELITE_MODULE_COLOURS_VER='1.1.1'
+
+
 
  # Controlling sequences
 #
@@ -68,7 +70,7 @@ export __clearline='\r\e[K'
 #  sequences wouldn’t be recognised.
 #
 strip_colours() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local c str="$1"  c_val
 	for c in   __k  __r  __g  __y  __b  __m  __c  __w  \
 	          __s  __o  __d  __l  __u  __i  __h  \
@@ -84,5 +86,8 @@ strip_colours() {
 	return 0
 }
 
+
+
+export -f strip_colours
 
 return 0

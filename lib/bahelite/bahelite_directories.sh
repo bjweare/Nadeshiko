@@ -1,6 +1,6 @@
 # Should be sourced.
 
-#  bahelite_misc.sh
+#  bahelite_directories.sh
 #  Functions to set paths to internal and user directories.
 #  © deterenkelt 2019
 
@@ -11,17 +11,21 @@
 }
 . "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 
-# Avoid sourcing twice
+#  Avoid sourcing twice
 [ -v BAHELITE_MODULE_DIRECTORIES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_DIRECTORIES_VER='1.1.1'
+BAHELITE_MODULE_DIRECTORIES_VER='1.1.3'
+
 
 
                      #  Paths within user’s $HOME  #
 
-: ${XDG_CONFIG_HOME:=$HOME/.config}
-: ${XDG_CACHE_HOME:=$HOME/.cache}
-: ${XDG_DATA_HOME:=$HOME/.local/share}
+[ -v XDG_CONFIG_HOME ]  \
+	|| export XDG_CONFIG_HOME="$HOME/.config"
+[ -v XDG_CACHE_HOME ]  \
+	|| export XDG_CACHE_HOME="$HOME/.cache"
+[ -v XDG_DATA_HOME ]  \
+	|| export XDG_DATA_HOME="$HOME/.local/share"
 
 
  # Prepares config directory with respect to XDG
@@ -32,6 +36,7 @@ BAHELITE_MODULE_DIRECTORIES_VER='1.1.1'
 #         config directory).
 #
 prepare_confdir() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	[ -v BAHELITE_CONFDIR_PREPARED ] && {
 		info "Config directory is already prepared!"
 		return 0
@@ -55,6 +60,7 @@ prepare_confdir() {
 #         cache directory).
 #
 prepare_cachedir() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	[ -v BAHELITE_CACHEDIR_PREPARED ] && {
 		info "Cache directory is already prepared!"
 		return 0
@@ -79,6 +85,7 @@ prepare_cachedir() {
 #         data directory).
 #
 prepare_datadir() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	[ -v BAHELITE_DATADIR_PREPARED ] && {
 		info "Data directory is already prepared!"
 		return 0
@@ -92,6 +99,7 @@ prepare_datadir() {
 	declare -g BAHELITE_DATADIR_PREPARED=t
 	return 0
 }
+
 
 
                       #   System directories   #
@@ -194,10 +202,26 @@ prepare_datadir() {
 
  # Helpers for setting the most common source subdirectories.
 #
-set_libdir()         { set_source_dir LIBDIR         "$@"; }
-set_modulesdir()     { set_source_dir MODULESDIR     "$@"; }
-set_exampleconfdir() { set_source_dir EXAMPLECONFDIR "$@"; }
-set_resdir()         { set_source_dir RESDIR         "$@"; }
+set_libdir() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__set_source_dir LIBDIR "$@"
+}
+set_modulesdir() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__set_source_dir MODULESDIR "$@"
+}
+set_exampleconfdir() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__set_source_dir EXAMPLECONFDIR "$@"
+}
+set_resdir() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__set_source_dir RESDIR "$@"
+}
+set_sourcedir() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__set_source_dir "$@"
+}
 #
 #
  # Finds paths for the subdirectories of the source code and sets these
@@ -208,7 +232,7 @@ set_resdir()         { set_source_dir RESDIR         "$@"; }
 # [$2] – a custom subdirectory name to use in place of $MYNAME
 #        Alike to $1 in prepare_cachedir() above.
 #
-set_source_dir() {
+__set_source_dir() {
 	local varname="${1^^}"  own_subdir="${2:-$MYNAME}"  dir  possible_paths=()
 	local whats_the_dir="${varname,,}"   #  LIBDIR → libdir
 	whats_the_dir=${whats_the_dir%dir}   #           libdir → lib
@@ -258,6 +282,7 @@ set_source_dir() {
 #       error message.
 #
 bahelite_check_directory() {
+	#  Internal! No xtrace_off/on needed!
 	local dir="${1:-}" purpose="${2:-}"
 	[ -v purpose ] && purpose="${purpose,,}"
 	if [ -d "$dir" ]; then
@@ -276,5 +301,15 @@ bahelite_check_directory() {
 [[ "$MYDIR" =~ (/usr/bin|/usr/local/bin) ]]  \
 	&& BAHELITE_SPLIT_INSTALLATION=t
 
+export -f  prepare_confdir  \
+           prepare_cachedir  \
+           prepare_datadir  \
+           __set_source_dir  \
+               set_libdir  \
+               set_modulesdir  \
+               set_exampleconfdir  \
+               set_resdir  \
+               set_sourcedir  \
+           bahelite_check_directory
 
 return 0

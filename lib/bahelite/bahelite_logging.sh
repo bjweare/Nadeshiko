@@ -4,7 +4,7 @@
 #  Organises logging and maintains logs in a separate folder.
 #  © deterenkelt 2018–2019
 
-# Require bahelite.sh to be sourced first.
+#  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
 	echo 'Must be sourced from bahelite.sh.' >&2
 	return 5
@@ -12,23 +12,27 @@
 . "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 . "$BAHELITE_DIR/bahelite_directories.sh" || return 5
 
-# Avoid sourcing twice
+#  Avoid sourcing twice
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_LOGGING_VER='1.5.1'
+BAHELITE_MODULE_LOGGING_VER='1.5.2'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
-	date  #  to add date to $LOG file name and to the log itself.
-	pkill  #  to find and kill the logging tee nicely, so it wouldn’t hang.
+#	date   #  (coreutils) to add date to $LOG file name and to the log itself.
+	pkill  #  (procps) to find and kill the logging tee nicely, so it wouldn’t
+	       #           hang.
 )
+
+
+
 if [ -v BAHELITE_LOG_MAX_COUNT ]; then
 	[[ "$BAHELITE_LOG_MAX_COUNT" =~ ^[0-9]{1,4}$ ]] \
 		|| err "BAHELITE_LOG_MAX_COUNT should be a number,
 		        but it is currently set to “$BAHELITE_LOG_MAX_COUNT”."
 else
-	BAHELITE_LOG_MAX_COUNT=5
+	export BAHELITE_LOG_MAX_COUNT=5
 fi
 
-# BAHELITE_LOGFD_PATH="$TMPDIR/bahelite_logfd"
+# export BAHELITE_LOGFD_PATH="$TMPDIR/bahelite_logfd"
 
 
  # Call this function to start logging.
@@ -36,7 +40,7 @@ fi
 #  function, or logs will be written under $MYDIR.
 #
 start_log() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -g BAHELITE_LOGGING_STARTED
 	local arg
 	if [ -v LOGDIR ]; then
@@ -56,11 +60,11 @@ start_log() {
 	pushd "$LOGDIR" >/dev/null
 	#  Deleting leftover variable dump.
 	rm -f variables
-	noglob_off
+	bahelite_noglob_off
 	( ls -r "${MYNAME%.*}_"* 2>/dev/null || : ) \
 		| tail -n+$BAHELITE_LOG_MAX_COUNT \
 		| xargs rm -v &>/dev/null || :
-	noglob_on
+	bahelite_noglob_on
 	popd >/dev/null
 	echo "${__mi}Log started at $(LC_TIME=C date)." >"$LOG"
 	echo "${__mi}Command line: $CMDLINE" >>"$LOG"
@@ -94,13 +98,13 @@ start_log() {
 	# exec &>{BAHELITE_LOGFD}
 	# exec {BAHELITE_LOGFD}> >(tee -ia "$LOG" ||:)
 
-	BAHELITE_LOGGING_STARTED=t
+	export  LOG  LOGDIR  BAHELITE_LOGGING_STARTED=t
 	return 0
 }
 
 
 show_path_to_log() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	if [ -v BAHELITE_MODULE_MESSAGES_VER ]; then
 		info "Log is written to
 		      $LOG"
@@ -119,17 +123,18 @@ show_path_to_log() {
 #         without .sh at the end (caller script’s own log).
 #
 set_last_log_path() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -g LAST_LOG_PATH
 	local logname="${1:-}" last_log
 	[ "$logname" ] || logname=${MYNAME%.*}
 	pushd "$LOGDIR" >/dev/null
-	noglob_off
+	bahelite_noglob_off
 	last_log=$(ls -tr ${logname}_*.log | tail -n1)
-	noglob_on
+	bahelite_noglob_on
 	[ -f "$last_log" ] || return 1
 	popd >/dev/null
 	LAST_LOG_PATH="$LOGDIR/$last_log"
+	export LAST_LOG_PATH
 	return 0
 }
 
@@ -146,7 +151,7 @@ set_last_log_path() {
 #    to the “exit” builtin, there can be only one error message in the log.
 #
 read_last_log() {
-	xtrace_off && trap xtrace_on RETURN
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	# declare -g LAST_LOG_ERROR
 	local err_msg_marker  err_msg_text
 	set_last_log_path "$@" || return $?
@@ -155,7 +160,7 @@ read_last_log() {
 	LAST_LOG_TEXT=$(
 		sed -r 's/[[:cntrl:]]\[[0-9]{1,3}[mKG]//g' "$LAST_LOG_PATH"
 	)
-
+	export LAST_LOG_TEXT
 	 # Setting LAST_LOG_ERROR is disabled, for it’s easier to just
 	#  heave-ho the entire log into another log, than to parse its errors.
 	#
@@ -206,5 +211,10 @@ read_last_log() {
 	return 0
 }
 
+
+export -f  start_log  \
+           show_path_to_log  \
+           set_last_log_path  \
+           read_last_log
 
 return 0
