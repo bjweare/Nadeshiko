@@ -213,7 +213,7 @@ check_socket() {
 	local sockets_that_work=()  socket_name  socket  sockets_occupied=() \
 	      sockets_unused=() bad_sockets=() dialog_socket_list=() \
 	      i  err_message  resp_mpv_socket
-	[ ${#mpv_sockets[@]} -eq 0 ] && err 'Error: no sockets defined.'
+	[ ${#mpv_sockets[@]} -eq 0 ] && err 'No sockets defined.'
 	#  To avoid get_prop annoying the user with “Choose a socket” 50 times
 	#  during the same run, limit the socket list to already chosen socket
 	#  and just check, that it’s still there and okay.
@@ -358,20 +358,20 @@ send_command() {
 	#  There may be no .data, it’s OK, and it returns OK.
 	data=$(echo "$mpv_answer" | jq -r .data) || {
 		bahelite_print_call_stack
-		warn "“$command $*”: no .data in JSON answer. The answer was:
-		      $mpv_answer"
+		redmsg "“$command $*”: no .data in JSON answer. The answer was:
+		        $mpv_answer"
 		err "Protocol error"
 	}
 	status=$(echo "$mpv_answer" | jq -r .error) || {
 		bahelite_print_call_stack
-		warn "“$command $*”: no .error in JSON answer. The answer was:
-		      $mpv_answer"
+		redmsg "“$command $*”: no .error in JSON answer. The answer was:
+		        $mpv_answer"
 		err "Protocol error"
 	}
 	#  If there’s no status, or status ≠ success, this is a problem.
 	[ "$status" != success ] && {
 		bahelite_print_call_stack
-		warn "$command $*: the status in the error field is “$status”."
+		redmsg "$command $*: the status in the error field is “$status”."
 		err "Protocol error"
 	}
 	[[ "$command" =~ ^($commands_that_dont_return_data)$ ]] || echo "$data"
@@ -398,7 +398,9 @@ internal_set_prop() {
 	else
 		#  Undefined
 		unset $propname
-		err "$FUNCNAME: Unknown value for $orig_propname: “$propval”."
+		bahelite_print_call_stack
+		redmsg "$FUNCNAME: Unknown value for $orig_propname: “$propval”."
+		err "MPV-IPC: property value type mismatch."
 	fi
 	return 0
 }

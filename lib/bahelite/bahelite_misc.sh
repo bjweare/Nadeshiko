@@ -9,7 +9,8 @@
 	echo 'Must be sourced from bahelite.sh.' >&2
 	return 5
 }
-. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
+#  Misc is added to “messages” dependency.
+#. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0

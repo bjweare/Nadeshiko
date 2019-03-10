@@ -20,7 +20,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_ERROR_HANDLING_VER='1.6'
+BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.1'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
 )
@@ -102,7 +102,7 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #            …
 #        fi
 #
-export BAHELITE_STORED_LNOS=()
+declare -ax BAHELITE_STORED_LNOS=()
 
 
 
@@ -154,7 +154,10 @@ bahelite_on_each_command() {
 #    as it should, and that the string is copied to clipboard).
 #    bahelite_toggle_ondebug_trap  set/unset allows to temporarily disable
 #    the trap and run the piped commands safely, even if the weird behaviour
-#    is observed. However, the problem is not around any more.
+#    is observed. However, the problem is not around any more, however, on
+#    certain hosts there is a problem with sending signals – see this issue:
+#    https://github.com/deterenkelt/Nadeshiko/issues/14  that’s solved
+#    by temporarily disabling this trap on bahelite_logging.sh
 #
 bahelite_toggle_ondebug_trap() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
@@ -162,16 +165,11 @@ bahelite_toggle_ondebug_trap() {
 		set)
 			#  Note the single quotes – to prevent early expansion
 			trap 'bahelite_on_each_command "$LINENO"' DEBUG
-			#  This is for the overridden set -x and set +x
-			export BAHELITE_TRAPONDEBUG_SET=t
 			;;
 		unset)
 			#  trap '' DEBUG will ignore the signal.
 			#  trap - DEBUG will reset command to 'bahelite_on_each_command… '.
 			trap '' DEBUG
-			#  This is for the overridden set -x and set +x
-			unset BAHELITE_TRAPONDEBUG_SET
-			export -n BAHELITE_TRAPONDEBUG_SET
 			;;
 	esac
 	return 0
@@ -267,11 +265,6 @@ bahelite_on_exit() {
 		#    and tee now receives SIGPIPE (or SIGHUP) in a natural way.
 		#  Is this still needed?
 		pkill -PIPE  --session 0  -f "tee -a $LOG" || true
-		#
-		#  This code code belongs to the unsuccessful attempts to avoid tee
-		#  at all and do the logging by using only redicrections.
-		# exec {BAHELITE_LOGFD}<&-
-		# pkill -HUP  --session 0  -f "tee -a $LOG"
 	}
 	[ -v BAHELITE_DUMP_VARIABLES ] && {
 		current_varlist=$(
@@ -448,24 +441,28 @@ bahelite_toggle_onerror_trap() {
 
 
 
- # If functrace (set -T) enabled, enable the trap on DEBUG for better error
-#  tracing. See also the descriptions to
+trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" EXIT' EXIT
+trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" TERM' TERM
+trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}"  INT'  INT
+trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}"  HUP'  HUP
+trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" PIPE' PIPE
+#
+#  Traps on ERR and DEBUG signals may need to be toggled,
+#  hence activated through their own wrappers.
+#
+bahelite_toggle_onerror_trap  set
+#
+#  The trap on DEBUG has a meaning to be set only when functrace shell option
+#    is activated in the main script (usually with “set -T”), so on top of
+#    the wrapper there is another check.
+#  Trap on DEBUG is necessary for the better error handling. See also
+#    the descriptions above to these functions:
 #    - bahelite_on_each_command;
 #    - bahelite_toggle_ondebug_trap;
-#    - and bahelite_on_exit
-#  functions above. (Without functrace there’s not much sense in this trap.)
+#    - bahelite_on_exit.
 #
 [ -o functrace ]  \
 	&& bahelite_toggle_ondebug_trap  set
-
-trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" EXIT' EXIT
-trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" TERM' TERM
-trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" INT' INT
-trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" HUP' HUP
-trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" PIPE' PIPE
-#  SIGERR is handled separately:
-bahelite_toggle_onerror_trap  set
-
 
 export -f  bahelite_on_each_command  \
            bahelite_toggle_ondebug_trap

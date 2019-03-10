@@ -241,26 +241,11 @@ set() {
 		#  led in the main script (usually with “set -T”) and “error_handling”
 		#  module is sourced.
 		'-x')
-			[ -v BAHELITE_TRAPONDEBUG_SET ] && {
-				if	[ -o functrace ]  \
-					&& [ "$(type -t bahelite_toggle_ondebug_trap)" = 'function' ]
-				then
-					bahelite_toggle_ondebug_trap  unset
-				fi
-				declare -g BAHELITE_BRING_BACK_TRAPONDEBUG=t
-			}
+			bahelite_functrace_off
 			command=(builtin set -x)
 			;;
 		'+x')
-			[ -v BAHELITE_BRING_BACK_TRAPONDEBUG ] && {
-				unset BAHELITE_BRING_BACK_TRAPONDEBUG
-				if	[ -o functrace ]  \
-					&& [ "$(type -t bahelite_toggle_ondebug_trap)" = 'function' ]
-				then
-					bahelite_toggle_ondebug_trap  set
-				fi
-				declare -g BAHELITE_BRING_BACK_TRAPONDEBUG=t
-			}
+			bahelite_functrace_on
 			command=(builtin set +x)
 			;;
 		'-e')
@@ -321,7 +306,7 @@ bahelite_errexit_off() {
 		builtin set +e
 		[ "$(type -t bahelite_toggle_onerror_trap)" = 'function' ]  \
 			&& bahelite_toggle_onerror_trap  unset
-		declare -g BAHELITE_BRING_BACK_ERREXIT=t
+		BAHELITE_BRING_BACK_ERREXIT=t
 	}
 	return 0
 }
@@ -345,7 +330,7 @@ bahelite_noglob_off() {
 	#  Internal! No xtrace_off/on needed!
 	[ -o noglob ] && {
 		builtin set +f
-		declare -g BAHELITE_BRING_BACK_NOGLOB=t
+		BAHELITE_BRING_BACK_NOGLOB=t
 	}
 	return 0
 }
@@ -354,6 +339,32 @@ bahelite_noglob_on() {
 	[ -v BAHELITE_BRING_BACK_NOGLOB ] && {
 		unset BAHELITE_BRING_BACK_NOGLOB
 		builtin set -f
+	}
+	return 0
+}
+#
+#
+ # Analogous to errexit functions. You may actually need them in your
+#  main script, if you experience some weird issues related to subshells
+#  or pipes.
+#
+bahelite_functrace_off() {
+	#  Internal! No xtrace_off/on needed!
+	[ -o functrace ] && {
+		builtin set +T
+		[ "$(type -t bahelite_toggle_ondebug_trap)" = 'function' ]  \
+			&& bahelite_toggle_ondebug_trap  unset
+		BAHELITE_BRING_BACK_FUNCTRACE=t
+	}
+	return 0
+}
+bahelite_functrace_on() {
+	#  Internal! No xtrace_off/on needed!
+	[ -v BAHELITE_BRING_BACK_FUNCTRACE ] && {
+		unset BAHELITE_BRING_BACK_FUNCTRACE
+		builtin set -T
+		[ "$(type -t bahelite_toggle_ondebug_trap)" = 'function' ]  \
+			&& bahelite_toggle_ondebug_trap  set
 	}
 	return 0
 }
@@ -451,11 +462,21 @@ bahelite_xtrace_on() {
 #  “set”, for that would require knowledge about which of the functions in
 #  “internals” and “facilities” play primary and which – secondary roles.
 
+export -f  set  \
+           bahelite_errexit_off  \
+           bahelite_errexit_on  \
+           bahelite_noglob_off  \
+           bahelite_noglob_on  \
+           bahelite_functrace_off  \
+           bahelite_functrace_on  \
+           bahelite_xtrace_off  \
+           bahelite_xtrace_on
+
 
 
                         #  Initial settings  #
 
-BAHELITE_VERSION="2.14"
+BAHELITE_VERSION="2.15"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -574,6 +595,7 @@ declare -Ax REQUIRED_UTILS_HINTS=()
  # In the future, add an array that would hold function names, that should
 #  run sophisticated checks over the binaries, e.g. query their version,
 #  or that grep is GNU grep and not BSD grep.
+#
 #declare -A REQUIRED_UTILS_CHECKFUNCS=()
 
 
@@ -621,6 +643,7 @@ declare -Ax BAHELITE_VERBOSITY=(
 #                   $rcfile"
 #
 bahelite_check_module_verbosity() {
+	(( BAHELITE_VERBOSITY_LEVEL < 7 )) && return 1
 	local caller_module_funcname=${FUNCNAME[1]}
 	local caller_module_filename=${BASH_SOURCE[1]}
 	caller_module_filename=${caller_module_filename##*/}
@@ -630,11 +653,36 @@ bahelite_check_module_verbosity() {
 		&& return 0  \
 		|| return 1
 }
+export -f  bahelite_check_module_verbosity
 
 
+bahelite_verify_error_code() {
+	local error_code=$1
+	if	[[ "$error_code" =~ ^[0-9]{1,3}$ ]]  \
+		&&  ((
+		            (       $error_code >= 7
+		                &&  $error_code <= 124
+		            )
+
+		        ||  (       $error_code >= 166
+		                &&  $error_code <= 254
+		            )
+		    ))
+	then
+		return 0
+	else
+		return 1
+	fi
+}
+export -f bahelite_verify_error_code
+
+
+. "$BAHELITE_DIR/bahelite_messages.sh" || {
+	echo "Bahelite error: cannot find module “messages” which is required." >&2
+	exit 4
+}
 if [ -v BAHELITE_CHERRYPICK_MODULES ]; then
-	#  Module “messages” is required.
-	for module_name in messages "${BAHELITE_CHERRYPICK_MODULES[@]}"; do
+	for module_name in "${BAHELITE_CHERRYPICK_MODULES[@]}"; do
 		. "$BAHELITE_DIR/bahelite_$module_name.sh" || {
 			echo "Bahelite error: cannot find module “$module_name”." >&2
 			exit 4
@@ -700,40 +748,21 @@ check_required_utils() {
 	[ "${missing_utils:-}" ] && ierr 'no util' "$missing_utils"
 	return 0
 }
+export -f check_required_utils
 
-[ -v BAHELITE_ERROR_CODES ] && [ ${#BAHELITE_ERROR_CODES[*]} -ne 0 ] && {
-	for key in ${!BAHELITE_ERROR_CODES[*]}; do
-		if	[[ "${BAHELITE_ERROR_CODES[key]}" =~ ^[0-9]{1,3}$ ]]  \
-			||  ((
-			            (       ${BAHELITE_ERROR_CODES[key]} >= 1
-			                &&  ${BAHELITE_ERROR_CODES[key]} <= 6
-			            )
 
-			        ||  (       ${BAHELITE_ERROR_CODES[key]} >= 125
-			                &&  ${BAHELITE_ERROR_CODES[key]} <= 165
-			            )
-
-			        ||  ${BAHELITE_ERROR_CODES[key]} >= 255
-			    ))
-		then
-			echo "Bahelite error: Invalid exit code in BAHELITE_ERROR_CODES[$key]:" >&2
-			echo "should be a number in range 7…125 or 166…254 inclusively." >&2
+[ -v ERROR_CODES ] && [ ${#ERROR_CODES[*]} -ne 0 ] && {
+	for key in ${!ERROR_CODES[*]}; do
+		bahelite_verify_error_code "${ERROR_CODES[key]}" || {
+			echo "Bahelite error: Invalid exit code in ERROR_CODES[$key]:" >&2
+			echo "should be a number in range 7…124 or 166…254 inclusively." >&2
 			invalid_code=t
-		fi
+		}
 	done
 	[ -v invalid_code ] && exit 4
 }
 unset  key  invalid_code
 
-export -f  set  \
-           bahelite_errexit_off  \
-           bahelite_errexit_on  \
-           bahelite_noglob_off  \
-           bahelite_noglob_on  \
-           bahelite_xtrace_off  \
-           bahelite_xtrace_on  \
-           bahelite_check_module_verbosity  \
-           check_required_utils
 
  # The sign, that bahelite.sh successfully finished loading.
 #  This variable is used in the check for chainload above, so that the chain-
@@ -754,5 +783,15 @@ BAHELITE_STARTUP_ID=$(mktemp -u "XXXXXXXXXX")
 #  and the diff will be placed in "$LOGDIR/variables"
 #
 BAHELITE_STARTUP_VARLIST="$(compgen -A variable)"
+
+if   (( BAHELITE_VERBOSITY_LEVEL == 10 )); then
+	#  Be ready for metric tons of logs.
+	unset BAHELITE_HIDE_FROM_XTRACE
+	set -x
+
+elif (( BAHELITE_VERBOSITY_LEVEL == 9  )); then
+	set -x
+
+fi
 
 return 0

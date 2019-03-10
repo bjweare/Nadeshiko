@@ -15,7 +15,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_LOGGING_VER='1.5.2'
+BAHELITE_MODULE_LOGGING_VER='1.5.3'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date   #  (coreutils) to add date to $LOG file name and to the log itself.
 	pkill  #  (procps) to find and kill the logging tee nicely, so it wouldn’t
@@ -31,8 +31,6 @@ if [ -v BAHELITE_LOG_MAX_COUNT ]; then
 else
 	export BAHELITE_LOG_MAX_COUNT=5
 fi
-
-# export BAHELITE_LOGFD_PATH="$TMPDIR/bahelite_logfd"
 
 
  # Call this function to start logging.
@@ -61,9 +59,9 @@ start_log() {
 	#  Deleting leftover variable dump.
 	rm -f variables
 	bahelite_noglob_off
-	( ls -r "${MYNAME%.*}_"* 2>/dev/null || : ) \
+	( ls -r "${MYNAME%.*}_"* 2>/dev/null || true ) \
 		| tail -n+$BAHELITE_LOG_MAX_COUNT \
-		| xargs rm -v &>/dev/null || :
+		| xargs rm -v &>/dev/null || true
 	bahelite_noglob_on
 	popd >/dev/null
 	echo "${__mi}Log started at $(LC_TIME=C date)." >"$LOG"
@@ -71,32 +69,31 @@ start_log() {
 	for ((i=0; i<${#ARGS[@]}; i++)) do
 		echo "${__mi}ARGS[$i] = ${ARGS[i]}" >>"$LOG"
 	done
+
+	#  Toggling ondebug trap, as (((under certain circumstances))) it happens
+	#  to block ^C sent from the terminal.
+	bahelite_functrace_off
 	#  When we will be exiting (even successfully), we will need to send
 	#  SIGPIPE to that tee, so it would quit nicely, without terminating
 	#  and triggering an error. It will, however, quit with a code >0,
 	#  so we catch it here with “||:”.
-	exec &> >(tee -i -a "$LOG" ||:)
+	case "$BAHELITE_VERBOSITY_LEVEL" in
+		0)    exec  &>/dev/null
+		      ;;
 
-	#  An attempt to avoid sending tee signals at exit, and just use
-	#  a separate file descriptor for a copy of stdin and stdout.
+		1)    exec >>"$LOG"  2>>"$LOG"
+		      ;;
 
-	#  № 1
-	# exec 2>&1 1>>&"$LOG"
+		3)    exec  >/dev/null  \
+		           2> >(tee -ia "$LOG" >&2  || true)
+		      ;;
 
-	#  № 2
-	# exec {BAHELITE_LOGFD}<>"$BAHELITE_LOGFD_PATH"
-	# exec &>{BAHELITE_LOGFD}
-	# ( tee -a "$LOG" <{BAHELITE_LOGFD} ) &
-
-	#  № 3
-	# exec {BAHELITE_LOGFD}<>"$LOG"
-	# exec 1>&{BAHELITE_LOGFD} 2>&1
-	# exec 1>&"$LOG" 2>&"$LOG"
-
-	#  № 4
-	# exec {BAHELITE_LOGFD}<>"$BAHELITE_LOGFD_PATH"
-	# exec &>{BAHELITE_LOGFD}
-	# exec {BAHELITE_LOGFD}> >(tee -ia "$LOG" ||:)
+		2|5)  exec  > >(tee -ia "$LOG"      || true)  \
+		           2> >(tee -ia "$LOG" >&2  || true)
+		      ;;
+	esac
+	#  Restoring the trap on DEBUG
+	bahelite_functrace_on
 
 	export  LOG  LOGDIR  BAHELITE_LOGGING_STARTED=t
 	return 0

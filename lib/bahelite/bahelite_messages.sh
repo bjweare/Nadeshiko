@@ -10,24 +10,91 @@
 	return 5
 }
 . "$BAHELITE_DIR/bahelite_colours.sh" || return 5
+. "$BAHELITE_DIR/bahelite_misc.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_VER='2.2.4'
+BAHELITE_MODULE_MESSAGES_VER='2.4'
 
- # If there would be no notify-send, there still are logs,
-#  so this utility is not critical.
+
+
+                         #  Message types  #
+
+#  See the wiki. (It’s not written yet.)
+
+
+
+                        #  Verbosity levels  #
+
+ # Lvl  Destination    What messages go to that destination and notes.
 #
-# BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
-# 	notify-send
-# )
-
-
-
- # Define this variable for info messages to have icon
+#  0    Log            none (if logging is enabled at all).
+#       Console        none.
+#       Desktop        none.
+#                                           Note
+#                         Only the exit codes will tell about errors
+#                                      on this level.
 #
-# export BAHELITE_INFO_MSG_USE_ICON=t
+#  1    Log            all messages.
+#       Console        none.
+#       Desktop        none.
+#
+#  2    Log            all messages.
+#       Console        all messages.
+#       Desktop        none.
+#
+#  3    Log            only *err*(), redmsg() and whatever output that goes
+#                      to stderr in the main script. (Stdout is essentially
+#                      redirected to /dev/null.)
+#       Console        ——»——
+#       Desktop        only *err*().
+#
+#  4    Log            Everything, but *info*().
+#       Console        ——»——
+#       Desktop        all desktop messages.¹
+#
+#  5    Log            all messages.
+#       Console        all messages.
+#       Desktop        all desktop messages.¹
+#                                           Note
+#                                This is the default level.
+#
+#  6    —————————————————————————RESERVED—————————————————————————————————————
+#
+#  7    Log            all messages. Enables the internal module messages, if
+#                      module is enabled in BAHELITE_MODULE_VERBOSITY.
+#       Console        ——»——
+#       Desktop        all desktop messages.¹
+#
+#  8    —————————————————————————RESERVED—————————————————————————————————————
+#
+#  9    Log            all messages plus the internal messages enabled on L7.
+#                      Turns on xtrace shell option, when Bahelite finishes
+#                      loading.
+#       Console        ——»——
+#       Desktop        all desktop messages.¹
+#
+#  10   Log            all messages plus the internal messages enabled on L7.
+#                      Turns on xtrace shell option, when Bahelite finishes
+#                      loading and unsets BAHELITE_HIDE_FROM_XTRACE.
+#       Console        ——»——
+#       Desktop        all desktop messages.¹
+#
+#
+#  Notes
+#  1. Desktop messages are those sent with info-ns(), warn-ns() and err().
+#  2. Desktop messages are sent only as long as NO_DESKTOP_NOTIFICATIONS
+#     remains undefined. (See below.)
+#  3. Logging is enabled only if the logging module was included
+#     in the main script and it called start_log(). That function also
+#     controls verbosity of the log output.
+#  4. The verbosity of console and desktop functions is controlled in the
+#     __msg() below.
+#
+[ -v BAHELITE_VERBOSITY_LEVEL ] \
+	|| export BAHELITE_VERBOSITY_LEVEL=5
+
 
 
                          #  Message lists  #
@@ -45,10 +112,7 @@ declare -Ax BAHELITE_WARNING_MESSAGES=()
 #    and sourcing it.
 #
 declare -Ax BAHELITE_ERROR_MESSAGES=(
-	[just quit]='Quitting.'
-	[old util-linux]='Need util-linux-2.20 or higher.'
-	[missing deps]='Dependencies are not satisfied.'
-	[no such msg]='Bahelite: No such message: “$1”.'
+	[no such msg]='No such message keyword: “$1”.'
 	[no util]='Utils are missing: $1.'
 )
 #
@@ -80,10 +144,34 @@ declare -Ax ERROR_CODES=()
  # Colours for the console and log messages
 #  Regular functions (info, warn, err) apply the colour only to the asterisk.
 #
-export BAHELITE_INFO_MESSAGE_COLOUR=$__green
-export BAHELITE_WARN_MESSAGE_COLOUR=$__yellow
-export BAHELITE_ERR_MESSAGE_COLOUR=$__red
+export INFO_MESSAGE_COLOUR=$__green
+export WARN_MESSAGE_COLOUR=$__yellow
+export ERR_MESSAGE_COLOUR=$__red
+export PLAIN_MESSAGE_COLOUR=$__fg_rst
 
+ # Define this variable to start each message not with just an asterisk
+#    ex:  * Stage 01 completed.
+#  but with a keyword that would define the type of the message. Especially
+#  handy if you use MSG_NO_COLOURS=t to suppress colours.
+#    ex:  * INFO: Stage 01 completed.
+#
+# export MSG_ASTERISK_WITH_MSGTYPE=t
+#
+#
+ # Define this variable in the main script to disable colouring the messages.
+#  This will not untie the dependencies to the colours module. The variables
+#  from bahelite_colours.sh will still be available, however, they will be
+#  stripped or not added to any *info*() *warn*() or *err*() messages.
+#
+# export MSG_NO_COLOURS=t
+#
+#
+ # When printing to console/logs, use “fold” for better appearance. This uti-
+#  lity, however, is not aware of wide characters (in the bit-wise sense),
+#  so if you deal with non-ascii characters, you may get only 1/2 of the
+#  terminal width used.
+#
+# export MSG_FOLD_MESSAGES=t
 
  # Message indentation level
 #  Checking, if it’s already set, in case one script calls another –
@@ -177,68 +265,85 @@ mildrop() {
 }
 
 
- # Desktop notifications
-#
-#  To send a notification to both console and desktop, main script should
-#  call info-ns(), warn-ns() or err() function. As err() always ends the
-#  program, its messages can’t be of lower importance. Thus they are always
-#  sent to desktop (if only NO_DESKTOP_NOTIFICATIONS is set).
-#
- # If set, disables all desktop notifications.
-#  All message functions will print only to console.
-#  By default it is unset, and notifications are shown.
-#
-#NO_DESKTOP_NOTIFICATIONS=t
 
- # Shows a desktop notification
-#  $1 – message.
-#  $2 – icon type: empty, “information”, “warning” or “error”.
-#
-bahelite_notify_send() {
-	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	[ -v NO_DESKTOP_NOTIFICATIONS ] && return 0
-	which notify-send &>/dev/null  || {
-		warn 'Cannot show desktop message: notify-send not found.'
-		return 0
-	}
-	local msg="$1" icon="$2" duration urgency='normal'
-	msg=${msg##+([[:space:]])}
-	msg=${msg%%+([[:space:]])}
-	case "$icon" in
-		error)
-			icon='dialog-error'
-			;&
-		dialog-error)
-			urgency=critical
-			duration=10000
-			;;
-		warning)
-			icon='dialog-warning'
-			;&
-		dialog-warning)
-			duration=10000
-			;;
-		*) duration=3000;;  # info: 3s
-	esac
-	#  The hint is for the message to not pile in the stack – it is limited.
-	notify-send --hint int:transient:1  \
-	            --urgency "$urgency"  \
-	            -t $duration  \
-	            "${MY_DISPLAY_NAME^}"  "$msg"  \
-	            ${icon:+--icon=$icon}
-	return 0
-}
+              #  Messages to console, log and desktop  #
 
+ # Some of the message functions below send messages only to log, and not
+#  console and not to desktop.
+#
+#
+ # Message properties
+#
+# __msg_properties=(
+# 	#  A role is an anchor, that tells about the sense, the context,
+# 	#  in which a certain message is used. It explains, why the rest
+# 	#  of the properties ended up in such a set.
+# 	[role]=''
+# 	#  If MSG_USE_KEYWORDS is set, then the actual texts and exit codes
+# 	#  would be taken from there.
+# 	[message_array]=''
+# 	#  The colour to output the asterisk with. For certain types the en-
+# 	#  tire message is coloured. When MSG_ASTERISK_WITH_MSGTYPE is set,
+# 	#  a type (role) of the message is added to the asterisk and gets
+# 	#  coloured too. If MSG_NO_COLOURS is defined, the message will go
+# 	#  in plain text.
+# 	[colour]=''
+# 	#  Whether only the asterisk at the beginning, or the entire message
+# 	#  should be coloured.
+# 	[whole_message_in_colour]=''
+# 	#  The string, that has an asterisk, space next to it, and the message
+# 	#  type/role, if MSG_ASTERISK_WITH_MSGTYPE is set.
+# 	[asterisk]=''
+# 	#  A string, that etermines, whether the message should go desktop
+# 	#  (at the default BAHELITE_VERBOSITY level). Should be “yes” or “no”.
+# 	[desktop_message]=''
+# 	#  The type of message to pass for “notify-send”, if the message goes
+# 	#  to desktop. Either “info”, “dialog-warning” or “dialog-error”.
+# 	#  This type also determines urgency in bahelite_notify_send().
+# 	[desktop_message_type]=''
+# 	#  Whether the message is wholesome or it’s just a part of a compound
+# 	#  message. Setting “yes” here makes the console message to be printed
+# 	#  without a newline on the end, and the output can continue on this
+# 	#  same line. For most messages this is set to “no”. Desktop messages
+# 	#  ignore this option – even there’d be a newline on the end, it will
+# 	#  be cut.
+# 	[stay_on_line]=''
+# 	#  Whether the message should go to “stdout” or “stderr” (at the
+# 	#  default BAHELITE_VERBOSITY_LEVEL).
+# 	[redir]=''
+# 	#  Whether the message is internal, i.e. generated by Bahelite itself.
+# 	#  Internal messages always use keywords, and this is a hook to tell
+# 	#  __msg to enter the necessary part of code without activating
+# 	#  MSG_USE_KEYWORDS.
+# 	[internal]=''
+# 	#  Whether the message should also initiate an exit from the program.
+# 	#  Only *err*() and abort() use exit codes. All other message func-
+# 	#  tion don’t have an exit code and __msg will simply return.
+# 	[exit_code]=''
+# )
 
 
  # Shows an info message.
-#  Features asterisk, automatic indentation with mil*, keeps lines
 #  $1 — a message or a key of an item in the corresponding array containing
 #       the messages. Depends on whether $MSG_USE_KEYWORDS is set (see above).
 #
 info() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='info'
+		[message_array]='INFO_MESSAGES'
+		[colour]='INFO_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+INFO: }"
+		[desktop_message]='no'
+		[desktop_message_type]=''
+		[stay_on_line]='no'
+		[redir]='stdout'
+		[internal]='no'
+		[exit_code]=''
+	)
 	__msg "$@"
+	return 0
 }
 
  # Same as info(), but omits the ending newline, like “echo -n” does.
@@ -246,7 +351,21 @@ info() {
 #
 infon() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='info'
+		[message_array]='INFO_MESSAGES'
+		[colour]='INFO_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+INFO: }"
+		[desktop_message]='no'
+		[desktop_message_type]=''
+		[stay_on_line]='yes'
+		[redir]='stdout'
+		[internal]='no'
+		[exit_code]=''
+	)
 	__msg "$@"
+	return 0
 }
 
  # Like info(), but has a higher rank than usual info(),
@@ -255,8 +374,23 @@ infon() {
 #
 info-ns() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='info'
+		[message_array]='INFO_MESSAGES'
+		[colour]='INFO_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+INFO: }"
+		[desktop_message]='yes'
+		[desktop_message_type]='info'
+		[stay_on_line]='no'
+		[redir]='stdout'
+		[internal]='no'
+		[exit_code]=''
+	)
 	__msg "$@"
+	return 0
 }
+
 
  # Shows an info message and waits for the given command to finish,
 #  to print its result, and if it’s not zero, print the output
@@ -267,10 +401,24 @@ info-ns() {
 #  $3 – any string to force the output even if the result is [OK].
 #       Handy for faulty programs that return 0 even on error.
 #
-infow() {
+info-wait() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local message=$1 command=$2 force_output="$3" outp result
+	declare -A __msg_properties=(
+		[role]='info'
+		[message_array]='INFO_MESSAGES'
+		[colour]='INFO_MESSAGE_COLOUR'
+		[whole_message_in_colour]='yes' # T/F
+		[asterisk]="  ${MSG_ASTERISK_WITH_MSGTYPE:+RUNNING: }"
+		[desktop_message]='no'
+		[desktop_message_type]=''
+		[stay_on_line]='yes'
+		[redir]='stdout'
+		[internal]='no'
+		[exit_code]=''
+	)
 	__msg "$message"
+
 	outp=$( bash -c "$command" 2>&1 )
 	result=$?
 	[ $result -eq 0 ] \
@@ -290,7 +438,21 @@ infow() {
 #
 warn() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='warn'
+		[message_array]='WARNING_MESSAGES'
+		[colour]='WARN_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+WARNING: }"
+		[desktop_message]='no'
+		[desktop_message_type]=''
+		[stay_on_line]='no'
+		[redir]='stdout'
+		[internal]='no'
+		[exit_code]=''
+	)
 	__msg "$@"
+	return 0
 }
 
 
@@ -300,35 +462,115 @@ warn() {
 #
 warn-ns() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='warn'
+		[message_array]='WARNING_MESSAGES'
+		[colour]='WARN_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+WARNING: }"
+		[desktop_message]='yes'
+		[desktop_message_type]='dialog-warning'
+		[stay_on_line]='no'
+		[redir]='stderr'
+		[internal]='no'
+		[exit_code]=''
+	)
 	__msg "$@"
+	return 0
 }
 
 
  # Shows an error message and calls “exit”.
-#  Error messages always go
-#    - to console in stderr, prepended with red asterisk;
-#    - to desktop with notify-send, with “crirical” urgency
-#      and a corresponding icon.
+#  Good to show a resume of the error. For the big descriptions better
+#    use redmsg() before calling err().
 #  The exit code is 5, unless you explicitly set MSG_USE_KEYWORDS and defined
-#    error messages with corresponding codes in the table.
+#    error messages with corresponding codes in that array.
 #
 err() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	__msg "$@" || exit $?
+	declare -A __msg_properties=(
+		[role]='err'
+		[message_array]='ERROR_MESSAGES'
+		[colour]='ERR_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+ERROR: }"
+		[desktop_message]='yes'
+		[desktop_message_type]='dialog-error'
+		[stay_on_line]='no'
+		[redir]='stderr'
+		[internal]='no'
+		[exit_code]='5'
+	)
+	__msg "$@"
+	#  ^ Exits.
 }
 
+ # Has the appearance of err(), but doesn’t call “exit” afterwards.
+#  It suites for printing big descriptive messages to console/logs,
+#  while using err() to print the final – short! – message, that is also
+#  suites to be shows as a desktop notification.
+#
+redmsg() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='redmsg'
+		[message_array]='ERROR_MESSAGES'
+		[colour]='ERR_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+ERROR: }"
+		[desktop_message]='no'
+		[desktop_message_type]=''
+		[stay_on_line]='no'
+		[redir]='stderr'
+		[internal]='no'
+		[exit_code]=''
+	)
+	__msg "$@"
+	return 0
+}
 
  # Same as err(), but prints the whole line in red.
 #
 errw() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	__msg "$@" || exit $?
+	declare -A __msg_properties=(
+		[role]='err'
+		[message_array]='ERROR_MESSAGES'
+		[colour]='ERR_MESSAGE_COLOUR'
+		[whole_message_in_colour]='yes'
+		[asterisk]="  ${MSG_ASTERISK_WITH_MSGTYPE:+ERROR: }"
+		[desktop_message]='yes'
+		[desktop_message_type]='dialog-error'
+		[stay_on_line]='no'
+		[redir]='stderr'
+		[internal]='no'
+		[exit_code]='5'
+	)
+	__msg "$@"
+	#  ^ Exits.
 }
 
-
+ # Like err(), but has the appearance of info message to both console
+#  and desktop. For the case when user aborts an action – for him this is
+#  something exprected and normal, while error is for the unexpected and wrong.
+#
 abort() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	__msg "$@" || exit $?
+	declare -A __msg_properties=(
+		[role]='abort'
+		[message_array]='INFO_MESSAGES'
+		[colour]='INFO_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+ABORT: }"
+		[desktop_message]='yes'
+		[desktop_message_type]='info'
+		[stay_on_line]='no'
+		[redir]='stdout'
+		[internal]='no'
+		[exit_code]='6'
+	)
+	__msg "$@"
+	#  ^ Exits.
 }
 
 
@@ -338,30 +580,80 @@ abort() {
 #
 iwarn() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='warn'
+		[message_array]='BAHELITE_WARNING_MESSAGES'
+		[colour]='WARN_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+WARNING: }"
+		[desktop_message]='no'
+		[desktop_message_type]=''
+		[stay_on_line]='no'
+		[redir]='stdout'
+		[internal]='yes'
+		[exit_code]=''
+	)
 	__msg "$@"
-}
-ierr() {
-	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	__msg "$@" || exit $?
+	return 0
 }
 
+
+ierr() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='err'
+		[message_array]='BAHELITE_ERROR_MESSAGES'
+		[colour]='ERR_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+ERROR: }"
+		[desktop_message]='yes'
+		[desktop_message_type]='dialog-error'
+		[stay_on_line]='no'
+		[redir]='stderr'
+		[internal]='yes'
+		[exit_code]='4'
+	)
+	__msg "$@"
+	#  ^ Exits.
+}
+
+
  # For internal use in alias functions, such as infow(), where we cannot use
-#  msg() as is, because FUNCNAME[1] will be set to the name of that alias
-#  function. Hence, to avoid additions and get a plain msg(), we must call it
-#  from another function, for which no additions are specified in msg().
+#    __msg() as is, because FUNCNAME[1] will be set to the name of that alias
+#    function. Hence, to avoid additions and get a plain msg(), we must call
+#    it from another function, for which no additions are specified in msg().
+#  It can, however, be use in the main script for a message lower in level
+#    than info, that still maintains the indentation.
 #
 msg() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='plainmsg'
+		[message_array]='BAHELITE_INFO_MESSAGES'
+		[colour]='PLAIN_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="  "
+		[desktop_message]='no'
+		[desktop_message_type]=''
+		[stay_on_line]='no'
+		[redir]='stdout'
+		[internal]='no'
+		[exit_code]=''
+	)
 	__msg "$@"
+	return 0
 }
 
 
  # Shows an info, a warning or an error message
 #  on console and optionally, on desktop too.
-#  $1 — a text message or, if MSG_USE_KEYWORDS is set, a key from
-#       - INFO_MESSAGES, if called as info*();
-#       - WARNING_MESSAGES,  if called as warn*();
-#       - ERROR_MESSAGES, if called as err*().
+#  $1 — a text message or,
+#
+#       if MSG_USE_KEYWORDS is set, a key from
+#         - INFO_MESSAGES, if called as *info*();
+#         - WARNING_MESSAGES,  if called as *warn*();
+#         - ERROR_MESSAGES, if called as *err*();
+#         - PLAIN_MESSAGES, if called as msg().
 #       That key may contain spaces, and the number of spaces between words
 #       in the key is not important, i.e.
 #         $ warn "no needed file found"
@@ -369,86 +661,74 @@ msg() {
 #       and
 #         $ warn  no   needed  file     found
 #       will use the same item in the WARNING_MESSAGES array.
-#  RETURNS:
-#    If called as an err* function, then quits the script
-#    with exit/return code 5 or 5–∞, if ERROR_CODES is set.
-#    Returns zero otherwise.
 #
 __msg() {
 	#  Internal! There should be no xtrace_off!
 	declare -g  BAHELITE_STIPULATED_ERROR
-	local  colour  cs="$__s"  nonl  asterisk='  '  \
-	       message  msgtype  message_nocolours  \
-	       redir=stdout  code=5  internal  key  msg_key_exists  \
-	       notifysend_rank  notifysend_icon
-	case "${FUNCNAME[1]}" in
-		*info*|abort)  # all *info*
-			msgtype=info
-			local -n  msg_array=INFO_MESSAGES
-			local -n  colour=BAHELITE_INFO_MESSAGE_COLOUR
-			;;&
-		info|infon|info-ns|abort)
-			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+INFO: }"
-			;;&
-		info-ns|abort)
-			notifysend_rank=1
-			[ -v BAHELITE_INFO_MSG_USE_ICON ] && notifysend_icon='info'
-			;;&
-		infow)
-			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+RUNNING: }"
-			nonl=t
+	local role  message_array  colour  whole_message_in_colour  asterisk  \
+	      desktop_message  desktop_message_type  stay_on_line  redir  \
+	      internal  exit_code  \
+	      f  f_count=0  \
+	       message=''  message_key  message_key_exists  \
+	       _message=''  message_nocolours
+
+	#  As a precaution against internal bugs, check how many times __msg()
+	#  is called in the call stack. If the number will be more than 3,
+	#  this hints at a recursive error.
+	for f in "${FUNCNAME[@]}"; do
+		[ "$f" = "${FUNCNAME[0]}" ] && let '++f_count || 1'
+	done
+	(( f_count >= 3 )) && {
+		echo "Bahelite error: call to ${FUNCNAME[0]} went into recursion." >&2
+		[ "$(type -t bahelite_print_call_stack)" = 'function' ]  \
+			&& bahelite_print_call_stack
+		#  Unsetting the trap, or the recursion may happen again.
+		trap '' EXIT TERM INT HUP PIPE
+		#  Now the script will exit guaranteely.
+		exit 4
+	}
+
+	role=${__msg_properties[role]}
+	declare -n message_array=${__msg_properties[message_array]}
+	[ -v MSG_NO_COLOURS ]  \
+		|| declare -n colour=${__msg_properties[colour]}
+	is_true  __msg_properties[whole_message_in_colour] \
+		&& whole_message_in_colour=${__msg_properties[whole_message_in_colour]}
+	asterisk=${__msg_properties[asterisk]}
+	is_true  __msg_properties[desktop_message]  \
+		&& desktop_message=${__msg_properties[desktop_message]}
+	desktop_message_type=${__msg_properties[desktop_message_type]}
+	is_true  __msg_properties[stay_on_line]  \
+		&& stay_on_line=${__msg_properties[stay_on_line]}
+	redir=${__msg_properties[redir]}
+	is_true  __msg_properties[internal]  \
+		&& internal=${__msg_properties[internal]}
+	[[ "${__msg_properties[exit_code]}" =~ ^[0-9]{1,3}$ ]]  \
+		&& exit_code=${__msg_properties[exit_code]}
+
+	case "$BAHELITE_VERBOSITY_LEVEL" in
+		0)	redir='devnull'
 			;;
-		infon)
-			nonl=t
+
+		2)	unset desktop_message
 			;;
-		*warn*)
-			msgtype=warn redir='stderr'
-			local -n  msg_array=WARNING_MESSAGES
-			local -n  colour=BAHELITE_WARN_MESSAGE_COLOUR
-			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+WARNING: }"
-		    ;;&
-		warn-ns)
-			notifysend_rank=1
-			notifysend_icon='dialog-warning'
+
+		3)	[ "$redir" = 'stdout' ]  \
+		        && redir='devnull'
+			[ "$role" != 'err' ] && [ -v desktop_message ]  \
+				&& unset  desktop_message
 			;;
-		*err*)
-			msgtype=err redir='stderr'
-			local -n  msg_array=ERROR_MESSAGES
-			local -n  colour=BAHELITE_ERR_MESSAGE_COLOUR
-			asterisk="* ${MSG_ASTERISK_PLUS_WORD:+ERROR: }"
-			notifysend_rank=1
-			notifysend_icon='dialog-error'
-			;;&
-		errw)
-			asterisk='  '
-			cs=''  # print whole line in red, no asterisk.
-			;;
-		iwarn|ierr|iinfo)
-			internal=t
-			;;&
-		iwarn)
-			# For internal messages.
-			local -n  msg_array=BAHELITE_WARNING_MESSAGES
-			notifysend_rank=1
-			notifysend_icon='dialog-warning'
-			;;
-		ierr)
-			# For internal messages.
-			local -n  msg_array=BAHELITE_ERROR_MESSAGES
-			code=4
-			;;
-		abort)
-			msgtype='abort'
-			code=7
+
+		4)	[[ "$role" =~ ^(info|plainmsg)$ ]]  \
+				&& redir='devnull'
 			;;
 	esac
-	[ -v nonl ] && nonl='-n'
-	[ -v QUIET ] && redir='devnull'
-	if [ -v MSG_USE_KEYWORDS -o -v internal ]; then
+
+	if [ -v MSG_USE_KEYWORDS  -o  -v internal ]; then
 		#  What was passed to us is not a message per se,
 		#  but a key in the messages array.
 		message_key="${1:-}"
-		for key in "${!msg_array[@]}"; do
+		for key in "${!message_array[@]}"; do
 			[ "$key" = "$message_key" ] && message_key_exists=t
 		done
 		if [ -v message_key_exists ]; then
@@ -456,7 +736,7 @@ __msg() {
 			#  into the message strings. To make these substitutions go
 			#  from the number 1, drop the $1, holding the message key.
 			shift
-			eval message=\"${msg_array[$message_key]}\"
+			eval message=\"${message_array[$message_key]}\"
 		else
 			ierr 'no such msg' "$message_key"
 		fi
@@ -469,49 +749,52 @@ __msg() {
 	#  from the output.
 	message=$(sed -r 's/^\s*//; s/\n\t/\n/g' <<<"$message")
 	#  Before the message gets coloured, prepare a plain version.
-	message_nocolours="$(strip_colours "$message")"
-	#  Both fold and fmt use smaller width,
-	#  if they deal with non-Latin characters.
-	if [ -v BAHELITE_FOLD_MESSAGES ]; then
-		message=$(echo -e ${nonl:-} "${colour:-}$asterisk$cs$message$cs" \
+	[ -v MSG_NO_COLOURS ]  \
+		&& message_nocolours="$message"  \
+		|| message_nocolours="$(strip_colours "$message")"
+	_message+="${colour:-}"
+	_message+="$asterisk"
+	_message+="${whole_message_in_colour:-$__stop}"
+	_message+="$message"
+	_message+="${whole_message_in_colour:+$__stop}"
+	#  See the description to MSG_FOLD_MESSAGES.
+	if [ -v MSG_FOLD_MESSAGES ]; then
+		message=$(echo -e ${stay_on_line:+-n} "$_message" \
 		              | fold  -w $((TERM_COLS - ${#__mi} -2)) -s \
 		              | sed -r "1s/^/${__mi#  }/; 1!s/^/$__mi/g" )
 	else
-		message=$(echo -e ${nonl:-} "${colour:-}$asterisk$cs$message$cs" \
+		message=$(echo -e ${stay_on_line:+-n} "$_message" \
 		              | sed -r "1s/^/${__mi#  }/; 1!s/^/$__mi/g" )
 	fi
-	case $redir in
-		stdout)  echo ${nonl:-} "$message";;
-		stderr)  echo ${nonl:-} "$message" >&2;;
+	case "$redir" in
+		stdout)  echo ${stay_on_line:+-n} "$message"  ;;
+		stderr)  echo ${stay_on_line:+-n} "$message" >&2  ;;
 		devnull) :  ;;
 	esac
-	[ ${notifysend_rank:--1} -ge 1 ]  \
-		&& bahelite_notify_send "$message_nocolours"  "${notifysend_icon:-}"
-	[ "$msgtype" = err ] && BAHELITE_STIPULATED_ERROR=t
-	[[ "$msgtype" =~ ^(err|abort)$ ]] && {
-		#  If this is an error message, we must also quit
-		#  with a certain exit/return code.
-		[ -v MSG_USE_KEYWORDS ] && [ ${#ERROR_CODES[@]} -ne 0 ] \
-			&& code=${ERROR_CODES[$*]}
-		#  Bahelite can be used in both sourced and standalone scripts.
-		#  Default error codes are 5 for an error, 7 for abort.
-		#  Abort is for the case when user stops the program at some step.
-		#  Return codes are defined in pairs: “usual” and “from subshell”,
-		#    this is done to catch returns from the functions, that are
-		#    capable of triggering an exit. When err() for example is called
-		#    from within a subshell, it’s easy to place “|| exit $?” after
-		#    “$(…)” to exit properly, but this isn’t enough to clean tidily –
-		#    because such functions may set variables, that will be lost
-		#    within the subshell, however, top-level hooks on signals (aka
-		#    trap functions) will expect those variables to be set. By check-
-		#    ing, if the exit code would be “from subshell”, these functions
-		#    may do their work without variables.
+	if	[ -v desktop_message ]  \
+		&& [ "$(type -t bahelite_notify_send)" = 'function' ]
+	then
+		bahelite_notify_send "$message_nocolours" "$desktop_message_type"
+	fi
+	[ "$role" = err ] && BAHELITE_STIPULATED_ERROR=t
+	[[ "$role" =~ ^(err|abort)$ ]] && {
 		(( BASH_SUBSHELL > 0 ))  \
 			&& touch "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL.$BAHELITE_STARTUP_ID"
-		return $code
+		#  If this is an error message, we must also quit
+		#  with a certain exit code.
+		if	[ -v internal ]; then
+			exit $exit_code
+		elif  [ -v MSG_USE_KEYWORDS ] \
+		      &&  bahelite_verify_error_code "${ERROR_CODES[$*]}"
+		then
+			exit ${ERROR_CODES[$*]}
+		else
+			exit $exit_code
+		fi
 	}
 	return 0
 }
+
 
 
 bahelite_xtrace_off
@@ -523,16 +806,16 @@ export -f  mi_assemble  \
            mildec  \
            milset  \
            mildrop  \
-           bahelite_notify_send  \
            __msg  \
                info  \
                    infon  \
                    info-ns  \
-                   infow  \
+                   info-wait  \
                warn  \
                    warn-ns  \
                    iwarn  \
                err  \
+                   redmsg  \
                    errw  \
                    abort  \
                    ierr  \

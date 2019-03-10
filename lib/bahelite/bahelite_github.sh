@@ -15,7 +15,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_GITHUB_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_GITHUB_VER='1.0.8'
+BAHELITE_MODULE_GITHUB_VER='1.0.9'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date      # (coreutils)
 #	stat      # (coreutils)
@@ -36,7 +36,7 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
  # Default interval, that check_for_new_release() will use to look
 #  for a new release. You can redefine it after sourcing bahelite.sh
 #
-export NEW_RELEASE_CHECK_INTERVAL=21  # each N days
+export GITHUB_NEW_RELEASE_CHECK_INTERVAL=21  # each N days
 
 
  # Confirms, that updater_timestamp exists.
@@ -81,7 +81,7 @@ check_for_new_release() {
 		(    $(date +%s)
 		   - $(stat -L --format %Y "$RELEASE_CHECK_TIMESTAMP")
 		) / 60 / 60 / 24                                        ,1 ))
-	[ $days_since_last_check -lt $NEW_RELEASE_CHECK_INTERVAL ] \
+	[ $days_since_last_check -lt $GITHUB_NEW_RELEASE_CHECK_INTERVAL ] \
 		&& return 1
 	local user="$1" repo="$2" our_ver="$3" relnotes_url="${4:-}" \
 	      relnotes_action="${5:-}"  latest_release_ver  \
