@@ -1,3 +1,13 @@
+——— v 2.5.11 —————————————————————————————————————————————————————————————————
+
+Nadeshiko-mpv 2.3.16
+
+1. Update for Bahelite-2.15, that should also fix #14. Major overhaul
+   for the messaging system, bugs may appear.
+
+
+
+
 ——— v 2.5.10 —————————————————————————————————————————————————————————————————
 
 1. **Hotfix** for libavformat version dependency.
