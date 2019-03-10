@@ -253,7 +253,7 @@ run_crop_tool() {
 #  on_error().
 on_croptool_error() {
 	# [ -v croptool_config_backup ] && restore_croptool_config
-	pkill -PIPE --session 0 --pgroup 0  -f inotifywait ||:
+	pkill -PIPE --session 0 --pgroup 0  -f inotifywait || true
 	return 0
 }
 

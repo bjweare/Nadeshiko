@@ -55,15 +55,19 @@ parse_args() {
 					subs_explicitly_requested=t
 					[ "${BASH_REMATCH[3]}" = '=' ] && {
 						subs_external_file="${BASH_REMATCH[4]}"
-						[ -r "$subs_external_file" ] \
-							|| err "No such external subs file:
+						[ -r "$subs_external_file" ] || {
+							redmsg "No such file:
 							        $subs_external_file"
+							err "Externals subtitles not found."
+						}
 					}
 					[ "${BASH_REMATCH[3]}" = ':' ] && {
 						subs_track_id="${BASH_REMATCH[4]}"
-						[[ "$subs_track_id" =~ ^[0-9]+$ ]] \
-							|| err "Subtitle track ID must be a number,
+						[[ "$subs_track_id" =~ ^[0-9]+$ ]] || {
+							redmsg "Subtitle track ID must be a number,
 							        but it is set to “$subs_track_id”."
+							err "Wrong subtitle track ID."
+						}
 					}
 					;;
 			esac
@@ -77,9 +81,11 @@ parse_args() {
 					audio_explicitly_requested=t
 					[ "${BASH_REMATCH[2]}" ] && {
 						audio_track_id="${BASH_REMATCH[3]}"
-						[[ "$audio_track_id" =~ ^[0-9]+$ ]] \
-							|| err "Audio track ID must be a number,
+						[[ "$audio_track_id" =~ ^[0-9]+$ ]] || {
+							redmsg "Audio track ID must be a number,
 							        but it is set to “$audio_track_id”."
+							err "Wrong audio track ID."
+						}
 					}
 					;;
 			esac
@@ -108,15 +114,21 @@ parse_args() {
 			crop+="trunc($crop_y/2)*2"
 
 		elif [ -f "$arg" ]; then
-			[[ "$(mimetype -L -b "$arg")" =~ ^video/ ]] \
-				&& video="$arg" \
-				|| err "This is not a video file: ${arg##*/}"
+			if [[ "$(mimetype -L -b "$arg")" =~ ^video/ ]]; then
+				video="$arg"
+			else
+				redmsg "Not a video file:
+				        ${arg##*/}"
+				err "Passed file is not a video."
+			fi
 
 		elif [ -d "$arg" ]; then
 			if [ -w "$arg" ]; then
 				where_to_place_new_file="$arg"
 			else
-				err "Cannot place files to directory “$arg”: not writeable."
+				redmsg "You must have writing permissions to place files in this directory:
+				        $arg"
+				err "Destination directory is not writeable."
 			fi
 
 		elif [[ "$arg" =~ ^fname_pfx=(.+)$ ]]; then
@@ -230,15 +242,15 @@ check_util_support() {
 			<<<"$ffmpeg_version_output"
 	)
 	is_version_valid "$libavutil_ver" || {
-		warn "Incorrect version for libavutil: “$libavutil_ver”."
+		redmsg "Incorrect version for libavutil: “$libavutil_ver”."
 		err "Cannot determine libavutil version!"
 	}
 	is_version_valid "$libavcodec_ver" || {
-		warn "Incorrect version for libavcodec: “$libavcodec_ver”."
+		redmsg "Incorrect version for libavcodec: “$libavcodec_ver”."
 		err "Cannot determine libavcodec version!"
 	}
 	is_version_valid "$libavformat_ver" || {
-		warn "Incorrect version for libavformat: “$libavformat_ver”."
+		redmsg "Incorrect version for libavformat: “$libavformat_ver”."
 		err "Cannot determine libavformat version!"
 	}
 	info "System ffmpeg: $ffmpeg_ver
@@ -249,7 +261,7 @@ check_util_support() {
 		|| compare_versions "$libavcodec_ver" '<' "$libavcodec_minver"  \
 		|| compare_versions "$libavformat_ver" '<' "$libavformat_minver"
 	then
-		warn 'The FFmpeg version you are running is too old!'
+		redmsg 'The FFmpeg version you are running is too old!'
 		cat <<-EOF | column -t  -o '    '  -N ' ','Needed','In your FFmpeg' | sed -r "s/.*/$__mi&/g"
 		libavutil      $libavutil_minver+      $libavutil_ver
 		libavcodec     $libavcodec_minver+     $libavcodec_ver
@@ -307,11 +319,11 @@ check_container_and_codec_set() {
 			&& combination_passes=t && break
 	done
 	[ -v combination_passes ] || {
-		warn "“$container”, “$ffmpeg_vcodec” and “$ffmpeg_acodec” cannot be used together.
-		      Possible combinations:
-		      $(for ((i=0; i<${#can_be_used_together[@]}; i++)); do
-		            echo "  $((i+1)). ${can_be_used_together[i]//[[:space:]]/ \+ }"
-		        done)"
+		redmsg "“$container”, “$ffmpeg_vcodec” and “$ffmpeg_acodec” cannot be used together.
+		        Possible combinations:
+		        $(for ((i=0; i<${#can_be_used_together[@]}; i++)); do
+		              echo "  $((i+1)). ${can_be_used_together[i]//[[:space:]]/ \+ }"
+		          done)"
 		err 'Incompatible set of container format and A/V codecs.'
 	}
 	return 0
@@ -344,7 +356,7 @@ check_times() {
 		&& declare -gn start='time1'  stop='time2' \
 		|| declare -gn start='time2'  stop='time1'
 	[ ${time1[total_ms]} -eq ${time2[total_ms]} ] \
-		&& err 'Time1 and Time2 must differ!'
+		&& err 'Time1 and Time2 are the same.'
 
 	new_time_array "$(total_ms_to_total_s_ms "$((   ${stop[total_ms]}
 	                                              - ${start[total_ms]} ))" )" \
@@ -353,9 +365,9 @@ check_times() {
 		if [[ "${mediainfo_source_duration[total_s]}" =~ ^[0-9]+$ ]]; then
 			#  Trying to prevent negative space_for_video_track.
 			[ ${start[total_s]} -gt ${mediainfo_source_duration[total_s]} ] \
-				&& err "Start time is behind the end: ${start[ts]}."
+				&& err "Start time ${start[ts]#00:} is behind the end."
 			[ ${stop[total_s]}  -gt ${mediainfo_source_duration[total_s]} ] \
-				&& err "Stop time is behind the end: ${stop[ts]}."
+				&& err "Stop time ${stop[ts]#00:} is behind the end."
 		else
 			unset mediainfo_source_duration
 		fi
@@ -417,7 +429,10 @@ check_subtitles() {
 			*)
 				#  External subs can only be requested,
 				#  so it’s always an error, when they can’t be rendered.
-				err "Cannot add external subtitles: “$ext_subtitle_type” format is not supported. Add “nosub”?"
+				redmsg "External subtitles are in “$ext_subtitle_type” format,
+				        that is not supported yet. Try turning off subtitles
+				        or setting “nosub” option to encode without these subtitles?"
+				err "Cannot hardsub $ext_subtitle_type subtitles. Try “nosub”?"
 				;;
 		esac
 	else
@@ -434,7 +449,9 @@ check_subtitles() {
 
 		[ -z "$codec_name" ] && {
 			if  [ -v subs_explicitly_requested ];  then
-				err "Adding subtitles was requested, but there’s no $such subtitle stream. Add “nosubs”?"
+				redmsg "Burning $such subtitle stream into video was requested, but the source video
+				        has no such stream. Try different number or setting “nosub”?"
+				err "Cannot hardsub: no $such subtitle stream. Try “nosub”?"
 			else
 				#  It was just RC default setting,
 				#  it isn’t an error, that a video had no subs at all.
@@ -449,7 +466,7 @@ check_subtitles() {
 		#  Unlike with a video that simply has no subtitle stream,
 		#  having one, that we cannot encode is always an error.
 		[[ "$codec_name" =~ ^($known_sub_codecs_list)$ ]]  \
-			|| err "Cannot add subtitles: “$codec_name” is not supported. Add “nosub”?"
+			|| err "Cannot hardsub: “$codec_name” is not supported. Add “nosub”?"
 		if [[ "$codec_name" =~ ^(ass|ssa)$ ]]; then
 			subs_source_format='ASS/SSA'
 			prepped_ext_subs="$TMPDIR/subs.ass"
@@ -562,7 +579,9 @@ check_audio_track() {
 
 		[ -z "$codec_name" ] && {
 			if  [ -v audio_explicitly_requested ];  then
-				err "Adding an audio track was requested, but there’s no $such sound stream. Add “noaudio”?"
+				redmsg "Adding an audio track was requested, but the source video
+				        has no $such audio stream. Try setting “noaudio”?"
+				err "Cannot add sound: no $such audio stream. Try “noaudio”?"
 			else
 				#  It was just RC default setting,
 				#  it isn’t an error, that a video had no audio track at all.

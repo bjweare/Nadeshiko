@@ -10,8 +10,8 @@
 compose_known_res_list() {
 	local i j swap bitres_profile
 	for bitres_profile in ${!bitres_profile_*}; do
-		[[ "$bitres_profile" =~ ^bitres_profile_([0-9]+)p$ ]] \
-		&& known_res_list+=( ${BASH_REMATCH[1]} )
+		[[ "$bitres_profile" =~ ^bitres_profile_([0-9]+)p$ ]]  \
+			&& known_res_list+=( ${BASH_REMATCH[1]} )
 	done
 	for ((i=0; i<${#known_res_list[@]}-1; i++)); do
 		for ((j=i+1; j<${#known_res_list[@]}; j++)); do
@@ -30,14 +30,18 @@ post_read_rcfile() {
 	local  pct_varname  pct_var
 
 	#  Setting up the superglobal variables for Bahelite.
-	[ -v new_release_check_interval ] \
-		&& declare -g NEW_RELEASE_CHECK_INTERVAL="$new_release_check_interval"
-	[ -v desktop_notifications ] \
-		|| declare -g NO_DESKTOP_NOTIFICATIONS=t
+	[ -v new_release_check_interval ]  \
+		&& declare -g GITHUB_NEW_RELEASE_CHECK_INTERVAL="$new_release_check_interval"
+	[ -v desktop_notifications ] && {
+		#  Enabling it as early as possible, or the errors about wrong argu-
+		#  ments won’t have desktop notifications.
+		. "$LIBDIR/bahelite/bahelite_messages_to_desktop.sh"
+		check_required_utils
+	}
 
 	#  Processing the rest of the variables
-	[[ "$max_size_default" =~ ^(tiny|small|normal|unlimited)$ ]] \
-		&& declare -gn max_size_default=max_size_${max_size_default} \
+	[[ "$max_size_default" =~ ^(tiny|small|normal|unlimited)$ ]]  \
+		&& declare -gn max_size_default=max_size_${max_size_default}  \
 		|| err 'Invalid value for max_size_default.'
 	for pct_varname in $(compgen -A variable | grep '_pct$'); do
 		declare -n pct_var=$pct_varname
@@ -57,11 +61,14 @@ post_read_rcfile() {
 
 
 check_for_new_release_on_github() {
-	[[ "$NEW_RELEASE_CHECK_INTERVAL" =~ ^[0-9]{1,4}$ ]] \
+	[[ "$GITHUB_NEW_RELEASE_CHECK_INTERVAL" =~ ^[0-9]{1,4}$ ]]  \
 		|| err "Invalid updates checking interval in the RC file:
-		        “$NEW_RELEASE_CHECK_INTERVAL”."
-	check_for_new_release  deterenkelt Nadeshiko $version \
-	                       "$release_notes_url" ||:
+		        “$GITHUB_NEW_RELEASE_CHECK_INTERVAL”."
+	check_for_new_release  deterenkelt  \
+	                       Nadeshiko  \
+	                       $version  \
+	                       "$release_notes_url"  \
+		|| true
 	return 0
 }
 

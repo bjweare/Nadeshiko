@@ -15,6 +15,7 @@ set -feEuT
 shopt -s extglob
 BAHELITE_CHERRYPICK_MODULES=(
 	error_handling
+	messages_to_desktop
 	logging
 	rcfile
 	misc
@@ -66,7 +67,6 @@ declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 single_process_check
 pgrep -u $USER -af "bash.*nadeshiko-do-postponed.sh" \
 	&& err 'Cannot run at the same time with Nadeshiko-do-postponed.'
-
 
 
 on_error() {
@@ -282,8 +282,7 @@ populate_data_file() {
 			elif [ "$tr_type" = audio   -a  ! -v mute_true ]; then
 				case "$tr_is_external" in
 					true)
-						err 'External audio tracks aren’t supported yet.
-						     Please post an issue on the project page to speed up the work!'
+						err 'Cannot add external audio track: not supported yet.'
 						;;
 					false)
 						#  See the note at the similar place above.

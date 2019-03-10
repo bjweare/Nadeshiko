@@ -249,9 +249,9 @@ on_size_overshoot() {
 	overshot_size_pct=$((  diff_in_bytes / (max_size_in_bytes / 100) ))
 	[ $overshot_size_pct -eq 0 ] && overshot_size_pct=1 less_than='<'
 	[ $diff_in_bytes -ge $crit_overshoot_in_bytes ] && {
-		err "${__r}${__bri}Overshot size on $overshot_size_pct%.${__s}${__y}${__bri}
-		     It’s probably impossible to encode this clip to $max_size.
-		     If you think that it could be fixed, report a bug.${__s}"
+		redmsg "${__y}${__bri}It’s probably impossible to encode this clip to $max_size.
+		        If you think that it could be fixed, report a bug.${__s}"
+		err "${__r}${__bri}Overshot size on $overshot_size_pct%.${__s}"
 	}
 	#  There’s a rollercoaster behaviour in VP9,
 	#  that we avoid with additionally multiplying $correction_pct by two.
