@@ -1090,7 +1090,7 @@ encode() {
 		rm "$data_file"
 		if [ -e "/proc/${mpv_pid:-not exists}" ]; then
 			if [ $nadeshiko_retval -eq 0 ]; then
-				info 'Encoding done.'
+				info-ns 'Encoding done.'
 				send_command  show-text 'Encoding done.' '2000'
 			else
 				send_command  show-text 'Failed to encode.' '3000'
