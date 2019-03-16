@@ -125,7 +125,7 @@ encode() {
 
 get_last_encoded_file() {
 	local last_log last_file
-	read_last_log 'nadeshiko' || {
+	read_lastlog 'nadeshiko' || {
 		warn "Cannot get last log."
 		return 1
 	}

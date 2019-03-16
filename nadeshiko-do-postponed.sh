@@ -24,17 +24,16 @@ case "$mypath" in
 		source "$mypath/lib/bahelite/bahelite.sh";;
 esac
 prepare_cachedir 'nadeshiko'
-start_log
+start_logging
 set_libdir 'nadeshiko'
 set_modulesdir 'nadeshiko'
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 
-declare -r version="2.2.12"
-info "Nadeshiko-do-postponed v$version" >>"$LOG"
+declare -r version="2.2.13"
+info "Nadeshiko-do-postponed v$version" >>"$LOGPATH"
 declare -r rcfile_minver='2.0'
-declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 declare -r failed_jobs_dir="$postponed_commands_dir/failed"
 
@@ -60,43 +59,22 @@ pgrep -u $USER -af "bash.*nadeshiko.sh" &>/dev/null  \
 pgrep -u $USER -af "bash.*nadeshiko-mpv.sh" &>/dev/null  \
 	&& err 'Cannot run at the same time with Nadeshiko-mpv.'
 
-cd "$TMPDIR"
 
- # Process $postponed_commands as a file with multiple commands (old format)
-#  There’s a weird bug when this was done a simpler way – gathering path
-#    to executable and args and then launching "${comcom[@]}", when an empty
-#    line is read. Somehow, parts of ffmpeg output still got to the terminal,
-#    and after Nadeshiko was called once, the next line read from postponed
-#    was Time2 or the line with source video.
-#  Avoiding this bug by assembling all commands first and running them later.
-process_file() {
-	declare -g failed_jobs
-	local i=0  comcom_0=()  ref  com  last_log
-	while IFS= read -r -d $'\n'; do
-		if [ "$REPLY" ]; then
-			declare -n ref=comcom_$i
-			ref+=("$REPLY")
-		else
-			let ++i
-			declare -a comcom_$i
-		fi
-	done < "$postponed_commands"
 
-	for com in ${!comcom*}; do
-		declare -n ref=$com
-		echo -e "\n${ref[@]}"
-		${nice_cmd:-} ${taskset_cmd:-} "${ref[@]}" || {
-			[ -d "$failed_jobs_dir" ] || mkdir "$failed_jobs_dir"
-			if set_last_log_path 'nadeshiko'; then
-				mv "$LAST_LOG_PATH" "$failed_jobs_dir"
-			else
-				warn "Cannot get last log."
-			fi
-			let ++failed_jobs
-		}
-	done
+on_exit() {
+	#  Make sure, that we move the failed job files to $failed_jobs_dir
+	#  if the program is interrupted.
+	[ -v job_logdir  -a  -d "${job_logdir:-}" ]  \
+		&& move_job_to_failed "$jobfile" "$job_logdir"
+	return 0
+}
 
-	rm -f "$postponed_commands"
+
+move_job_to_failed() {
+	local jobfile="$1" job_logdir="$2"
+	[ -d "$failed_jobs_dir" ] || mkdir "$failed_jobs_dir"
+	mv "$jobfile"    "$failed_jobs_dir/"
+	mv "$job_logdir" "$failed_jobs_dir/"
 	return 0
 }
 
@@ -104,29 +82,54 @@ process_file() {
  # Process $postponed_commands_dir (new format)
 #
 process_dir() {
-	declare -g failed_jobs
-	local last_log
+	declare -g  processed_jobs  failed_jobs  completed_jobs
+	local  msg
 	while IFS= read -r -d '' jobfile; do
-		if ${nice_cmd:-} ${taskset_cmd:-} "$jobfile";  then
-			rm "$jobfile"
+		if [[ "${jobfile##*/}" =~ \.(.{8})\.sh$ ]]; then
+			job_id="${BASH_REMATCH[1]}"
+			job_logdir="$postponed_commands_dir/$job_id.log"
+			mkdir "$job_logdir"
 		else
-			[ -d "$failed_jobs_dir" ] || mkdir "$failed_jobs_dir"
-			if set_last_log_path 'nadeshiko'; then
-				mv "$LAST_LOG_PATH" "$failed_jobs_dir"
-				mv "$jobfile" "$failed_jobs_dir"
-			else
-				warn "Cannot get last log."
-			fi
-			let ++failed_jobs
+			redmsg "Invalid job id in file
+			        ${jobfile##*/}"
+			err 'Cannot determine job ID.'
 		fi
+
+		msg="Running job "
+		msg+="${__bri}${__g}$((processed_jobs+1))${__s}"
+		msg+="/$jobs_in_dir; "
+		msg+="ID ${__bri}$job_id${__s}…  "
+		infon "$msg"
+
+		if	env  \
+				LOGDIR="$job_logdir"  \
+				BAHELITE_VERBOSITY_LEVEL=1  \
+				MSG_INDENTATION_LEVEL="$MSG_INDENTATION_LEVEL"  \
+				${nice_cmd:-} ${taskset_cmd:-} "$jobfile"
+
+		then
+			let '++completed_jobs || 1'
+			echo -e "${__g}${__bri}Complete${__bri_rst} "
+			rm -rf "$jobfile" "$job_logdir"
+
+		else
+			echo -e "${__r}${__bri}Fail.${__s}"
+			move_job_to_failed "$jobfile" "$job_logdir"
+			let ++failed_jobs
+			#  Stop running if the shell is in interactive mode.
+			#  (doesn’t work: $- may be unset even in an actually interactive
+			#   shell, and checking the output of “tty” command will depend
+			#   on the terminal in question.
+			# [[ "$-" =~ .*i.* ]] && err ''
+		fi
+		let '++processed_jobs || 1'
+
 	done < <( find "$postponed_commands_dir" -maxdepth 1 -type f -print0 )
 	return 0
 }
 
 
 run_jobs() {
-	#  Finishing tasks from the single file, which is deprecated.
-	[ -f "$postponed_commands" ] && process_file
 	#  Doing tasks from the directory, the new way.
 	[ -d "$postponed_commands_dir" ] && process_dir
 	return 0
@@ -136,15 +139,6 @@ run_jobs() {
  # Return true, if there are jobs, return false, if there are no jobs to do.
 #
 collect_jobs() {
-	if [ -f "$postponed_commands" ]; then
-		if [ "$(<"$postponed_commands")" ]; then
-			#  count jobs
-			jobs_in_file=$(grep -cF 'nadeshiko.sh' "$postponed_commands") ||:
-			[[ "$jobs_in_file" =~ ^[0-9]+$ ]] \
-				|| err 'Couldn’t get the count of jobs in the file.'
-		fi
-	fi
-
 	if [ -d "$postponed_commands_dir" ]; then
 		if [ "$(ls -A "$postponed_commands_dir")" ]; then
 			while IFS='' read -r -d ''; do
@@ -163,25 +157,25 @@ collect_jobs() {
 		fi
 	fi
 
-	jobs_to_run=$(( jobs_in_file + jobs_in_dir ))
-	total_jobs=$(( jobs_in_file + jobs_in_dir + failed_jobs ))
+	jobs_to_run=$jobs_in_dir
+	total_jobs=$(( jobs_in_dir + failed_jobs ))
 	info "Job count
 	      ─────────────────
-	      in the file: $jobs_in_file
-	      in the directory: $jobs_in_dir
-	          total for the launch: $jobs_to_run
-
+	      to run: $jobs_in_dir
 	      in failed: $failed_jobs"
 	return 0
 }
 
 
 
-jobs_in_file=0
+cd "$TMPDIR"
+
 jobs_in_dir=0
 jobs_to_run=0
-failed_jobs=0
 total_jobs=0
+completed_jobs=0
+failed_jobs=0
+processed_jobs=0
 
 if [ -v DISPLAY ]; then
 	. "$MODULESDIR/nadeshiko-do-postponed_dialogues_${dialog:=gtk}.sh"

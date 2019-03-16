@@ -30,24 +30,25 @@ case "$mypath" in
 		source "$mypath/lib/bahelite/bahelite.sh";;
 esac
 prepare_cachedir 'nadeshiko'
-start_log
+start_logging
 set_libdir 'nadeshiko'
 . "$LIBDIR/mpv_ipc.sh"
 . "$LIBDIR/gather_file_info.sh"
+. "$LIBDIR/time_functions.sh"
 . "$LIBDIR/xml_and_python_functions.sh"
 set_modulesdir 'nadeshiko'
-set +f
+noglob_off
 for module in "$MODULESDIR"/nadeshiko-mpv_*.sh ; do
 	. "$module" || err "Couldn’t source module $module."
 done
-set -f
+noglob_on
 set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 place_rc_and_examplerc 'nadeshiko'
 
-declare -r version="2.3.16"
-info "Nadeshiko-mpv v$version" >>"$LOG"
+declare -r version="2.3.17"
+info "Nadeshiko-mpv v$version" >>"$LOGPATH"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
 	show_preview
@@ -82,31 +83,10 @@ on_error() {
 	for func in ${FUNCNAME[@]}; do
 		#  If we couldn’t prepare option list, because we hit an error
 		#  with Nadeshiko in dryrun mode…
-		if [ "$func" = choose_preset ]; then
-			#  This probably isn’t needed any more, as the dryrun log
-			#  of nadeshiko is copied entirely into nadeshiko-mpv log itself.
-			#
-			# LOGDIR="$TMPDIR" \
-			# set_last_log_path 'nadeshiko'
-			# [ -v LAST_LOG_PATH ] && [ -r "$LAST_LOG_PATH" ] && {
-			# 	cp "$LAST_LOG_PATH" "$LOGDIR"
-			# 	info "Nadeshiko dryrun log:
-			# 	      $LOGDIR/${LAST_LOG_PATH##*/}"
-			# 	which xclip &>/dev/null && {
-			# 		# trapondebug unset
-			# 		echo -n "$LOGDIR/${LAST_LOG_PATH##*/}" | xclip
-			# 		# trapondebug set
-			# 		info 'Copied path to clipboard.'
-			# 	}
-			# }
-			:
-		#  If we hit an error while parsing .glade or .py files
-		#  or while running the .py file…
-		elif [ "$func" = show_dialogue_choose_preset ]; then
+		[ "$func" = show_dialogue_choose_preset ] && {
 			[ -r "$pyfile" ] && cp "$pyfile" "$LOGDIR"
 			[ -r "$gladefile" ] && cp "$gladefile" "$LOGDIR"
-
-		fi
+		}
 	done
 
 	#  Cropping module’s own on_error().
@@ -116,12 +96,20 @@ on_error() {
 }
 
 
+on_exit() {
+	#  If mpv still runs, clear any OSD message, that might be left hanging.
+	[ -v WIPE_MPV_SCREEN_ON_EXIT  -a  -e "/proc/${mpv_pid:-not exists}" ]  \
+		&& send_command  show-text  ' '  '1'
+	return 0
+}
+
+
 [ -d "$datadir" ] || mkdir "$datadir"
 cd "$datadir"
 if [ -e wipe_me ]; then
-	set +f
+	noglob_off
 	rm -rf ./*
-	set -f
+	noglob_on
 else
 	# Delete files older than one hour.
 	find -type f -mmin +60  -delete
@@ -171,11 +159,22 @@ post_read_rcfile() {
 
 
 write_var_to_datafile() {
-	local varname="$1" varval="$2"
-	info "Setting $varname and appending it to ${data_file##*/}."
-	declare -g $varname="$varval"
-	sed -ri "/^$varname=/d" "$data_file"
-	printf "$varname=%q\n" "$varval" >> "$data_file"
+	local varname="$1" varval="$2"  var
+	[ "$varval" = '--only-export' ] || {
+		info "Setting $varname and appending it to ${data_file##*/}."
+		declare -g $varname="$varval"
+	}
+	sed -ri "/^(declare -[a-zA-Z]+ |)$varname=/d" "$data_file"
+	#  Human-readable times in the postponed jobs
+	#  NB this code relies upon bash-4.4 “@A” operator. It appeared only
+	#  recently, and the nuances described below may change in the future.
+	#  1. @A operator resolves the nameref – the original variable name
+	#     is printed.
+	#  2. [@] is necessary to restore arrays, but the regular variables
+	#     accept it too (even integers!), which allows to avoid making
+	#     “[@]” placed conditionally.
+	declare -n var=$varname
+	echo "${var[@]@A}" >> "$data_file"
 	return 0
 }
 
@@ -184,7 +183,7 @@ del_var_from_datafile() {
 	local varname="$1"
 	unset $varname
 	info "Deleting $varname from ${data_file##*/}."
-	sed -ri "/^$varname=/d" "$data_file"
+	sed -ri "/^(declare -[a-zA-Z]+ |)$varname=/d" "$data_file"
 	return 0
 }
 
@@ -321,10 +320,10 @@ check_needed_vars() {
 
 put_time() {
 	local mute_text subvis_text
-	get_prop time-pos
-	time_pos=${time_pos%???}
+	get_prop  time-pos
 	if [ ! -v time1 -o -v time2 ]; then
-		write_var_to_datafile time1 "$time_pos"
+		new_time_array  time1  "${time_pos%???}"
+		write_var_to_datafile  time1  --only-export
 		get_props sub-visibility mute
 		[ -v sub_visibility_true ] \
 			&& subvis_text='Subs: ON' \
@@ -337,7 +336,8 @@ put_time() {
 		del_var_from_datafile time2
 
 	elif [ -v time1 -a ! -v time2 ]; then
-		write_var_to_datafile time2 "$time_pos"
+		new_time_array  time2  "${time_pos%???}"
+		write_var_to_datafile  time2  --only-export
 		populate_data_file
 		[ -v sub_visibility_true ] \
 			&& subvis_text='Subs: ON' \
@@ -353,12 +353,14 @@ put_time() {
 
 arrange_times() {
 	check_needed_vars
-	local time_buf
-	[ "$time1" = "$time2" ] && err "Time1 and Time2 are the same."
-	[ "${time1%.*}" -gt "${time2%.*}" ] && {
-		time_buf="$time1"
-		write_var_to_datafile time1 "$time2"
-		write_var_to_datafile time2 "$time_buf"
+	declare -A time_buf=()
+	[ "${time1[ts]}" = "${time2[ts]}" ] && err "Time1 and Time2 are the same."
+	[ "${time1[total_ms]}" -gt "${time2[total_ms]}" ] && {
+		new_time_array  time_buf "${time1[ts]}"
+		new_time_array  time1 "${time2[ts]}"
+		new_time_array  time2 "${time_buf[ts]}"
+		write_var_to_datafile  time1 --only-export
+		write_var_to_datafile  time2 --only-export
 	}
 	return 0
 }
@@ -542,8 +544,8 @@ play_preview() {
 	     --title "Preview – $MY_DISPLAY_NAME" \
 	     --input-ipc-server="$temp_sock" \
 	     --pause=no \
-	     --start="$time1" \
-	     --ab-loop-a="$time1" --ab-loop-b="$time2" \
+	     --start="${time1[ts]}" \
+	     --ab-loop-a="${time1[ts]}" --ab-loop-b="${time2[ts]}" \
 	     --mute=$mute \
 	     --volume=$volume \
 	     --sub-visibility=$sub_visibility \
@@ -579,7 +581,7 @@ choose_preset() {
 	#
 	prepare_preset_options() {
 		local nadeshiko_preset="$1"  nadeshiko_preset_name="$2"  size  \
-		      scene_complexity  option_list=()  last_line_in_last_log  \
+		      scene_complexity  option_list=()  lastline_in_lastlog  \
 		      native_profile  preset_fitmark  preset_fitdesc  i  \
 		      running_preset_mpv_msg
 		[ "${3:-}" ] && scene_complexity="$3"
@@ -595,7 +597,8 @@ choose_preset() {
 		           bitres_profile_2160p
 		declare -A ffmpeg_subtitle_fallback_style
 
-		info "Preset: $nadeshiko_preset"  >&2
+		info "Preset: $nadeshiko_preset"                                   >&2
+		#                                              notice me, senpai!  ^^^
 		milinc
 		. "$EXAMPLECONFDIR/example.nadeshiko.rc.sh" \
 			|| err "Cannot read example.nadeshiko.rc.sh"
@@ -748,7 +751,7 @@ choose_preset() {
 				continue
 			}
 
-			info "Size: $size"  >&2
+			info "Size: $size"                                             >&2
 			milinc
 			running_preset_mpv_msg='Running Nadeshiko predictor'
 			running_preset_mpv_msg+="\nPreset: “$nadeshiko_preset_name”"
@@ -756,45 +759,53 @@ choose_preset() {
 				&& running_preset_mpv_msg+="\nSize: “default”" \
 				|| running_preset_mpv_msg+="\nSize: “$size”"
 			if [ -v scene_complexity ]; then
-				send_command  show-text "$running_preset_mpv_msg" '10000'
+				send_command  show-text "$running_preset_mpv_msg" $((10*1000))
 			else
 				running_preset_mpv_msg+="\n\nDetermining scene complexity…"
-				send_command  show-text "$running_preset_mpv_msg" '15000'
+				send_command  show-text "$running_preset_mpv_msg" $((20*60*1000))
 			fi
 			#  Expecting exit codes either 0 or 5  (fits or doesn’t fit)
-			set +e
-			LOGDIR="$TMPDIR"  \
-			NO_DESKTOP_NOTIFICATIONS=t  \
-			"$MYDIR/nadeshiko.sh" "$nadeshiko_preset"  \
-			                      "$time1" "$time2" "$size" "$path" \
-			                      ${crop:+crop=$crop} \
-			                      dryrun  \
-			                      ${scene_complexity:+force_scene_complexity=$scene_complexity} \
-			                      &>/dev/null
-			set -e
-			info 'Getting the path to the last log.'  >&2
+			errexit_off
+
+			env \
+				LOGDIR="$TMPDIR"                     \
+				MSG_DISABLE_DESKTOP_NOTIFICATIONS=t  \
+				BAHELITE_VERBOSITY_LEVEL=1           \
+				"$MYDIR/nadeshiko.sh" "$nadeshiko_preset"            \
+				                      "${time1[ts]}" "${time2[ts]}"  \
+				                      "$size" "$path"                \
+				                      ${crop:+crop=$crop}            \
+				                      dryrun                         \
+				                      ${scene_complexity:+force_scene_complexity=$scene_complexity}
+
+			errexit_on
+			info 'Getting the path to the last log.'                       >&2
 			LOGDIR="$TMPDIR" \
-			read_last_log 'nadeshiko'
-			last_line_in_last_log=$(sed -rn '$ p' <<<"$LAST_LOG_TEXT" 2>&1)
-			grep -qE '(Encoding with|Cannot fit)' <<<"$last_line_in_last_log" || {
+			read_lastlog 'nadeshiko' || err 'Nadeshiko didn’t write a log.'
+			lastline_in_lastlog=$(sed -rn '$ p' <<<"$LASTLOG_TEXT" 2>&1)                                 # Can be replaced with shell commands
+			grep -qE '(Encoding with|Cannot fit)' <<<"$lastline_in_lastlog" || {                         # Can be replaced with shell commands
 				warn 'Nadeshiko couldn’t perform the scene complexity test!'
-				echo -en "${__mi}${__y}${__bri}+++ Nadeshiko log " >&2
-				for ((i=0; i<TERM_COLS-18; i++)); do  echo -n '+';  done
-				echo
-				echo -e "${__s}" >&2
-				sed -r "s/.*/${__mi}&/" "$LAST_LOG_PATH" >&2
-				echo
-				echo -en "${__mi}${__y}${__bri}+++ End of Nadeshiko log " >&2
-				for ((i=0; i<TERM_COLS-25; i++)); do  echo -n '+';  done
-				echo -e "${__s}" >&2
+				echo -en "${__mi}${__y}${__bri}+++ Nadeshiko log "         >&2
+				for ((i=0; i<TERM_COLS-18; i++)); do
+					echo -n '+'                                            >&2
+				done
+				echo                                                       >&2
+				echo -e "${__s}"                                           >&2
+				sed -r "s/.*/${__mi}&/" "$LASTLOG_PATH"                    >&2
+				echo                                                       >&2
+				echo -en "${__mi}${__y}${__bri}+++ End of Nadeshiko log "  >&2
+				for ((i=0; i<TERM_COLS-25; i++)); do
+					echo -n '+'                                            >&2
+				done
+				echo -e "${__s}"                                           >&2
 				err 'Error while parsing Nadeshiko log.'
 			}
 
 			[ -v scene_complexity ] || {    #  Once.
-				info 'Reading scene complexity from the log.'  >&2
+				info 'Reading scene complexity from the log.'              >&2
 				scene_complexity=$(
 					sed -rn 's/\s*\*\s*Scene complexity:\s(static|dynamic).*/\1/p' \
-						<<<"$LAST_LOG_TEXT"
+						<<<"$LASTLOG_TEXT"
 				)
 				if [[ "$scene_complexity" =~ ^(static|dynamic)$ ]]; then
 					info "Determined scene complexity as $scene_complexity."  >&2
@@ -805,29 +816,29 @@ choose_preset() {
 						option_list[3]="$scene_complexity"
 					}
 				else
-					warn-ns "Couldn’t determine scene complexity." >&2
+					warn-ns "Couldn’t determine scene complexity."         >&2
 					scene_complexity='dynamic'
 				fi
 				echo "$scene_complexity" >"$TMPDIR/scene_complexity"
 			}
 
 			unset bitrate_corrections
-			grep -qF 'Bitrate corrections to be applied' <<<"$LAST_LOG_TEXT" \
+			grep -qF 'Bitrate corrections to be applied' <<<"$LASTLOG_TEXT" \
 				&& bitrate_corrections=t
 
 			container=$(
-				sed -rn 's/\s*\*\s*.*\+.*→\s*(.+)\s*.*/\1/p'  <<<"$LAST_LOG_TEXT"
+				sed -rn 's/\s*\*\s*.*\+.*→\s*(.+)\s*.*/\1/p'  <<<"$LASTLOG_TEXT"
 			)
 			[ "$container" ] || warn-ns 'Couldn’t determine container.'
-			info "Container to be used: $container"  >&2
+			info "Container to be used: $container"                        >&2
 
 			native_profile=$(
 				sed -rn 's/\s*\* Starting bitres profile: ([0-9]{3,4}p)\./\1/p' \
-					<<<"$LAST_LOG_TEXT"
+					<<<"$LASTLOG_TEXT"
 			)
 			[[ "$native_profile" =~ ^[0-9]{3,4}p$ ]] \
-				|| warn-ns 'Couldn’t determine native bitres profile.' >&2
-			info "Native bitres profile for the video: $native_profile"  >&2
+				|| warn-ns 'Couldn’t determine native bitres profile.'     >&2
+			info "Native bitres profile for the video: $native_profile"    >&2
 			for ((i=0; i<${#option_list[@]}; i++)); do
 				[ "${option_list[i]}" = '<Native>p' ] && {
 					info "Updating value “Native” in the option_list[$i] to $native_profile." >&2
@@ -837,7 +848,7 @@ choose_preset() {
 				}
 			done
 
-			if [[ "$last_line_in_last_log" =~ Encoding\ with.*\ ([0-9]+p|Native|Cropped).* ]]; then
+			if [[ "$lastline_in_lastlog" =~ Encoding\ with.*\ ([0-9]+p|Native|Cropped).* ]]; then
 				encoding_res_code="${BASH_REMATCH[1]}"
 				if [[ "$encoding_res_code" =~ ^(Native|Cropped)$ ]]; then
 					preset_fitmark='='
@@ -848,14 +859,14 @@ choose_preset() {
 				fi
 				[ -v bitrate_corrections ] && preset_fitdesc+='*'
 
-			elif [[ "$last_line_in_last_log" =~ Cannot\ fit ]]; then
+			elif [[ "$lastline_in_lastlog" =~ Cannot\ fit ]]; then
 				preset_fitmark='x'
 				preset_fitdesc="Won’t fit"
 
 			else
 				preset_fitmark='?'
 				preset_fitdesc="Unknown"
-				warn-ns 'Unexpected value in Nadeshiko config.'
+				warn-ns 'Unexpected value in Nadeshiko config.'            >&2
 
 			fi
 
@@ -896,6 +907,11 @@ choose_preset() {
 		return 0
 	}
 
+
+	#  We’re going to print long-lasting messages on mpv screen, so in case
+	#  the program would quit on this stage, make sure to leave screen clean.
+	export WIPE_MPV_SCREEN_ON_EXIT=t
+
 	preset_idx=0
 	for nadeshiko_preset_name in "${!nadeshiko_presets[@]}"; do
 		#  To put the default preset first later.
@@ -904,8 +920,8 @@ choose_preset() {
 		nadeshiko_preset="${nadeshiko_presets[$nadeshiko_preset_name]}"
 		declare -g -a  preset_option_array_$preset_idx
 		declare -n current_preset_option_array="preset_option_array_$preset_idx"
-		[ ! -v scene_complexity  -a  -r "$TMPDIR/scene_complexity" ] \
-			&& scene_complexity=$(<"$TMPDIR/scene_complexity")
+		[ ! -v scene_complexity  -a  -r "$TMPDIR/scene_complexity" ]  \
+			&& read scene_complexity  <"$TMPDIR/scene_complexity"
 		#  Subshell call is necessary here.
 		#  It is to sandbox the sourcing of Nadeshiko configs.
 		param_list=$(
@@ -920,6 +936,9 @@ choose_preset() {
 		let ++preset_idx
 	done
 
+	#  No long-lasting messages are to be printed now, so unset the variable.
+	unset WIPE_MPV_SCREEN_ON_EXIT
+
 	#  Placing the default preset first to be opened in GUI by default.
 	ordered_preset_list=( ${!preset_option_array_*} )
 	[ "${ordered_preset_list[0]}" != preset_option_array_$gui_default_preset_idx ] && {
@@ -928,19 +947,11 @@ choose_preset() {
 		ordered_preset_list[gui_default_preset_idx]="$temp"
 	}
 
-	 # Must be here, because mpv_pid is used in functions, that send messages
-	#  to mpv window, when it may be closed. To avoid that, we must know
-	#  its PID and check if it’s still running, so if there would be
-	#  no window, we wouldn’t send anything.
-	#
-	mpv_pid=$(lsof -t -c mpv -a -f -- "$mpv_socket")
-	[[ "$mpv_pid" =~ ^[0-9]+$ ]] || err "Couldn’t determine mpv PID."
-
 	echo
 	info "Dispatching options to dialogue window:"
 	declare -p ordered_preset_list
 	declare -p ${!preset_option_array_*}
-	send_command  show-text 'Building GUI' '1000'
+	send_command  show-text 'Building GUI' '3000'
 	show_dialogue_choose_preset "${ordered_preset_list[@]}"
 
 	IFS=$'\n' read -r -d ''  resp_nadeshiko_preset  \
@@ -1016,7 +1027,7 @@ encode() {
 	#    firing up the encode, especially, if it’s the 2nd, the 3rd or the 15th.
 	#
 	nadeshiko_command=(
-		"$MYDIR/nadeshiko.sh"  "$time1" "$time2" "$path"
+		"$MYDIR/nadeshiko.sh"  "${time1[ts]}" "${time2[ts]}" "$path"
 		                       "$audio" "$subs" "$max_size"
 		                       ${crop:+crop=$crop}
 		                       "${screenshot_directory:-$working_directory}"
@@ -1027,7 +1038,9 @@ encode() {
 	if [ -v postpone ]; then
 		[ -d "$postponed_commands_dir" ] || mkdir "$postponed_commands_dir"
 		postponed_job_file="$postponed_commands_dir"
-		postponed_job_file+="/$(mktemp -u "${path##*/}.XXXXXXXX").sh"
+		postponed_job_file+="/$(
+			mktemp -u "${path##*/} ${time1[ts]}–${time2[ts]}.XXXXXXXX"
+		).sh"
 		cat <<-EOF >"$postponed_job_file"
 		#! /usr/bin/env bash
 
@@ -1055,27 +1068,42 @@ encode() {
 		fi
 		exit 0
 	else
-		set +e
-		set -x
-		"${nadeshiko_command[@]}"
+		info 'Running Nadeshiko'
+		milinc
+		echo -en "${__mi}${__y}${__bri}+++ Nadeshiko log " >&2
+		for ((i=0; i<TERM_COLS-18; i++)); do  echo -n '+';  done
+		echo -e "${__s}"
+		errexit_off
+
+		env  \
+			LOGPATH="$LOGPATH"  \
+			BAHELITE_VERBOSITY_LEVEL=1  \
+			MSG_INDENTATION_LEVEL="$MSG_INDENTATION_LEVEL"  \
+			"${nadeshiko_command[@]}"
 		nadeshiko_retval=$?
-		set +x
-		set -e
+
+		errexit_on
+		echo -en "${__mi}${__y}${__bri}+++ End of Nadeshiko log "
+		for ((i=0; i<TERM_COLS-25; i++)); do  echo -n '+';  done
+		echo -e "${__s}"
+		mildec
 		rm "$data_file"
 		if [ -e "/proc/${mpv_pid:-not exists}" ]; then
 			if [ $nadeshiko_retval -eq 0 ]; then
+				info 'Encoding done.'
 				send_command  show-text 'Encoding done.' '2000'
 			else
 				send_command  show-text 'Failed to encode.' '3000'
 				#  Don’t display a desktop notification with an error here –
 				#  nadeshiko.sh does this.
 				# err 'Encoding failed.'
+				err 'Failed to encode.'
 			fi
 		else
 			: warn-ns "Not sending anything to mpv: it was closed."
 		fi
 	fi
-	return $nadeshiko_retval
+	return 0
 }
 
 
@@ -1084,12 +1112,12 @@ play_encoded_file() {
 
 	local  last_file  temp_sock="$(mktemp -u)"
 	check_needed_vars
-	read_last_log 'nadeshiko' || {
+	read_lastlog 'nadeshiko' || {
 		warn "Cannot get last log."
 		return 1
 	}
-	info "last_log: $LAST_LOG_PATH"
-	last_file=$(sed -rn '/Encoded successfully/ {n; s/^..//p}' <<<"$LAST_LOG_TEXT")
+	info "last_log: $LASTLOG_PATH"
+	last_file=$(sed -rn '/Encoded successfully/ {n; s/^..//p}' <<<"$LASTLOG_TEXT")
 	info "last_file: $last_file"
 
 	[ -e "/proc/${mpv_pid:-not exists}" ] && pause_and_leave_fullscreen
@@ -1107,7 +1135,7 @@ play_encoded_file() {
 	     --sub-visibility=yes \
 	     --osd-msg1="Encoded file" \
 	     --screenshot-directory="${screenshot_directory:-$working_directory}" \
-	     "${screenshot_directory:-$working_directory}/$last_file"
+		     "${screenshot_directory:-$working_directory}/$last_file"
 	rm -f "$temp_sock"
 	return 0
 }
@@ -1129,9 +1157,7 @@ declare -r xml=$(which xmlstarlet)  # for lib/xml_and_python_functions.sh
 
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && show_help && exit 0
 [[ "${1:-}" =~ ^(-v|--version)$ ]] && show_version && exit 0
-#  Can be passed to set both Time1 and Time2,
-#  acts only when the time to encode comes.
-[ "${1:-}" ] && [ "${1:-}" = postpone ] && postpone=t
+[ "${1:-}"  -a  "${1:-}" = postpone ] && postpone=t
 [ "$*" -a ! -v postpone ] && {
 	show_help
 	err 'The only parameter may be “postpone”!'
@@ -1160,7 +1186,7 @@ declare -r xml=$(which xmlstarlet)  # for lib/xml_and_python_functions.sh
 #    run preview. The second window would  be as it is now, unchanged.
 #
 get_props mpv-version filename
-data_file=$(grep -rlF "filename=$(printf '%q' "$filename")" |& head -n1)
+data_file=$(grep -rlF "filename='$filename'" |& head -n1)
 if [ -e "$data_file" ]; then
 	# Read properties.
 	. "$data_file"
@@ -1175,6 +1201,16 @@ else
 	write_var_to_datafile mpv_socket "$mpv_socket"
 fi
 
+
+ # Must be here, because mpv_pid is used in functions, that send messages
+#  to mpv window, when it may be closed. To avoid that, we must know
+#  its PID and check if it’s still running, so if there would be
+#  no window, we wouldn’t send anything.
+#
+export mpv_pid=$(lsof -t -c mpv -a -f -- "$mpv_socket")
+[[ "$mpv_pid" =~ ^[0-9]+$ ]] || err "Couldn’t determine mpv PID."
+
+
 #  If this is the first run, set time1 and quit.
 #  On the second run (time2 is set) do the rest.
 put_time && [ -v time2 ] && {
@@ -1183,8 +1219,7 @@ put_time && [ -v time2 ] && {
 	choose_crop_settings
 	play_preview
 	choose_preset
-	#  Call Nadeshiko and if it quits with non-zero code, convey that code.
-	encode || exit $?
+	encode
 	#  Show the encoded file.
 	play_encoded_file
 }

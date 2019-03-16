@@ -658,11 +658,11 @@ show_dialogue_choose_mpv_socket() {
 	declare -g dialog_output
 	local dialog_retval
 	prepare_dotglade_and_dotpy_for_sockets "$1"
-	set +e
+	errexit_off
 	dialog_output=$( "$py_file"  startpage=gtkbox_choose_socket )
 	dialog_retval=$?
-	set -e
-	declare -p dialog_output
+	errexit_on
+	info "Dialog output: “$dialog_output”"
 	check_pyfile_exit_code $dialog_retval
 	return 0
 }
@@ -672,11 +672,11 @@ show_dialogue_crop_and_predictor() {
 	declare -g dialog_output
 	local dialog_retval
 	prepare_dotglade_and_dotpy_for_crop_and_predictor "$@"
-	set +e
+	errexit_off
 	dialog_output=$( "$py_file"  startpage=gtkbox_crop_and_predictor )
 	dialog_retval=$?
-	set -e
-	declare -p dialog_output
+	errexit_on
+	info "Dialog output: “$dialog_output”"
 	check_pyfile_exit_code $dialog_retval
 	return 0
 }
@@ -706,11 +706,11 @@ show_dialogue_choose_preset() {
 	declare -g dialog_output
 	local dialog_retval
 	prepare_dotglade_and_dotpy_for_presets "$@"
-	set +e
+	errexit_off
 	dialog_output=$( "$py_file"  startpage=gtkbox_pick_size)
 	dialog_retval=$?
-	set -e
-	declare -p dialog_output
+	errexit_on
+	info "Dialog output: “$dialog_output”"
 	check_pyfile_exit_code $dialog_retval
 	return 0
 }

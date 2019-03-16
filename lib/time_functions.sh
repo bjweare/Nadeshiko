@@ -38,34 +38,24 @@ is_valid_timestamp() {
 }
 
 
- # Splits a timestamp ($1) into parts, takes a variable name ($2)
-#  and creates an associative array in global scope, that contains
-#  the timestamp and its parts separately along with the total number
-#  of seconds, seconds.milliseconds and milliseconds.
-#  $1 – timestamp
-#  $2 – variable name
+ # Creates a global associative array $1 with timestamp $2 represented
+#  in several formats as the keys.
+#  $1 – variable name
+#  $2 – timestamp
 #
 new_time_array() {
-	local ts="${1:-}" varname="${2:-}"
-	is_valid_timestamp "$ts" || {
-		warn "$ts is not a valid timestamp."
-		return 5
-	}
-	[ "$varname" ] || {
-		warn "Variable name shouldn’t be empty."
-		return 5
-	}
-	[ -v "$varname" ] && {
-		warn "Variable “$varname” already exists."
-		return 5
-	}
+	local varname="${1:-}"  ts="${2:-}"
+	is_valid_timestamp "$ts"  \
+		|| err "$ts is not a valid timestamp."
+	[ "$varname" ]  \
+		|| err "Variable name shouldn’t be empty."
 	#  Array must be _assigned_ a value (an empty value counts),
 	#    or a record of it will be created, but it won’t be actually declared
 	#    here, which will lead to it being local.
 	#  Creation of an empty associative array with declare and "$varname"=()
 	#    is not possible, so we just use "$varname"=. This will, however,
 	#    create an empty element with index 0, which we’ll delete right away.
-	declare -A -g "$varname"=  # DON’T TOUCH. IT WORKS ONLY IN THIS FORM.
+	declare -A -g "$varname"=   # DON’T TOUCH. IT WORKS ONLY IN THIS FORM.
 	unset newarr[0]
 	declare -n newarr="$varname"
 	local  h  m  s  ms  ts_short  ts_short_no_ms  total_s_ms  total_s  total_ms
@@ -151,10 +141,8 @@ new_time_array() {
 #
 total_ms_to_total_s_ms() {
 	local ms="${1:-}"
-	[[ "$ms" =~ ^[0-9]{1,9}$ ]] || {
-		warn "Wrong number of milliseconds: “$ms”."
-		return 5
-	}
+	[[ "$ms" =~ ^[0-9]{1,9}$ ]]  \
+		|| err "Wrong number of milliseconds: “$ms”."
 	#  Total seconds.
 	echo -n $(( ms / 1000 ))
 	#  Dot.
@@ -171,10 +159,8 @@ total_ms_to_total_s_ms() {
 #
 mediainfo_hms_to_total_s() {
 	local mihms="$1" d h m s ms total_s
-	[[ "$mihms" =~ ^(([0-9]{1,})d|)(([0-9]{1,2})h|)(([0-9]{1,2})mi?n?|)(([0-9]{1,2})s|)(([0-9]{1,3})ms|)$ ]] || {
-		echo "“$mihms” is not a valid mediainfo timestamp."
-		return 5
-	}
+	[[ "$mihms" =~ ^(([0-9]{1,})d|)(([0-9]{1,2})h|)(([0-9]{1,2})mi?n?|)(([0-9]{1,2})s|)(([0-9]{1,3})ms|)$ ]]  \
+		|| err "“$mihms” is not a valid mediainfo timestamp."
 	d=${BASH_REMATCH[2]:-0}
 	h=${BASH_REMATCH[4]:-0}
 	m=${BASH_REMATCH[6]:-0}
@@ -185,7 +171,7 @@ mediainfo_hms_to_total_s() {
 	             + h * 60 * 60
 	             + m * 60
 	             + s                 ))
-	[ $total_s -eq 0 ] && { echo 'Duration is zero.'; return 5;	}
+	[ $total_s -eq 0 ] && err 'Duration is zero.'
 	echo "$total_s"
 	return 0
 }

@@ -28,19 +28,19 @@ prepare_dotglade_for_launch_jobs() {
 	if [ "$jobs_to_run" -eq 0 ]; then
 		message+='There are no jobs to run!'
 	else
-		message+="There $(plural_s $jobs_to_run are is) $jobs_to_run"
-		message+=" job$(plural_s $jobs_to_run)."
+		message+="There $(plur_sing $jobs_to_run are is) $jobs_to_run"
+		message+=" job$(plur_sing $jobs_to_run)."
 		message+=$'\n'
-		message+="Run $(plural_s $jobs_to_run them it)?"
+		message+="Run $(plur_sing $jobs_to_run them it)?"
 	fi
 	[ "$failed_jobs" -gt 0 ] && {
 		message+=$'\n\n\n'
 		[ "$jobs_to_run" -eq 0 ]  \
-			&& message+="(But there $(plural_s $failed_jobs are is) $failed_jobs"  \
-			|| message+="(There $(plural_s $failed_jobs are is) also $failed_jobs"
-		message+=" failed job$(plural_s $failed_jobs),"
+			&& message+="(But there $(plur_sing $failed_jobs are is) $failed_jobs"  \
+			|| message+="(There $(plur_sing $failed_jobs are is) also $failed_jobs"
+		message+=" failed job$(plur_sing $failed_jobs),"
 		message+=$'\n'
-		message+="that await$(plural_s $failed_jobs '' s) your attention.)"
+		message+="that await$(plur_sing $failed_jobs '' s) your attention.)"
 	}
 	edit_attr_in_xml 'entire_xml' \
 	                 "//object[@id='label_there_are_N_jobs']/property[@name='label']" \
@@ -118,7 +118,7 @@ show_dialogue_launch_jobs() {
 	dialog_output=$( "$py_file"  startpage=gtkbox_launch_jobs )
 	dialog_retval=$?
 	set -e
-	declare -p dialog_output
+	info "Dialog output: “$dialog_output”"
 	check_pyfile_exit_code $dialog_retval
 	return 0
 }

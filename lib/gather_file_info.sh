@@ -78,20 +78,14 @@ get_header_ratios() {
 		< <(mediainfo -f "$video" \
 	    	|& sed -rn 's/^(Header|Data|Footer)Size\s+:\s+([0-9]+).*/\2/p'; \
 	        echo -en '\0' )
-	[[ "$header" =~ ^[0-9]+$ ]] || {
-		warn "Couldn’t determine header length."
-		return 3
-	}
+	[[ "$header" =~ ^[0-9]+$ ]]  \
+		|| err "Couldn’t determine header length."
 	# Footer should be of zero size for Nadeshiko’s vids,
 	# as we move MOOV atom to the header.
-	[[ "$footer" =~ ^[0-9]+$ ]] || {
-		warn "Couldn’t determine footer length."
-		return 3
-	}
-	[[ "$data" =~ ^[0-9]+$ ]] || {
-		warn "Couldn’t determine data length."
-		return 3
-	}
+	[[ "$footer" =~ ^[0-9]+$ ]]  \
+		|| err "Couldn’t determine footer length."
+	[[ "$data" =~ ^[0-9]+$ ]]  \
+		|| err "Couldn’t determine data length."
 	containers_own_weight=$((header+footer))
 	overall_size=$((header+footer+data))
 	container_to_ovsize_ratio="$(echo "scale=2; $containers_own_weight * 100 / $overall_size" | bc)" # percents

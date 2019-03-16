@@ -32,27 +32,27 @@ case "$mypath" in
 		source "$mypath/lib/bahelite/bahelite.sh";;
 esac
 prepare_cachedir
-start_log
-set +f
+start_logging
+noglob_off
 rm -f "$LOGDIR/"ffmpeg*  "$LOGDIR/"mkvextract*  "$LOGDIR/time_output"
-set -f
+noglob_on
 set_libdir
 #  For parsing ffprobe and mediainfo output into usable format.
 . "$LIBDIR/gather_file_info.sh"
 #  For manipulating timestamp forms.
 . "$LIBDIR/time_functions.sh"
 set_modulesdir
-set +f
+noglob_off
 for module in "$MODULESDIR"/nadeshiko_*.sh ; do
 	. "$module" || err "Couldn’t source module $module."
 done
-set -f
+noglob_on
 set_exampleconfdir
 prepare_confdir
 place_rc_and_examplerc
 
-declare -r version='2.5.11'
-info "Nadeshiko v$version" >>"$LOG"
+declare -r version='2.5.12'
+info "Nadeshiko v$version" >>"$LOGPATH"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.2.4'
 
@@ -70,12 +70,12 @@ declare where_to_place_new_file="$PWD"
 declare -A codec_names_as_formats
 declare -a known_sub_codecs
 declare -a can_be_used_together
-declare -A bitres_profile_360p \
-           bitres_profile_480p \
-           bitres_profile_576p \
-           bitres_profile_720p \
-           bitres_profile_1080p \
-           bitres_profile_1440p \
+declare -A bitres_profile_360p   \
+           bitres_profile_480p   \
+           bitres_profile_576p   \
+           bitres_profile_720p   \
+           bitres_profile_1080p  \
+           bitres_profile_1440p  \
            bitres_profile_2160p
 declare -A ffmpeg_subtitle_fallback_style
 RCFILE_BOOLEAN_VARS+=(
@@ -167,7 +167,7 @@ read_rcfile "$rcfile_minver"
 post_read_rcfile
 
 #  Stage 2
-parse_args "${args[@]}"
+parse_args "${NEW_ARGS[@]}"
 check_util_support  video  ${audio:+audio}  ${subs:+subs} \
                     ${time_stat:+time_stat} \
                     ${check_for_updates:+check_for_updates}

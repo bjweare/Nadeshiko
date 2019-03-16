@@ -221,9 +221,9 @@ print_stats() {
 		return 0
 	}
 	pass1_and_pass2_s=$((  pass1_s + pass2_s  ))
-	new_time_array $pass1_s pass1_time
-	new_time_array $pass2_s pass2_time
-	new_time_array $pass1_and_pass2_s pass1_and_pass2_time
+	new_time_array  pass1_time  $pass1_s
+	new_time_array  pass2_time  $pass2_s
+	new_time_array  pass1_and_pass2_time  $pass1_and_pass2_s
 	speed_ratio=$(echo "scale=2; $pass1_and_pass2_s/${duration[total_s]}" | bc)
 	speed_ratio="${__bri}${__y}$speed_ratio${__s}"
 	info "Stats:

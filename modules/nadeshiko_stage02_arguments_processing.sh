@@ -30,9 +30,9 @@ parse_args() {
 
 		elif is_valid_timestamp "$arg"; then
 			if [ ! -v time1  -a  ! -v time2 ]; then
-				new_time_array "$arg" 'time1'  || err 'Couldn’t set Time1'
+				new_time_array  time1  "$arg"  || err 'Couldn’t set Time1'
 			elif [ -v time1  -a  ! -v time2 ]; then
-				new_time_array "$arg" 'time2'  || err 'Couldn’t set Time2.'
+				new_time_array  time2  "$arg"  || err 'Couldn’t set Time2.'
 			else
 				err 'Cannot work with more than 2 timestamps.'
 			fi
@@ -342,14 +342,15 @@ check_mutually_exclusive_options() {
 check_times() {
 	#  Getting video duration to compare with the requested.
 	#  If we couldn’t retrieve it, it’s not critical.
-	new_time_array "$(get_mediainfo_attribute "$video" g 'Duration')" \
-	               'mediainfo_source_duration'  || :
+	new_time_array  mediainfo_source_duration  \
+	                "$(get_mediainfo_attribute "$video" g 'Duration')" \
+		|| true
 
 	[ ! -v time1  -a  ! -v time2 ] && {
 		#  If neither Time1 nor Time2 is set, use the full video duration.
-		new_time_array "00:00:00.000" 'time1'  \
+		new_time_array  time1  "00:00:00.000"  \
 			|| err 'Couldn’t set Time1 to 00:00:00.000'
-		new_time_array "${mediainfo_source_duration[ts]}" 'time2' \
+		new_time_array  time2  "${mediainfo_source_duration[ts]}"  \
 			|| err "Couldn’t set Time2 to ${mediainfo_source_duration[ts]}"
 	}
 	[ ${time2[total_ms]} -gt ${time1[total_ms]} ]  \
@@ -358,9 +359,9 @@ check_times() {
 	[ ${time1[total_ms]} -eq ${time2[total_ms]} ] \
 		&& err 'Time1 and Time2 are the same.'
 
-	new_time_array "$(total_ms_to_total_s_ms "$((   ${stop[total_ms]}
-	                                              - ${start[total_ms]} ))" )" \
-	               'duration'
+	new_time_array   duration  \
+	                "$(total_ms_to_total_s_ms "$((   ${stop[total_ms]}
+	                                               - ${start[total_ms]} ))" )"
 	if [ -v mediainfo_source_duration ]; then
 		if [[ "${mediainfo_source_duration[total_s]}" =~ ^[0-9]+$ ]]; then
 			#  Trying to prevent negative space_for_video_track.

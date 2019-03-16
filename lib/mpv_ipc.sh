@@ -357,20 +357,17 @@ send_command() {
 	#
 	#  There may be no .data, it’s OK, and it returns OK.
 	data=$(echo "$mpv_answer" | jq -r .data) || {
-		bahelite_print_call_stack
 		redmsg "“$command $*”: no .data in JSON answer. The answer was:
 		        $mpv_answer"
 		err "Protocol error"
 	}
 	status=$(echo "$mpv_answer" | jq -r .error) || {
-		bahelite_print_call_stack
 		redmsg "“$command $*”: no .error in JSON answer. The answer was:
 		        $mpv_answer"
 		err "Protocol error"
 	}
 	#  If there’s no status, or status ≠ success, this is a problem.
 	[ "$status" != success ] && {
-		bahelite_print_call_stack
 		redmsg "$command $*: the status in the error field is “$status”."
 		err "Protocol error"
 	}
@@ -398,7 +395,6 @@ internal_set_prop() {
 	else
 		#  Undefined
 		unset $propname
-		bahelite_print_call_stack
 		redmsg "$FUNCNAME: Unknown value for $orig_propname: “$propval”."
 		err "MPV-IPC: property value type mismatch."
 	fi

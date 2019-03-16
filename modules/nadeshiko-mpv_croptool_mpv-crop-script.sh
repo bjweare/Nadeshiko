@@ -3,7 +3,7 @@
 #  nadeshiko-mpv_croptool_mpv-crop-script.sh
 #  Implementation of a cropping module for Nadeshiko-mpv
 #  using mpv_crop_script.lua by TheAMM. Hacks over hacks.
-#  © deterenkelt 2018
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
@@ -13,6 +13,9 @@ REQUIRED_UTILS+=( inotifywait )
 
 croptool_path="$LIBDIR/mpv_crop_script/mpv_crop_script.lua"
 
+ # Must be defined in the environment.
+#
+# mpv_pid
 
 
 is_crop_tool_available() {
