@@ -6,16 +6,16 @@
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo 'Must be sourced from bahelite.sh.' >&2
-	return 5
+	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"  >&2
+	echo "load the core module (bahelite.sh) first."  >&2
+	return 4
 }
-. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
-. "$BAHELITE_DIR/bahelite_versioning.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_GITHUB_VER ] && return 0
+bahelite_load_module 'versioning' || return $?
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_GITHUB_VER='1.0.9'
+declare -grx BAHELITE_MODULE_GITHUB_VER='1.0.10'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date      # (coreutils)
 #	stat      # (coreutils)
@@ -36,21 +36,10 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
  # Default interval, that check_for_new_release() will use to look
 #  for a new release. You can redefine it after sourcing bahelite.sh
 #
-export GITHUB_NEW_RELEASE_CHECK_INTERVAL=21  # each N days
+[ -v GITHUB_NEW_RELEASE_CHECK_INTERVAL ]  \
+	|| declare -gx GITHUB_NEW_RELEASE_CHECK_INTERVAL=21  # each N days
 
 
- # Confirms, that updater_timestamp exists.
-#  The timestamp is used to maintain the specified interval between checks.
-#  Can be overriden after sourcing bahelite.sh.
-#
-bahelite_create_updater_timestamp() {
-	#  Internal! No xtrace on/off needed!
-	#
-	#  Default path, where release check timestamp should be placed.
-	declare -g RELEASE_CHECK_TIMESTAMP="${CACHEDIR:-$MYDIR}/updater_timestamp"
-	[ -f "$RELEASE_CHECK_TIMESTAMP" ] || touch "$RELEASE_CHECK_TIMESTAMP"
-	return 0
-}
 
 
  # Downloads “Releases” page of a github repo and compares the version
@@ -76,29 +65,36 @@ bahelite_create_updater_timestamp() {
 #
 check_for_new_release() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	bahelite_create_updater_timestamp
+	#  MYDIR is checked here for locally downloaded and locally launched
+	#  scripts! If you install to OS, consider using CACHEDIR!
+	local timestamp_file="${CACHEDIR:-$MYDIR}/updater_timestamp"
+	[ -f "$timestamp_file" ] || touch "$timestamp_file"
 	local days_since_last_check=$((
 		(    $(date +%s)
-		   - $(stat -L --format %Y "$RELEASE_CHECK_TIMESTAMP")
-		) / 60 / 60 / 24                                        ,1 ))
-	[ $days_since_last_check -lt $GITHUB_NEW_RELEASE_CHECK_INTERVAL ] \
+		   - $(stat -L --format %Y "$timestamp_file")
+		)
+		/ 60
+		/ 60
+		/ 24
+	))
+	(( days_since_last_check < GITHUB_NEW_RELEASE_CHECK_INTERVAL ))  \
 		&& return 1
 	local user="$1" repo="$2" our_ver="$3" relnotes_url="${4:-}" \
 	      relnotes_action="${5:-}"  latest_release_ver  \
 	      message  open_relnotes_url
 	is_version_valid "$our_ver" || {
-		warn "Our version “$our_ver” is not a valid string."
+		warn "Main script version “$our_ver” is not a valid string."
 		return 5
 	}
 	latest_release_ver=$(
 		wget -O- https://github.com/$user/$repo/releases/latest \
 			|& sed -rn "s=^.*/$user/$repo/tree/v([0-9\.]+).*$=\1=p;T;Q"
-	) ||:
+	) || true
 	is_version_valid "$latest_release_ver" || {
 		warn "Latest release version “$latest_release_ver” is not a valid string."
 		return 5
 	}
-	touch "$RELEASE_CHECK_TIMESTAMP"
+	touch "$timestamp_file"
 
 	if compare_versions "$latest_release_ver" '>' "$our_ver"; then
 		info-ns "${__bri}v$latest_release_ver is available!${__s}"
@@ -148,6 +144,7 @@ check_for_new_release() {
 }
 
 
-export -f  bahelite_create_updater_timestamp \
-           check_for_new_release
+
+export -f  check_for_new_release
+
 return 0

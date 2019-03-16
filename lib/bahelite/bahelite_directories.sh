@@ -6,26 +6,26 @@
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo 'Must be sourced from bahelite.sh.' >&2
-	return 5
+	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"  >&2
+	echo "load the core module (bahelite.sh) first."  >&2
+	return 4
 }
-. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_DIRECTORIES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_DIRECTORIES_VER='1.1.3'
+declare -grx BAHELITE_MODULE_DIRECTORIES_VER='1.1.4'
 
 
 
                      #  Paths within user’s $HOME  #
 
 [ -v XDG_CONFIG_HOME ]  \
-	|| export XDG_CONFIG_HOME="$HOME/.config"
+	|| declare -gx  XDG_CONFIG_HOME="$HOME/.config"
 [ -v XDG_CACHE_HOME ]  \
-	|| export XDG_CACHE_HOME="$HOME/.cache"
+	|| declare -gx  XDG_CACHE_HOME="$HOME/.cache"
 [ -v XDG_DATA_HOME ]  \
-	|| export XDG_DATA_HOME="$HOME/.local/share"
+	|| declare -gx  XDG_DATA_HOME="$HOME/.local/share"
 
 
  # Prepares config directory with respect to XDG
@@ -37,17 +37,20 @@ BAHELITE_MODULE_DIRECTORIES_VER='1.1.3'
 #
 prepare_confdir() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -gx CONFDIR
+	declare -g BAHELITE_CONFDIR_PREPARED   #  Must NOT be exported!
+	local own_subdir
 	[ -v BAHELITE_CONFDIR_PREPARED ] && {
 		info "Config directory is already prepared!"
 		return 0
 	}
 	[ "${1:-}" ] \
-		&& local own_subdir="$1" \
-		|| local own_subdir="${MYNAME%.*}"
-	[ -v CONFDIR ] || CONFDIR="$XDG_CONFIG_HOME/$own_subdir"
-
+		&& own_subdir="$1" \
+		|| own_subdir="${MYNAME%.*}"
+	[ -v CONFDIR ]  \
+		|| CONFDIR="$XDG_CONFIG_HOME/$own_subdir"
 	bahelite_check_directory "$CONFDIR" 'Config'
-	declare -g BAHELITE_CONFDIR_PREPARED=t
+	BAHELITE_CONFDIR_PREPARED=t
 	return 0
 }
 
@@ -61,18 +64,20 @@ prepare_confdir() {
 #
 prepare_cachedir() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -gx CACHEDIR
+	declare -g BAHELITE_CACHEDIR_PREPARED   # Must NOT be exported!
+	local own_subdir
 	[ -v BAHELITE_CACHEDIR_PREPARED ] && {
 		info "Cache directory is already prepared!"
 		return 0
 	}
-	local own_subdir
 	[ "${1:-}" ] \
-		&& local own_subdir="$1" \
-		|| local own_subdir="${MYNAME%.*}"
-	[ -v CACHEDIR ] || CACHEDIR="$XDG_CACHE_HOME/$own_subdir"
-
+		&& own_subdir="$1" \
+		|| own_subdir="${MYNAME%.*}"
+	[ -v CACHEDIR ]  \
+		|| CACHEDIR="$XDG_CACHE_HOME/$own_subdir"
 	bahelite_check_directory "$CACHEDIR" 'Cache'
-	declare -g BAHELITE_CACHEDIR_PREPARED=t
+	BAHELITE_CACHEDIR_PREPARED=t
 	return 0
 }
 
@@ -86,17 +91,20 @@ prepare_cachedir() {
 #
 prepare_datadir() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -gx DATADIR
+	declare -g BAHELITE_DATADIR_PREPARED   # Must NOT be exported!
+	local own_subdir
 	[ -v BAHELITE_DATADIR_PREPARED ] && {
 		info "Data directory is already prepared!"
 		return 0
 	}
 	[ "${1:-}" ] \
-		&& local own_subdir="$1" \
-		|| local own_subdir="${MYNAME%.*}"
-	[ -v DATADIR ] || DATADIR="$XDG_DATA_HOME/$own_subdir"
-
+		&& own_subdir="$1" \
+		|| own_subdir="${MYNAME%.*}"
+	[ -v DATADIR ]  \
+		|| DATADIR="$XDG_DATA_HOME/$own_subdir"
 	bahelite_check_directory "$DATADIR" 'Data'
-	declare -g BAHELITE_DATADIR_PREPARED=t
+	BAHELITE_DATADIR_PREPARED=t
 	return 0
 }
 
@@ -267,7 +275,7 @@ __set_source_dir() {
 		[ -d "$dir" ] && {
 			bahelite_check_module_verbosity \
 				&& info "$varname = $dir"
-			declare -g $varname="$dir"
+			declare -gx $varname="$dir"
 			break
 		}
 	done
@@ -299,7 +307,7 @@ bahelite_check_directory() {
 
 
 [[ "$MYDIR" =~ (/usr/bin|/usr/local/bin) ]]  \
-	&& BAHELITE_SPLIT_INSTALLATION=t
+	&& declare -grx BAHELITE_SPLIT_INSTALLATION=t
 
 export -f  prepare_confdir  \
            prepare_cachedir  \

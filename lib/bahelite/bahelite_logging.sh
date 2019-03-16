@@ -6,43 +6,76 @@
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo 'Must be sourced from bahelite.sh.' >&2
-	return 5
+	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
+	echo "load the core module (bahelite.sh) first." >&2
+	return 4
 }
-. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
-. "$BAHELITE_DIR/bahelite_directories.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
+bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_LOGGING_VER='1.5.3'
+declare -grx BAHELITE_MODULE_LOGGING_VER='1.5.4'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
-#	date   #  (coreutils) to add date to $LOG file name and to the log itself.
+#	date   #  (coreutils) to add date to $LOGPATH file name and to the log itself.
+#	ls     #  (coreutils)
+	xargs  #  (findutils)
 	pkill  #  (procps) to find and kill the logging tee nicely, so it wouldn’t
 	       #           hang.
 )
 
 
 
-if [ -v BAHELITE_LOG_MAX_COUNT ]; then
-	[[ "$BAHELITE_LOG_MAX_COUNT" =~ ^[0-9]{1,4}$ ]] \
-		|| err "BAHELITE_LOG_MAX_COUNT should be a number,
-		        but it is currently set to “$BAHELITE_LOG_MAX_COUNT”."
+if [ -v LOGGING_MAX_LOGFILES ]; then
+	[[ "$LOGGING_MAX_LOGFILES" =~ ^[0-9]{1,4}$ ]] \
+		|| err "LOGGING_MAX_LOGFILES should be a number,
+		        but it was set to “$LOGGING_MAX_LOGFILES”."
 else
-	export BAHELITE_LOG_MAX_COUNT=5
+	declare -gx LOGGING_MAX_LOGFILES=5
 fi
 
 
- # Call this function to start logging.
-#  To keep logs under $CACHEDIR, run prepare_cachedir() before calling this
-#  function, or logs will be written under $MYDIR.
+ # Organises logging for the main script
+#  Determines LOGDIR and creates file LOGNAME in LOGPATH, then writes initial
+#  records to it. LOGPATH and LOGDIR might be specified through environment,
+#  see below. Logging obeys verbosity leves, see more about them
+#  in bahelite_messages.sh.
 #
-start_log() {
+start_logging() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	declare -g BAHELITE_LOGGING_STARTED
-	local arg
-	if [ -v LOGDIR ]; then
+	#  Must NOT be exported!
+	declare -gx  LOGPATH  LOGDIR  LOGNAME  \
+	             BAHELITE_LOGGING_STARTED  BAHELITE_LOGGING_USES_TEE
+	local arg  overwrite_logpath=t
+	#  Priority of directories to be used as LOGDIR
+	#  LOGPATH set from the environment.              LOGPATH = LOGPATH
+	#  │                                               LOGDIR = ${LOGPATH%/*}
+	#  └ if not set:
+	#    LOGDIR set from the environment.              LOGDIR = $LOGDIR
+	#    └ if not set:
+	#      CACHEDIR set by prepare_cachedir().         LOGDIR = $CACHEDIR/logs
+	#      └ if not set:
+	#        MYDIR.                                    LOGDIR = $MYDIR/logs 
+	#        └ if can’t write to it:
+	#          TMPDIR.                                 LOGDIR = $TMPDIR/logs
+	#          (In this case you may also want to set
+	#           BAHELITE_DONT_CLEAR_TMPDIR.)
+	if [ -v LOGPATH ]; then
+		[ -w "$LOGPATH" ] || {
+			redmsg "LOGPATH specified in the environment is not writeable:
+			        $LOGPATH"
+			redmsg "Unsetting LOGPATH variable."
+			err "Specified log file doesn’t exist or is not writeable."
+		}
+		LOGDIR=${LOGPATH%/*}
+		LOGNAME=${LOGPATH##*/}
 		bahelite_check_directory "$LOGDIR"  'Logging'
+		unset overwrite_logpath
+
+	elif [ -v LOGDIR ]; then
+		#  If LOGDIR is not a writeable directory, triggers an error.
+		bahelite_check_directory "$LOGDIR"  'Logging'
+
 	else
 		LOGDIR="${CACHEDIR:-$MYDIR}/logs"
 		[ -d "$LOGDIR"  -a  -w "$LOGDIR" ] || {
@@ -53,21 +86,28 @@ start_log() {
 			}
 		}
 	fi
-	LOG="$LOGDIR/${MYNAME%.*}_$(date +%Y-%m-%d_%H:%M:%S).log"
-	#  Removing old logs, keeping maximum of $LOG_KEEP_COUNT of recent logs.
+
+	[ -v LOGPATH ] || {
+		LOGNAME="${MYNAME%.*}_$(date +%Y-%m-%d_%H:%M:%S).log"
+		LOGPATH="$LOGDIR/$LOGNAME"
+	}
+	#  Removing old logs, keeping maximum of $LOGGING_MAX_LOGFILES
+	#  of recent logs.
 	pushd "$LOGDIR" >/dev/null
 	#  Deleting leftover variable dump.
 	rm -f variables
 	bahelite_noglob_off
 	( ls -r "${MYNAME%.*}_"* 2>/dev/null || true ) \
-		| tail -n+$BAHELITE_LOG_MAX_COUNT \
+		| tail -n+$LOGGING_MAX_LOGFILES \
 		| xargs rm -v &>/dev/null || true
 	bahelite_noglob_on
 	popd >/dev/null
-	echo "${__mi}Log started at $(LC_TIME=C date)." >"$LOG"
-	echo "${__mi}Command line: $CMDLINE" >>"$LOG"
+	[ -v overwrite_logpath ]  \
+		&& echo -n  >"$LOGPATH"
+	echo "${__mi}Log started at $(LC_TIME=C date)."  >>"$LOGPATH"
+	echo "${__mi}Command line: $CMDLINE" >>"$LOGPATH"
 	for ((i=0; i<${#ARGS[@]}; i++)) do
-		echo "${__mi}ARGS[$i] = ${ARGS[i]}" >>"$LOG"
+		echo "${__mi}ARGS[$i] = ${ARGS[i]}" >>"$LOGPATH"
 	done
 
 	#  Toggling ondebug trap, as (((under certain circumstances))) it happens
@@ -81,36 +121,31 @@ start_log() {
 		0)    exec  &>/dev/null
 		      ;;
 
-		1)    exec >>"$LOG"  2>>"$LOG"
+		1)    exec >>"$LOGPATH"  2>>"$LOGPATH"
 		      ;;
 
-		3)    exec  >/dev/null  \
-		           2> >(tee -ia "$LOG" >&2  || true)
+		3)    exec  > /dev/null  \
+		           2> >(tee -ia "$LOGPATH" >&2  || true)
+		      BAHELITE_LOGGING_USES_TEE=t
 		      ;;
 
-		2|5)  exec  > >(tee -ia "$LOG"      || true)  \
-		           2> >(tee -ia "$LOG" >&2  || true)
+		2|5)  exec  > >(tee -ia "$LOGPATH"      || true)  \
+		           2> >(tee -ia "$LOGPATH" >&2  || true)
+		      BAHELITE_LOGGING_USES_TEE=t
 		      ;;
 	esac
 	#  Restoring the trap on DEBUG
 	bahelite_functrace_on
 
-	export  LOG  LOGDIR  BAHELITE_LOGGING_STARTED=t
+	BAHELITE_LOGGING_STARTED=t
 	return 0
 }
 
 
-show_path_to_log() {
+print_logpath() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	if [ -v BAHELITE_MODULE_MESSAGES_VER ]; then
-		info "Log is written to
-		      $LOG"
-	else
-		cat <<-EOF
-		Log is written to
-		$LOG
-		EOF
-	fi
+	info "Log is written to
+	      $LOGPATH"
 	return 0
 }
 
@@ -119,46 +154,44 @@ show_path_to_log() {
 #  [$1] – log name prefix, if not set, equal to $MYNAME
 #         without .sh at the end (caller script’s own log).
 #
-set_last_log_path() {
+set_lastlog_path() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	declare -g LAST_LOG_PATH
-	local logname="${1:-}" last_log
+	declare -gx LASTLOG_PATH
+	local logname="${1:-}" lastlog_name
 	[ "$logname" ] || logname=${MYNAME%.*}
 	pushd "$LOGDIR" >/dev/null
 	bahelite_noglob_off
-	last_log=$(ls -tr ${logname}_*.log | tail -n1)
+	lastlog_name=$(ls -tr ${logname}_*.log | tail -n1)
 	bahelite_noglob_on
-	[ -f "$last_log" ] || return 1
+	[ -f "$lastlog_name" ] || return 1
 	popd >/dev/null
-	LAST_LOG_PATH="$LOGDIR/$last_log"
-	export LAST_LOG_PATH
+	LASTLOG_PATH="$LOGDIR/$lastlog_name"
 	return 0
 }
 
 
- # Reads the contents of the log file by path set in LAST_LOG_PATH
-#    into LAST_LOG_TEXT.
+ # Reads the contents of the log file by path set in LASTLOG_PATH
+#    into LASTLOG_TEXT.
 #  Also checks, if the last log has an error message, and if it does, then
-#    copies the portion from where the error message starts in LAST_LOG_TEXT
-#    up to the end of file, and sets this text as the value for LAST_LOG_ERROR
+#    copies the portion from where the error message starts in LASTLOG_TEXT
+#    up to the end of file, and sets this text as the value for LASTLOG_ERROR
 #    variable. The indicator of an error message is whatever is specified in
 #    BAHELITE_ERR_MESSAGE_COLOUR varaible (should be set to $__r from the
 #    bahelite_colours.sh). As all error handling functions in bahelite (that
 #    is err, abort, errw and ierr) are final commands resulting in the call
 #    to the “exit” builtin, there can be only one error message in the log.
 #
-read_last_log() {
+read_lastlog() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	# declare -g LAST_LOG_ERROR
+	# declare -g LASTLOG_ERROR
 	local err_msg_marker  err_msg_text
-	set_last_log_path "$@" || return $?
-	declare -g LAST_LOG_TEXT
+	set_lastlog_path "$@" || return $?
+	declare -gx LASTLOG_TEXT
 	#  Stripping control characters, primarily to delete colours codes.
-	LAST_LOG_TEXT=$(
-		sed -r 's/[[:cntrl:]]\[[0-9]{1,3}[mKG]//g' "$LAST_LOG_PATH"
+	LASTLOG_TEXT=$(
+		sed -r 's/[[:cntrl:]]\[[0-9]{1,3}[mKG]//g' "$LASTLOG_PATH"
 	)
-	export LAST_LOG_TEXT
-	 # Setting LAST_LOG_ERROR is disabled, for it’s easier to just
+	 # Setting LASTLOG_ERROR is disabled, for it’s easier to just
 	#  heave-ho the entire log into another log, than to parse its errors.
 	#
 	#  However, the following two methods can be consiedered:
@@ -169,7 +202,7 @@ read_last_log() {
 	#         useful in understanding the real error.
 	#     How to grab:
 	#         log_call_stack=$(
-	#             grep -B 1 -A 99999 '\-\-\- Call stack ' "$LAST_LOG_PATH"
+	#             grep -B 1 -A 99999 '\-\-\- Call stack ' "$LASTLOG_PATH"
 	#         )
 	#  2. Finding the first entrance of the red colour, or whatever sequence
 	#     is put into BAHELITE_ERR_MESSAGE_COLOUR.
@@ -186,22 +219,22 @@ read_last_log() {
 	#       in the pattern for sed.
 	#         err_msg_marker="${BAHELITE_ERR_MESSAGE_COLOUR//\\e/\\x1b}"
 	#         err_msg_marker="${err_msg_marker//\[/\\\[}"
-	#         sed -rn "/$err_msg_marker/,$ p" "$LAST_LOG_PATH"
+	#         sed -rn "/$err_msg_marker/,$ p" "$LASTLOG_PATH"
 	#       or simply
 	#         log_err_message=$(
-	#             sed -rn "/\x1b\[31m/,$ p" "$LAST_LOG_PATH"
+	#             sed -rn "/\x1b\[31m/,$ p" "$LASTLOG_PATH"
 	#         )
 	#  3. Finding uncaught errors. There is no way to tell for sure,
 	#       if a line in the log would, so, unless all of the error could be
 	#       caught, it is more reasonable to perform all these checks from
-	#       a script above the one, whose LOG is parsed, i.e. the script call-
+	#       a script above the one, whose LOGPATH is parsed, i.e. the script call-
 	#       ing the mother script. The script above should receive a non-zero
 	#       exit code from the inner script, and this provides the reason
 	#       to do every possible check for an error, including this one.
 	#     Indeed, this check should be the last one among the three.
 	#     How to grab:
 	#         log_last_line=$(
-	#             tac "$LAST_LOG_PATH" | grep -vE '^\s*$' | head -n1  \
+	#             tac "$LASTLOG_PATH" | grep -vE '^\s*$' | head -n1  \
 	#                 | sed -r "s/.*/$__mi&/" >&2
 	#         )
 
@@ -209,9 +242,35 @@ read_last_log() {
 }
 
 
-export -f  start_log  \
-           show_path_to_log  \
-           set_last_log_path  \
-           read_last_log
+stop_logging() {
+	[ -v BAHELITE_LOGGING_STARTED  -a  -v BAHELITE_LOGGING_USES_TEE ] && {
+		#  Without this the script would seemingly quit, but the bash
+		#    process will keep hanging to support the logging tee.
+		#  Searching with a log name is important to not accidentally kill
+		#    the mother script’s tee, in case one script calls another,
+		#    and both of them use Bahelite.
+		#
+		#  Since the “tee” is made to ignore signals (tee -ia), there is no
+		#    need to kill it, as the main process catches all the signals,
+		#    and tee now receives SIGPIPE (or SIGHUP) in a natural way.
+		#  Is this still needed?
+		pkill -PIPE  --session 0  -f "tee -ia $LOGPATH" || true
+
+		#  Kills for sure
+		# pkill -9  --session 0  -f "tee -ia $LOGPATH" || true
+
+		#  Leaves an ugly message to console/log
+		# pkill -HUP  --session 0  -f "tee -ia $LOGPATH" || true
+	}
+	return 0
+}
+
+
+
+export -f  start_logging      \
+           print_logpath      \
+           set_lastlog_path   \
+           read_lastlog       \
+           stop_logging
 
 return 0

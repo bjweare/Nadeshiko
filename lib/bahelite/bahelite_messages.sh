@@ -1,21 +1,24 @@
 # Should be sourced.
 
 #  bahelite_messages.sh
-#  Provides messages for console and desktop.
-#  deterenkelt © 2018–2019
+#  Provides messages for console and desktop (if messages_to_desktop module
+#  is included too).
+#  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo 'Must be sourced from bahelite.sh.' >&2
-	return 5
+	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
+	echo "load the core module (bahelite.sh) first." >&2
+	return 4
 }
-. "$BAHELITE_DIR/bahelite_colours.sh" || return 5
-. "$BAHELITE_DIR/bahelite_misc.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
+[ -v MSG_DISABLE_COLOURS ] || {
+	bahelite_load_module 'colours' || return $?
+}
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_VER='2.4'
+declare -grx BAHELITE_MODULE_MESSAGES_VER='2.5'
 
 
 
@@ -87,13 +90,13 @@ BAHELITE_MODULE_MESSAGES_VER='2.4'
 #  2. Desktop messages are sent only as long as NO_DESKTOP_NOTIFICATIONS
 #     remains undefined. (See below.)
 #  3. Logging is enabled only if the logging module was included
-#     in the main script and it called start_log(). That function also
+#     in the main script and it called start_logging(). That function also
 #     controls verbosity of the log output.
 #  4. The verbosity of console and desktop functions is controlled in the
 #     __msg() below.
 #
 [ -v BAHELITE_VERBOSITY_LEVEL ] \
-	|| export BAHELITE_VERBOSITY_LEVEL=5
+	|| declare -gx BAHELITE_VERBOSITY_LEVEL=5
 
 
 
@@ -101,8 +104,8 @@ BAHELITE_MODULE_MESSAGES_VER='2.4'
 
  # Internal message lists
 #
-declare -Ax BAHELITE_INFO_MESSAGES=()
-declare -Ax BAHELITE_WARNING_MESSAGES=()
+declare -gAx BAHELITE_INFO_MESSAGES=()
+declare -gAx BAHELITE_WARNING_MESSAGES=()
 #
  # Error messages
 #  Keys are used as parameters to err() and values are printed via msg().
@@ -111,7 +114,7 @@ declare -Ax BAHELITE_WARNING_MESSAGES=()
 #  You can localise messages by redefining this array in some file
 #    and sourcing it.
 #
-declare -Ax BAHELITE_ERROR_MESSAGES=(
+declare -gAx BAHELITE_ERROR_MESSAGES=(
 	[no such msg]='No such message keyword: “$1”.'
 	[no util]='Utils are missing: $1.'
 )
@@ -134,28 +137,33 @@ declare -Ax BAHELITE_ERROR_MESSAGES=(
 #
 # declare -x MSG_USE_KEYWORDS=t
 #
-declare -Ax INFO_MESSAGES=()
-declare -Ax WARNING_MESSAGES=()
-declare -Ax ERROR_MESSAGES=()
+declare -gAx INFO_MESSAGES=()
+declare -gAx WARNING_MESSAGES=()
+declare -gAx ERROR_MESSAGES=()
 #
 #  Custom exit codes, the keys should be the same as in ERROR_MESSAGES.
-declare -Ax ERROR_CODES=()
+declare -gAx ERROR_CODES=()
+
 
  # Colours for the console and log messages
-#  Regular functions (info, warn, err) apply the colour only to the asterisk.
+#  Regular functions (info, warn, err) apply it only to asterisk.
+#  Somebody may have an idea to use these variables to colour their own
+#    output, but if MSG_DISABLE_COLOURS would be set, such usage may end
+#    with a bash error, so there should be at least an empty value.
 #
-export INFO_MESSAGE_COLOUR=$__green
-export WARN_MESSAGE_COLOUR=$__yellow
-export ERR_MESSAGE_COLOUR=$__red
-export PLAIN_MESSAGE_COLOUR=$__fg_rst
+declare -gx INFO_MESSAGE_COLOUR=${__green:-}
+declare -gx WARN_MESSAGE_COLOUR=${__yellow:-}
+declare -gx ERR_MESSAGE_COLOUR=${__red:-}
+declare -gx PLAIN_MESSAGE_COLOUR=${__fg_rst:-}
+
 
  # Define this variable to start each message not with just an asterisk
 #    ex:  * Stage 01 completed.
 #  but with a keyword that would define the type of the message. Especially
-#  handy if you use MSG_NO_COLOURS=t to suppress colours.
+#  handy if you use MSG_DISABLE_COLOURS=t to suppress colours.
 #    ex:  * INFO: Stage 01 completed.
 #
-# export MSG_ASTERISK_WITH_MSGTYPE=t
+# declare -gx MSG_ASTERISK_WITH_MSGTYPE=t
 #
 #
  # Define this variable in the main script to disable colouring the messages.
@@ -163,7 +171,7 @@ export PLAIN_MESSAGE_COLOUR=$__fg_rst
 #  from bahelite_colours.sh will still be available, however, they will be
 #  stripped or not added to any *info*() *warn*() or *err*() messages.
 #
-# export MSG_NO_COLOURS=t
+# declare -gx MSG_DISABLE_COLOURS=t
 #
 #
  # When printing to console/logs, use “fold” for better appearance. This uti-
@@ -171,37 +179,46 @@ export PLAIN_MESSAGE_COLOUR=$__fg_rst
 #  so if you deal with non-ascii characters, you may get only 1/2 of the
 #  terminal width used.
 #
-# export MSG_FOLD_MESSAGES=t
+# declare -gx MSG_FOLD_MESSAGES=t
 
  # Message indentation level
 #  Checking, if it’s already set, in case one script calls another –
 #  so that indentaion would be inherited in the inner script.
-[ -v BAHELITE_MI_LEVEL ]  \
-	|| export BAHELITE_MI_LEVEL=0
+[ -v MSG_INDENTATION_LEVEL ]  \
+	|| declare -gx MSG_INDENTATION_LEVEL=0
+#
+#  So that mildrop() could decrease the level properly in chainloaded scripts.
+declare -gx MSG_INDENTATION_LEVEL_UPON_ENTRANCE=$MSG_INDENTATION_LEVEL
 #
 #  The whitespace indentation itself.
-#  As it belongs to markup, that user may use, it follows
-#  the corresponding style, akin to terminal sequences.
-[ -v __mi ] \
-	|| export __mi=''
+#  As it belongs to markup, that user may use in the main script for custom
+#    messages, it follows the corresponding style, akin to terminal sequences.
+#  The string will be set according too the MSG_INDENTATION_LEVEL on the call
+#    to mi_assemble() below.
+declare -gx __mi=''
 #
 #  Number of spaces to use per indentation level.
-#  No tabs, because predicting the tab length in a particular terminal
+#  Not tabs, because predicting the tab length in a particular terminal
 #  is impossible anyway.
-[ -v BAHELITE_MI_SPACENUM ]  \
-	|| export BAHELITE_MI_SPACENUM=4
+[ -v MSG_INDENTATION_SPACES_PER_LEVEL ]  \
+	|| declare -gx MSG_INDENTATION_SPACES_PER_LEVEL=4
 
 
- # Assembles __mi according to the current BAHELITE_MI_LEVEL
+ # Assembles __mi according to the current MSG_INDENTATION_LEVEL
 #
 mi_assemble() {
 	#  Internal! No xtrace_off/on needed!
-	declare -g __mi=''
+	__mi=''
 	local i
-	for (( i=0; i < (BAHELITE_MI_LEVEL*BAHELITE_MI_SPACENUM); i++ )); do
+	for	((	i=0;
+			i < (    MSG_INDENTATION_LEVEL
+			       * MSG_INDENTATION_SPACES_PER_LEVEL);
+			i++
+		))
+	do
 		__mi+=' '
 	done
-	#  Without this, multiline messages that occur on BAHELITE_MI_LEVEL=0,
+	#  Without this, multiline messages that occur on MSG_INDENTATION_LEVEL=0,
 	#  when $__mi is empty, won’t be indented properly. ‘* ’, remember?
 	[ "$__mi" ] || __mi='  '
 	return 0
@@ -216,7 +233,7 @@ milinc() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local count=${1:-1}  z
 	for ((z=0; z<count; z++)); do
-		let '++BAHELITE_MI_LEVEL || 1'
+		let '++MSG_INDENTATION_LEVEL || 1'
 	done
 	mi_assemble || return $?
 }
@@ -229,11 +246,11 @@ milinc() {
 mildec() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local count=${1:-1}  z
-	if (( BAHELITE_MI_LEVEL == 0 )); then
+	if (( MSG_INDENTATION_LEVEL == 0 )); then
 		warn "No need to decrease indentation, it’s on the minimum."
 	else
 		for ((z=0; z<count; z++)); do
-			let '--BAHELITE_MI_LEVEL || 1'
+			let '--MSG_INDENTATION_LEVEL || 1'
 		done
 		mi_assemble || return $?
 	fi
@@ -251,7 +268,7 @@ milset () {
 		warn "Indentation level should be an integer between 0 and 9999."
 		return 0
 	}
-	BAHELITE_MI_LEVEL=$mi_level
+	MSG_INDENTATION_LEVEL=$mi_level
 	mi_assemble || return $?
 }
 
@@ -260,7 +277,7 @@ milset () {
 #
 mildrop() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	BAHELITE_MI_LEVEL=0
+	MSG_INDENTATION_LEVEL=$MSG_INDENTATION_LEVEL_UPON_ENTRANCE
 	mi_assemble || return $?
 }
 
@@ -285,7 +302,7 @@ mildrop() {
 # 	#  The colour to output the asterisk with. For certain types the en-
 # 	#  tire message is coloured. When MSG_ASTERISK_WITH_MSGTYPE is set,
 # 	#  a type (role) of the message is added to the asterisk and gets
-# 	#  coloured too. If MSG_NO_COLOURS is defined, the message will go
+# 	#  coloured too. If MSG_DISABLE_COLOURS is defined, the message will go
 # 	#  in plain text.
 # 	[colour]=''
 # 	#  Whether only the asterisk at the beginning, or the entire message
@@ -408,7 +425,7 @@ info-wait() {
 		[role]='info'
 		[message_array]='INFO_MESSAGES'
 		[colour]='INFO_MESSAGE_COLOUR'
-		[whole_message_in_colour]='yes' # T/F
+		[whole_message_in_colour]='yes'
 		[asterisk]="  ${MSG_ASTERISK_WITH_MSGTYPE:+RUNNING: }"
 		[desktop_message]='no'
 		[desktop_message_type]=''
@@ -422,12 +439,12 @@ info-wait() {
 	outp=$( bash -c "$command" 2>&1 )
 	result=$?
 	[ $result -eq 0 ] \
-		&& printf "${__bri}%s${__g}%s${__s}${__bri}%s${__s}\n"  ' [ ' OK ' ]' \
-		|| printf "${__bri}%s${__r}%s${__s}${__bri}%s${__s}\n"  ' [ ' Fail ' ]'
+		&& echo -e "${__bri:-} [ ${__g:-}OK${__s:-}${__bri:-} ] ${__s:-}"  \
+		|| echo -e "${__bri:-} [ ${__r:-}Fail${__s:-}${__bri:-}]${__s:-}"
 	[ $result -ne 0 -o "$force_output" ] && {
 		milinc
 		info "Here is the output of ‘$command’:"
-		msg "$outp"
+		plainmsg "$outp"
 		mildec
 	}
 	return 0
@@ -625,14 +642,14 @@ ierr() {
 #  It can, however, be use in the main script for a message lower in level
 #    than info, that still maintains the indentation.
 #
-msg() {
+plainmsg() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -A __msg_properties=(
 		[role]='plainmsg'
 		[message_array]='BAHELITE_INFO_MESSAGES'
 		[colour]='PLAIN_MESSAGE_COLOUR'
 		[whole_message_in_colour]='no'
-		[asterisk]="  "
+		[asterisk]='  '
 		[desktop_message]='no'
 		[desktop_message_type]=''
 		[stay_on_line]='no'
@@ -664,14 +681,15 @@ msg() {
 #
 __msg() {
 	#  Internal! There should be no xtrace_off!
-	declare -g  BAHELITE_STIPULATED_ERROR
+	declare -gx  BAHELITE_STIPULATED_ERROR
 	local role  message_array  colour  whole_message_in_colour  asterisk  \
 	      desktop_message  desktop_message_type  stay_on_line  redir  \
 	      internal  exit_code  \
 	      f  f_count=0  \
 	       message=''  message_key  message_key_exists  \
-	       _message=''  message_nocolours
+	       _message=''  message_nocolours  term_cols=$TERM_COLS
 
+	[[ "$-" =~ .*i.* ]] || term_cols=80
 	#  As a precaution against internal bugs, check how many times __msg()
 	#  is called in the call stack. If the number will be more than 3,
 	#  this hints at a recursive error.
@@ -682,26 +700,26 @@ __msg() {
 		echo "Bahelite error: call to ${FUNCNAME[0]} went into recursion." >&2
 		[ "$(type -t bahelite_print_call_stack)" = 'function' ]  \
 			&& bahelite_print_call_stack
-		#  Unsetting the trap, or the recursion may happen again.
-		trap '' EXIT TERM INT HUP PIPE
+		#  Unsetting the traps, or the recursion may happen again.
+		trap '' EXIT TERM INT HUP PIPE   ERR   DEBUG   RETURN
 		#  Now the script will exit guaranteely.
 		exit 4
 	}
 
 	role=${__msg_properties[role]}
 	declare -n message_array=${__msg_properties[message_array]}
-	[ -v MSG_NO_COLOURS ]  \
+	[ -v MSG_DISABLE_COLOURS ]  \
 		|| declare -n colour=${__msg_properties[colour]}
-	is_true  __msg_properties[whole_message_in_colour] \
+	[ "${__msg_properties[whole_message_in_colour]}" = 'yes' ] \
 		&& whole_message_in_colour=${__msg_properties[whole_message_in_colour]}
 	asterisk=${__msg_properties[asterisk]}
-	is_true  __msg_properties[desktop_message]  \
+	[ "${__msg_properties[desktop_message]}" = 'yes' ]  \
 		&& desktop_message=${__msg_properties[desktop_message]}
 	desktop_message_type=${__msg_properties[desktop_message_type]}
-	is_true  __msg_properties[stay_on_line]  \
+	[ "${__msg_properties[stay_on_line]}" = 'yes' ]  \
 		&& stay_on_line=${__msg_properties[stay_on_line]}
 	redir=${__msg_properties[redir]}
-	is_true  __msg_properties[internal]  \
+	[ "${__msg_properties[internal]}" = 'yes' ]  \
 		&& internal=${__msg_properties[internal]}
 	[[ "${__msg_properties[exit_code]}" =~ ^[0-9]{1,3}$ ]]  \
 		&& exit_code=${__msg_properties[exit_code]}
@@ -714,7 +732,7 @@ __msg() {
 			;;
 
 		3)	[ "$redir" = 'stdout' ]  \
-		        && redir='devnull'
+				&& redir='devnull'
 			[ "$role" != 'err' ] && [ -v desktop_message ]  \
 				&& unset  desktop_message
 			;;
@@ -749,18 +767,18 @@ __msg() {
 	#  from the output.
 	message=$(sed -r 's/^\s*//; s/\n\t/\n/g' <<<"$message")
 	#  Before the message gets coloured, prepare a plain version.
-	[ -v MSG_NO_COLOURS ]  \
+	[ -v MSG_DISABLE_COLOURS ]  \
 		&& message_nocolours="$message"  \
 		|| message_nocolours="$(strip_colours "$message")"
 	_message+="${colour:-}"
 	_message+="$asterisk"
-	_message+="${whole_message_in_colour:-$__stop}"
+	_message+="${whole_message_in_colour:-${__stop:-}}"  # colour stop
 	_message+="$message"
-	_message+="${whole_message_in_colour:+$__stop}"
+	_message+="${whole_message_in_colour:+${__stop:-}}"  # colour stop
 	#  See the description to MSG_FOLD_MESSAGES.
 	if [ -v MSG_FOLD_MESSAGES ]; then
 		message=$(echo -e ${stay_on_line:+-n} "$_message" \
-		              | fold  -w $((TERM_COLS - ${#__mi} -2)) -s \
+		              | fold  -w $((term_cols - ${#__mi} -2)) -s \
 		              | sed -r "1s/^/${__mi#  }/; 1!s/^/$__mi/g" )
 	else
 		message=$(echo -e ${stay_on_line:+-n} "$_message" \
@@ -819,6 +837,6 @@ export -f  mi_assemble  \
                    errw  \
                    abort  \
                    ierr  \
-               msg
+               plainmsg
 
 return 0

@@ -12,15 +12,15 @@
 
 # Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo 'Must be sourced from bahelite.sh.' >&2
-	return 5
+	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"  >&2
+	echo "load the core module (bahelite.sh) first."  >&2
+	return 4
 }
-. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.1'
+declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.2'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
 )
@@ -102,8 +102,7 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #            …
 #        fi
 #
-declare -ax BAHELITE_STORED_LNOS=()
-
+declare -gax BAHELITE_STORED_LNOS=()
 
 
  # Helps to build a meaningful stack trace, when an error is encountered.
@@ -139,25 +138,42 @@ bahelite_on_each_command() {
 }
 
 
- # Trap on DEBUG is a part of the system, that helps to build meaningful
-#    stack trace in case when an error happens.
+ # Trap on DEBUG is a part of the system, that helps to build a meaningful
+#    call trace in case when an error happens.
 #  Trap on DEBUG is temporarily disabled for the time xtrace shell option
 #    is enabled in the mother script. This is handled in the set builtin
 #    wrapper in bahelite.sh.
-#  Trap on DEBUG may cause pipes hang (still in bash 4.4), but this happens
-#    only in uncertain circumstances, that is, in presence of some code
-#    in the main script. To check, if -T can cause your script hang, try
-#    adding to the main script the following code:
+#  Trap on DEBUG may cause the script hang on pipes (still in bash 4.4) –
+#    to check, if -T can cause your script hang, try adding to the main script
+#    the following code:
 #        set -T
 #        echo "something" | xclip
-#    and then run it to see if it works properly (i.e. that the script quits
-#    as it should, and that the string is copied to clipboard).
-#    bahelite_toggle_ondebug_trap  set/unset allows to temporarily disable
-#    the trap and run the piped commands safely, even if the weird behaviour
-#    is observed. However, the problem is not around any more, however, on
-#    certain hosts there is a problem with sending signals – see this issue:
-#    https://github.com/deterenkelt/Nadeshiko/issues/14  that’s solved
-#    by temporarily disabling this trap on bahelite_logging.sh
+#    It can also may make the main script miss signals like SIGINT and even
+#    SIGQUIT, if you do a call like exec in start_logging() in bahelite_logging.sh,
+#    without temporarily switching off functrace and disabling the trap
+#    on DEBUG. However, this occurs only under uncertain circumstances and may
+#    depend on the host. A thorough comparison between two hosts, one on which
+#    the issue is observed and the other, where it isn’t, has shown NO DIFFE-
+#    RENCES between:
+#      - shell options in $- variable
+#      - shell options in set -o
+#      - shell options in shopt -p
+#      - TERM variable
+#      - stty output
+#      - I/O file descriptors, used in the main shell and subshell (except
+#        for the pipe:XXXXXXXXX numbers)
+#      - traps being set in the main script and within >( … )
+#        (Running “trap '' DEBUG RETURN” within >( … ) also didn’t help.)
+#    The comparison was indeed performed without temporary disabling functrace
+#    and unsetting the trap on DEBUG.
+#  So, if you want to catch errors better with this trap on DEBUG, but get
+#    reports, that at some places, where pipes or process substitution are
+#    involved, the recommended way to solve it is:
+#        set +T
+#        <your code>
+#        set -T
+#    This will control both the functrace shell option and set/unset the trap
+#    on DEBUG, as needed.
 #
 bahelite_toggle_ondebug_trap() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
@@ -192,9 +208,24 @@ bahelite_toggle_ondebug_trap() {
 #    nation, and these four signals are successfully handled with bash traps.
 #
 bahelite_on_exit() {
-	builtin set +x
-	local command="$1"  retval="$2"  stored_lnos="$3"  signal="$4"
+#   builtin set +x
+	local command="$1"  retval="$2"  stored_lnos="$3"  signal="$4"  \
+	      current_varlist  varname
 	mildrop
+
+	#  Normally, when a subshell exits, trap on EXIT is called is the main
+	#    shell. However, if called explicitly, e.g. from another trap – on ERR
+	#    for example (Bahelite doesn’t do that) it may be called in the sub-
+	#    shell context. Nesting subshells, as a rule, do not make the trap
+	#    on EXIT run in subshell context too. So this check here is just
+	#    in case.
+	#  Disabled for it prevents catching signals like INT.
+	#
+	# (( BASH_SUBSHELL > 0 )) && {
+	# 	trap '' EXIT TERM INT HUP PIPE  ERR  RETURN  DEBUG
+	# 	exit $?
+	# }
+
 	#  Like with BAHELITE_ERROR_PROCESSED and bahelite_show_error, there is
 	#  a situation, when the same trap may be called twice, though it is
 	#  unnecessary. The reason here is that after SIGINT bash calls SIGEXIT,
@@ -202,8 +233,8 @@ bahelite_on_exit() {
 	#  no need to process what already was processed.
 	[ -v BAHELITE_EXIT_PROCESSED ]  \
 		&& return 0  \
-		|| BAHELITE_EXIT_PROCESSED=t
-	#
+		|| declare -gx BAHELITE_EXIT_PROCESSED=t
+
 	#  Catching internal bash errors, like “unbound variable”
 	#    when using nounset option (set -u). These errors
 	#    do not trigger SIGERR, so they must be caught on exit.
@@ -234,12 +265,15 @@ bahelite_on_exit() {
 	[ "$signal" = 'EXIT'  -a   $retval -ne 0 ] && {
 		if [[ "$command" =~ ^exit[[:space:]] ]]  &&  ((retval >= 5)); then
 			#  If it was exit that the author of the main script caught
-			#  with err() or errw(), run their on_error.
+			#  with err() or errw()
+			bahelite_print_call_stack
+			bahelite_noglob_off
 			if	[ -v BAHELITE_STIPULATED_ERROR ] \
-				|| [ -r "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL.$BAHELITE_STARTUP_ID" ]
+				|| [ -r "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL."* ]
 			then
 				[ "$(type -t on_error)" = 'function' ] && on_error
 			fi
+			bahelite_noglob_on
 		else
 			[ ! -v BAHELITE_ERROR_PROCESSED ]  \
 				&& bahelite_on_error "$command"  \
@@ -250,29 +284,19 @@ bahelite_on_exit() {
 			#    bahelite_on_error()
 		fi
 	}
-	#  Run user’s on_exit().
+	#  Run user’s on_exit(). Keep in mind, that at this point
+	#  $? is already frozen.
 	[ "$(type -t on_exit)" = 'function' ] && on_exit
-	#  Stop the logging tee nicely
-	[ -v BAHELITE_LOGGING_STARTED ] && {
-		#  Without this the script would seemingly quit, but the bash
-		#    process will keep hanging to support the logging tee.
-		#  Searching with a log name is important to not accidentally kill
-		#    the mother script’s tee, in case one script calls another,
-		#    and both of them use Bahelite.
-		#
-		#  Since the “tee” is made to ignore signals (tee -i), there is no
-		#    need to kill it, as the main process catches all the signals,
-		#    and tee now receives SIGPIPE (or SIGHUP) in a natural way.
-		#  Is this still needed?
-		pkill -PIPE  --session 0  -f "tee -a $LOG" || true
-	}
+	#  Stop logging, if started
+	[ -v BAHELITE_LOGGING_STARTED ] && stop_logging
 	[ -v BAHELITE_DUMP_VARIABLES ] && {
 		current_varlist=$(
-			compgen -A variable | grep -v BAHELITE_STARTUP_VARLIST
+			compgen -A variable  \
+				| grep -vE 'BAHELITE_VARLIST_(BEFORE|AFTER)_STARTUP'
 		)
 		for varname in \
 			$(
-				echo "$BAHELITE_STARTUP_VARLIST"$'\n'"$current_varlist" \
+				echo "$BAHELITE_VARLIST_AFTER_STARTUP"$'\n'"$current_varlist" \
 					| sort | uniq -u | sort
 			)
 		do
@@ -293,10 +317,11 @@ bahelite_on_exit() {
 bahelite_print_call_stack() {
 	#  Skip only 1 level (this very function), when printing the call stack.
 	local  from_on_exit="${1:-}" real_line_number="${2:-}"   \
-	       line_number_to_print  f  i
-	echo -en "${__bright}--- Call stack " >&2
-	for ((i=0; i<TERM_COLS-15; i++)); do  echo -n '-';  done
-	echo -e "${__s}" >&2
+	       line_number_to_print  f  i term_cols=$TERM_COLS
+	[[ "$-" =~ .*i.* ]] || term_cols=80
+	echo -en "${__bright:-}--- Call stack " >&2
+	for ((i=0; i<term_cols-15; i++)); do  echo -n '-';  done
+	echo -e "${__stop:-}" >&2
 	for ((f=${#FUNCNAME[@]}-1; f>0; f--)); do
 		#  Hide on_exit and on_error, as the error only bypasses through
 		#  there. We don’t show THIS function in the call stack, right?
@@ -313,7 +338,7 @@ bahelite_print_call_stack() {
 			}
 		}
 		# echo "Printing FUNCNAME[$f], BASH_LINENO[$((f-1))], BASH_SOURCE[$f]"
-		echo -en "${__bri}${FUNCNAME[f]}${__s}, " >&2
+		echo -en "${__bri:-}${FUNCNAME[f]}${__s:-}, " >&2
 		echo -e  "line $line_number_to_print in ${BASH_SOURCE[f]}" >&2
 	done
 	return 0
@@ -326,9 +351,13 @@ bahelite_on_error() {
 	#  a lot of trace, that the programmer doesn’t need.
 	builtin set +x
 	trap '' DEBUG
+	declare -gx BAHELITE_DUMP_VARIABLES  \
+	            BAHELITE_DONT_CLEAR_TMPDIR  \
+	            BAHELITE_ERROR_PROCESSED
 	local failed_command=$1  failed_command_code=$2  from_on_exit="${3:-}"  \
 	      real_line_number=${4:-}  log_path_copied_to_clipboard  varname  \
-	      current_varlist
+	      current_varlist  term_cols=$TERM_COLS
+	[[ "$-" =~ .*i.* ]] || term_cols=80
 	BAHELITE_DUMP_VARIABLES=t   # This is for bahelite_on_exit().
 	[ -v LOGDIR ] || BAHELITE_DONT_CLEAR_TMPDIR=t   # This too.
 	mildrop
@@ -347,31 +376,11 @@ bahelite_on_error() {
 	fi
 
 	bahelite_print_call_stack "${from_on_exit:-}" "${real_line_number:-}"
-	# echo -en "${__bright}--- Call stack " >&2
-	# for ((i=0; i<TERM_COLS-15; i++)); do  echo -n '-';  done
-	# echo -e "${__s}" >&2
-	# for ((f=${#FUNCNAME[@]}-1; f>0; f--)); do
-	# 	#  Hide on_exit, as the error only bypasses through there
-	# 	#  We don’t show THIS function in the call stack, right?
-	# 	[ "${FUNCNAME[f]}" = bahelite_on_exit ] && continue
-	# 	line_number_to_print="${BASH_LINENO[f-1]}"
-	# 	#  If the next function (that’s closer to this one) is on_exit,
-	# 	#  this means, that FUNCNAME[f] currently holds the name
-	# 	#  of the function, where the error occurred, and its
-	# 	#  line number should be replaced with the real one.
-	# 	[ "$from_on_exit" = from_on_exit ] && {
-	# 		[ "${FUNCNAME[f-1]}" = bahelite_on_exit ] && {
-	# 			line_number_to_print="$real_line_number"
-	# 		}
-	# 	}
-	# 	# echo "Printing FUNCNAME[$f], BASH_LINENO[$((f-1))], BASH_SOURCE[$f]"
-	# 	echo -en "${__bri}${FUNCNAME[f]}${__s}, " >&2
-	# 	echo -e  "line $line_number_to_print in ${BASH_SOURCE[f]}" >&2
-	# done
+
 	echo -en "Command: " >&2
-	(	echo -en  "${__bri}$failed_command${__s} "
-		echo -en  "${__r}${__bri}(exit code: $failed_command_code)${__s}."
-		)	| fold -w $((TERM_COLS-9)) -s \
+	(	echo -en  "${__bri:-}$failed_command${__s:-} "
+		echo -en  "${__r:-}${__bri:-}(exit code: $failed_command_code)${__s:-}."
+		)	| fold -w $((term_cols-9)) -s \
 			| sed -r '1 !s/^/         /g' >&2
 	echo
 	#  SIGERR is triggered, when the last executed command has $? ≠ 0.
@@ -387,17 +396,19 @@ bahelite_on_error() {
 	BAHELITE_ERROR_PROCESSED=t
 	if [ -v BAHELITE_LOGGING_STARTED ]; then
 		which xclip &>/dev/null && {
-			echo -n "$LOG" | xclip
+			echo -n "$LOGPATH" | xclip
 			log_path_copied_to_clipboard='\n\n(Path to the log file is copied to clipboard.)'
 		}
-		bahelite_notify_send "Bash error. See the log.${log_path_copied_to_clipboard:-}" error
-		info "Log is written to
-		      $LOG"
+		[ "$(type -t bahelite_notify_send)" = 'function' ]  \
+			&& bahelite_notify_send "Bash error. See the log.${log_path_copied_to_clipboard:-}"   \
+			                         error
+		print_logpath
 	else
-		bahelite_notify_send "Bash error. See console." error
+		[ "$(type -t bahelite_notify_send)" = 'function' ]  \
+			&& bahelite_notify_send "Bash error. See console." error
 		warn "Logging wasn’t enabled in $MYNAME.
-		      Call start_log() someplace after sourcing bahelite.sh to enable logging.
-		      If prepare_cachedir() is used too, it should be called before start_log()."
+		      Call start_logging() someplace after sourcing bahelite.sh to enable logging.
+		      If prepare_cachedir() is used too, it should be called before start_logging()."
 	fi
 	return 0
 }

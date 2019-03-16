@@ -3,19 +3,19 @@
 #  bahelite_versioning.sh
 #  Provides simple versioning in the form <major[.minor[.patch]]>.
 #  Doesn’t work with versions longer than three numbers, e.g. “1.2.3.4”!
-#  deterenkelt © 2018–2019
+#  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo 'Must be sourced from bahelite.sh.' >&2
-	return 5
+	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
+	echo "load the core module (bahelite.sh) first." >&2
+	return 4
 }
-. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_VERSIONING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_VERSIONING_VER='2.0.2'
+declare -grx BAHELITE_MODULE_VERSIONING_VER='2.0.3'
 
 
 
@@ -36,10 +36,10 @@ update_version() {
 		                   is not a writeable file."
 	grep -qE "^\s*(declare\s+-r\s+|)$varname=" "$file" \
 		|| err "Variable “$varname” assignment is nowhere to be found in file
-		        “file”."
+		        “$file”."
 	[ "$(grep -cE "^\s*(declare\s+-r\s+|)$varname=" "$file")" = 1 ] \
 		|| err "Variable “$varname” is assigned more than once in file
-		        “file”."
+		        “$file”."
 	which Xdialog &>/dev/null || err 'Xdialog wasn’t found, but is required.'
 
 	readarray -t old_version < <(
@@ -91,7 +91,7 @@ update_version() {
 			        # Fields: min max default label
 	)
 	bahelite_errexit_on
-	[ "$new_major" ] || err 'Aborted.'
+	[ "$new_major" ] || abort 'Aborted.'
 	if [ $new_minor -ne 0  -a  $new_patch -ne 0 ]; then
 		new_version="$new_major.$new_minor.$new_patch"
 	elif [ $new_minor -ne 0 ]; then
@@ -109,7 +109,7 @@ update_version() {
 		Xdialog --stdout --title "Confirm new version" \
 		        --ok-label Write --cancel-label Cancel \
 		        --yesno "$xdialog_text" 400x110 \
-			|| err 'Aborted.'
+			|| abort 'Aborted.'
 		bahelite_errexit_on
 	elif [ "$which_is_newer" = 'equal' ]; then
 		xdialog_text="$old_version = $new_version"
@@ -119,7 +119,7 @@ update_version() {
 		Xdialog --stdout --title "Confirm new version" \
 		        --ok-label Write --cancel-label Cancel \
 		        --yesno "$xdialog_text" 400x110 \
-			|| err 'Aborted.'
+			|| abort 'Aborted.'
 		bahelite_errexit_on
 	fi
 	sed -ri "s/^(\s*(declare\s+-r\s+|))$varname=['\"]?[0-9\.]+['\"]?\s*$/\1$varname='$new_version'/" "$file"
@@ -203,6 +203,7 @@ compare_versions() {
 	esac
 	return 0
 }
+
 
 
 export -f  update_version  \

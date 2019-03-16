@@ -2,20 +2,19 @@
 
 #  bahelite_misc.sh
 #  Miscellaneous helper functions.
-#  deterenkelt © 2018–2019
+#  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo 'Must be sourced from bahelite.sh.' >&2
-	return 5
+	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
+	echo "load the core module (bahelite.sh) first." >&2
+	return 4
 }
-#  Misc is added to “messages” dependency.
-#. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MISC_VER='1.9.3'
+declare -grx BAHELITE_MODULE_MISC_VER='1.9.5'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # (procps) Single process check.
@@ -30,21 +29,33 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 
 
 
- # Returns 0 if the argument is a variable, that has a value, that can be
-#    treated as positive – yes, Yes, t, True, 1 and so on. Returns 1 if it
-#    has a value, that corresponds with a negative value: no, No, f, False,
-#    0 etc. Returns an error in case the value is neither.
-#  If the second argument -u|--unset-if-not is passed, unsets the variable,
-#    if it has a ngeative value and returns with code 0.
-#  The purpose is to turn the very existence of a variable into a flag,
-#    that can be checked with a simple [ -v flag_variable ] in the code.
-#  Arguments:
-#     $1 – variable name
-#    [$2] – “-u” or “--unset-if-not” to unset a negative variable.
+ # Checks, whether a variable contains a logical or human-readable value,
+#  that can be treated as positive or negative.
+#  $1  – variable name
+# [$2] – “-u” or “--unset-if-not” to unset a negative variable.
+#        The purpose of this option is to turn the very existence of a vari-
+#        able into a flag. Running “is_true flag_variable --unset-if-not”
+#        allows to check it later with [ -v flag_variable ] in the code.
+#
+#  This function can be used two ways. One way it can be a sanitiser
+#    for a script, that reads a config file, for example:
+#        for var in ${config_variables[@]}; do
+#            is_true  $var  --unset-if-not
+#        done
+#    This way is_true will return with a success code, as long as the value
+#    in the variable could be recognised as either positive or negative.
+#    If it couldn’t be recognised, is_true will trigger an error.
+#  But is_true can also function as a value checker.
+#        if is_true $varname; then
+#            …
+#        fi
+#    When used without -u/--unset-if-true, the function will return 0
+#    for positive values and 1 for negative. And if it would be neither,
+#    there will be an error.
 #
 is_true() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	local varname="${1:-}"
+	local varname="${1:-}"  unset_if_false
 	[ -v "$varname" ] || {
 		if [ "${FUNCNAME[1]}" = read_rcfile ]; then
 			err "Config option “$varname” is requried, but it’s missing."
@@ -53,7 +64,7 @@ is_true() {
 		fi
 	}
 	[[ "${2:-}" =~ ^(-u|--unset-if-not)$ ]] \
-		&& local unset_if_false=t
+		&& unset_if_false=t
 	declare -n varval="$varname"
 	if [[ "$varval" =~ ^(y|Y|[Yy]es|1|t|T|[Tt]rue|[Oo]n|[Ee]nable[d])$ ]]; then
 		return 0
@@ -64,18 +75,14 @@ is_true() {
 		}
 		return 1
 	else
-		if [ -v BAHELITE_MODULE_MESSAGES_VER ]; then
-			err "Variable “$varname” must have a boolean value (0/1, on/off, yes/no),
-			     but it has “$varval”."
-		else
-			cat <<-EOF >&2
-			Variable “$varname” must have a boolean value (0/1, on/off, yes/no),
-			but it has “$varval”.
-			EOF
-		fi
+		err "Variable “$varname” must have a boolean value (0/1, on/off, yes/no),
+		     but it has “$varval”."
 	fi
 	return 0
 }
+
+
+is_function() {  [ "$(type -t "$1")" = 'function' ];  }
 
 
  # Dumps values of variables to stdout and to the log
@@ -110,7 +117,7 @@ random-secure() {
 #
 __random() {
 	#  Internal! No need for xtrace_off/on.
-	declare -g MYRANDOM
+	declare -gx MYRANDOM
 	local mode="${1:-}" max_number="${2:-}"
 
 	case "$mode" in
@@ -150,7 +157,7 @@ remove_windows_unfriendly_chars() {
 	str=${str//\|/}
 	str=${str//\?/}
 	str=${str//\*/}
-	echo "$str"
+	echo -n "$str"
 	return 0
 }
 
@@ -173,11 +180,11 @@ single_process_check() {
 	our_processes_count=$(echo "$our_processes" | wc -l)
 	total_processes_count=$(echo "$total_processes" | wc -l)
 	(( our_processes_count < total_processes_count )) && {
-		warn "Processes: our: $our_processes_count, total: $total_processes_count.
-		Our processes are:
-		$our_processes
-		Our and foreign processes are:
-		$total_processes"
+		redmsg "Processes: our: $our_processes_count, total: $total_processes_count.
+		        Our processes are:
+		        $our_processes
+		        Our and foreign processes are:
+		        $total_processes"
 		err 'Still running.'
 	}
 	return 0
@@ -199,40 +206,58 @@ expand_range() {
 }
 
 
- # Echo plural “s” to stdout, if the passed number is bigger than 1.
-#  $1 – number to test.
-# [$2] – custom ending to output instead of “s” (i.e. when you need “ies”).
-# [$3] – custom singular ending to output instead of nothing.
-#        (Use it when the plural ending of the word isn’t just a suffix
-#         added to it.)
+ # Check a number and echo either a plural string or a singular string.
+#   $1  – the number to test.
+#  [$2] – plural string. If unset, equals to “s”. 
+#  [$3] – singular string. By default has no value (and no value is needed).
 #
-plural_s() {
+#  Examples
+#  1. line – lines
+#     echo "The file has $line_number line$(plur_sing  $line_number)."
+#        line_number == 1  -->  “The file has 1 line.”
+#        line_number == 2  -->  “The file has 2 lines.”
+#
+#  2. dummy – dummies, mouse – mice
+#  echo "We’ve found $mice_count $(plur_sing  $mice_count  mice  mouse)."
+#     mice_count == 1   -->  “We’ve found 1 mouse.”
+#     mice_count == 2   -->  “We’ve found 2 mice.”
+#
+#  3. await – awaits
+#  echo "$task_count task$(plur_sing  $task_count) await$(plur_sing  $task_count  '' s) your attention."
+#     task_count == 1  -->  “1 task awaits your attention.”
+#     task_count == 2  -->  “2 tasks await your attention.”
+#
+#  The name of the function is the mnemonic for the argument order. That they
+#    go first plural, then singular may look anti-intuitive, but if the func-
+#    tion was called sing_plur, it would add yet another problem,
+#    because “plur_sing” sounds more natural.
+#
+#  As specifying the default plural ending “s” for the function may often seem
+#    logical, though not obligatory, the form of the call with the 2nd argument
+#    set and the 3rd omitted is also allowed.
+#
+plur_sing() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local num="$1"  plural_ending  singular_ending="${3:-}"
-	#  There is a case inverse to generic “plural s”: when it’s a verb that
-	#    has to be pluralised. Verbs’ plural forms have no ending, while in
-	#    singular form they take an “s” at the end.
-	#  Hence plural_ending=${2:-} is not going to work, as specifically
-	#    passed empty string ("") as the second parameter will make no diffe-
-	#    rence in this case, it would be as if the parameter was unset.
-	#    The number of the parameters should be checked in order to set
-	#    plural_ending explicitly to whatever is passed (including an empty
-	#    string) or “s” if the parameter wasn’t in the command line.
-	if [ $# -ge 2 ]; then
-		plural_ending="$2"
-	else
-		plural_ending='s'
-	fi
-	if [[ "$num" =~ ^1$ ]]; then
-		echo -n "$singular_ending"
-	else
-		echo -n "$plural_ending"
-	fi
+	(( $# >= 2 ))  \
+		&& plural_ending="$2"  \
+		|| plural_ending='s'
+	[[ "$num" =~ ^[0-9]+$ ]] || {
+		bahelite_print_call_stack
+		warn "${FUNCNAME[0]}: “$num” is not a number!"
+	}
+	#  Avoiding shell arithmetic
+	#  Even in case of error in the main script, this way there’s
+	#  a 50/50 chance, that the right string would be printed.
+	[ "${num##0}" = '1' ]  \
+		&& echo -n "$singular_ending"  \
+		|| echo -n "$plural_ending"
 	return 0
 }
 
 
 export -f  is_true  \
+           is_function \
            dumpvar  \
            __random  \
                random-fast  \
@@ -240,6 +265,6 @@ export -f  is_true  \
            remove_windows_unfriendly_chars  \
            single_process_check  \
            expand_range  \
-           plural_s
+           plur_sing
 
 return 0

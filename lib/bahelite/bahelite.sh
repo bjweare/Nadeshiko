@@ -20,7 +20,7 @@
 
 
  # Bahelite doesn’t enable or disable any shell options, it leaves to the prog-
-#    rammer to choose an optimal set. Bahelite may only temporarely enable or
+#    rammer to choose an optimal set. Bahelite may only temporarily enable or
 #    disable shell options – but only temporarily.
 #  It is *highly* recommended to use “set -feEu” in the main script, and if
 #    you add -T to that, thus making the line “set -feEuT”, Bahelite will be
@@ -32,33 +32,44 @@
 #        perly. Let these mistakes be exposed.
 #    2 – is not used. Bash exits with this code, when it catches an interpre-
 #        ter or a syntax error. Such errors may happen in the main script.
-#    3 – used. Bahelite exits with this code when the version of Bash
-#        is too old.
-#    4 – used. Bahelite reserves this code for the errors, that occur in the
-#        main module (this file). Code 4 tells about unsatisfied dependencies,
-#        an attempt to source the main script (instead of executing it) or
-#        that sourcing a module has failed. In every case an detailed message
+#    3 – Bahelite exits with this code, if the system runs an incompatible
+#        version of the Bash interpreter.
+#    4 – Bahelite uses this code for all internal errors, i.e. related to the
+#        inner mechanics of this library, like checking for the minimal depen-
+#        dencies, loading modules, on an unsolicited attempt to source the main
+#        script (instead of executing it). In each case a detailed message
 #        starting with “Bahelite error:” is printed to stderr.
-#  Codes from 5 and above are used only if the error_handling module is
-#    included (it is included by default).
-#    5 – any error happening in the main script after bahelite.sh is loaded.
+#    5 – any error happening in the main script after Bahelite is loaded.
 #        You are strongly advised to use err() from bahelite_messages.sh
 #        instead of something like { echo 'An error happened!' >&2; exit 5; }.
+#        To use custom error codes, use ERROR_CODES (see bahelite_messages.sh).
 #    6 – an abort sanctioned by the one who runs the main script. Since an
 #        early quit means, that the run was not successful (as the program
 #        didn’t have a chance to complete whatever it was made for), and on
 #        the other hand it’s not like the program is broken (what a regular
-#        error would indicate), the exit code must be distinctive from both.
-#    7–255 – are free for the main script to use, however, the codes 126–165
-#        and the code 255 should be left reserved for bash. The usage of
-#        codes 1–6, 126–165, 255 is prohibited in ERROR_CODES, if you decide
-#        to use it for the custom type-specific error codes. (See bahelite_
-#        messages.sh for details.)
+#        error would indicate), the exit code must be distinctive from both
+#        the “clear exit” with code 0 and “regular error” with code 5.
+#    7–125 – free for the main script.
+#    126–165 – not used by Bahelite and must not be used in the main script:
+#        this range belongs to the interpreter.
+#    166–254 – free for the main script.
+#    255 – not used by Bahelite and must not be used in the main script:
+#        this code may be triggered by more than one reason, which makes it
+#        ambiguous.
+#
+#  Notes
+#  1. Codes 5 and 6 are used only if the error_handling module is included
+#    (it is included by default).
+#  2. The usage of codes 1–6, 126–165, 255 is prohibited in ERROR_CODES,
+#     if you decide to use it for the custom type-specific error codes.
+#    (See bahelite_messages.sh for details.)
 
 
 
  # Require bash v4.3 for declare -n.
-#          bash v4.4 for the fixed typeset -p behaviour.
+#          bash v4.4 for the fixed typeset -p behaviour, ${param@x} operators,
+#                    SIGINT respecting builtins and interceptable by traps,
+#                    BASH_SUBSHELL that is updated for process substitution.
 #
 if	((    ${BASH_VERSINFO[0]:-0} <= 3
 	   || (
@@ -104,14 +115,18 @@ if [ ! -v BAHELITE_KEEP_ENV_FUNCS ]; then
 	unset -f $(declare -F | sed -rn 's/^declare\s\S+\s([^_]*+)$/\1/p')
 fi
 #
-#  env in shebang will not recognise -i, so an internal respawn is needed
-#  in order to run the script in a clean environment.
+#
+ # env in shebang will not recognise -i, so an internal respawn is needed
+#  in order to run the script in a clean environment. Be aware, env -i
+#  literally WIPES the environment – you won’t find $HOME or $USER any more.
+#
 if [ -v BAHELITE_TOTAL_ENV_CLEAN ]; then
 	[ ! -v BAHELITE_ENV_CLEANED ] && {
 		exec /usr/bin/env -i BAHELITE_ENV_CLEANED=t bash "$0" "$@"
 		exit $?
 	}
 fi
+BAHELITE_VARLIST_BEFORE_STARTUP="$(compgen -A variable)"
 
 
                     #  Checking basic dependencies  #
@@ -227,256 +242,9 @@ unset  sed_version  grep_version  getopt_version  yes_version
 
 
 
-
- # Overrides user calls to ‘set’ builtin.
-#
-set() {
-	#  Hiding the output of the function itself.
-	builtin set +x
-	local command=()
-	case "$1" in
-		#  `set ±x` calls are overridden, because of a trap on DEBUG, that
-		#  dramatically – but in 99.99% cases unnecessarily – increases ver-
-		#  bosity. The trap is only set when “functrace” shell option is enab-
-		#  led in the main script (usually with “set -T”) and “error_handling”
-		#  module is sourced.
-		'-x')
-			bahelite_functrace_off
-			command=(builtin set -x)
-			;;
-		'+x')
-			bahelite_functrace_on
-			command=(builtin set +x)
-			;;
-		'-e')
-			[ "$(type -t bahelite_toggle_onerror_trap)" = 'function' ]  \
-				&& bahelite_toggle_onerror_trap  set
-			command=(builtin set -e)
-			;;
-		'+e')
-			[ "$(type -t bahelite_toggle_onerror_trap)" = 'function' ]  \
-				&& bahelite_toggle_onerror_trap  unset
-			command=(builtin set +e)
-			;;
-		*)
-			#  For any arguments, that are not ‘-x’ or ‘+x’, pass them as they
-			#  are. This is a potential bug, as adding -x in the main ‘set’
-			#  declaration like
-			#    set -xfeEuT
-			#  or using “-o xtrace” will not use the override above. Hope-
-			#  fully, everyone would just use ‘set -x’ or ‘set +x’.
-			command=(builtin set "$@")
-			;;
-	esac
-	"${command[@]}"
-	#  No “return”, to minimise the output from this hook. (If people called
-	#  “set -x”, they probably expect to see a trace of their code and not
-	#  the trace from this function and how it returns.
-}
-
-
- # Overrides for the “set” builtin to be used internally.
-#  A library function may need to enable or disable some shell option tem-
-#    porarily, but it should restore their state (on/off) to the one that was
-#    before the call. That is, it must remember the state. To show, what
-#    these hooks help to avoid, look at this example:
-#
-#      In the main script:                   In some library file:
-#      set -f                                library_call() {
-#      . . .                                     set +f
-#      set +f                                    list_of_files=$(ls ./*)
-#      . . .                                     set -f   # ← wrong!
-#      library_call                              return 0
-#      . . .    # ← library restored          }
-#      . . .    #   -f already!
-#      set -f
-#
-#  The fact that calls can go deeper than one level (i.e. one library func-
-#    tion that needs a specific shell option set or unset calls another, that
-#    also needs the same options set or unset), complicates the issue.
-#
-#
- # To turn off errexit (set -e) and disable trap on ERR temporarily.
-#  bahelite_toggle_onerror_trap() is defined in bahelite_error_handling.sh,
-#  which is an optional module.
-#
-bahelite_errexit_off() {
-	#  Internal! No xtrace_off/on needed!
-	[ -o errexit ] && {
-		builtin set +e
-		[ "$(type -t bahelite_toggle_onerror_trap)" = 'function' ]  \
-			&& bahelite_toggle_onerror_trap  unset
-		BAHELITE_BRING_BACK_ERREXIT=t
-	}
-	return 0
-}
-bahelite_errexit_on() {
-	#  Internal! No xtrace_off/on needed!
-	[ -v BAHELITE_BRING_BACK_ERREXIT ] && {
-		unset BAHELITE_BRING_BACK_ERREXIT
-		builtin set -e
-		[ "$(type -t bahelite_toggle_onerror_trap)" = 'function' ]  \
-			&& bahelite_toggle_onerror_trap  set
-	}
-	return 0
-}
-#
-#
- # To turn noglob on and off (usually done with set -f/+f) temporarily,
-#  This comes handy when shell needs to use globbing like for “ls *.sh”,
-#    but it is disabled by default for safety.
-#
-bahelite_noglob_off() {
-	#  Internal! No xtrace_off/on needed!
-	[ -o noglob ] && {
-		builtin set +f
-		BAHELITE_BRING_BACK_NOGLOB=t
-	}
-	return 0
-}
-bahelite_noglob_on() {
-	#  Internal! No xtrace_off/on needed!
-	[ -v BAHELITE_BRING_BACK_NOGLOB ] && {
-		unset BAHELITE_BRING_BACK_NOGLOB
-		builtin set -f
-	}
-	return 0
-}
-#
-#
- # Analogous to errexit functions. You may actually need them in your
-#  main script, if you experience some weird issues related to subshells
-#  or pipes.
-#
-bahelite_functrace_off() {
-	#  Internal! No xtrace_off/on needed!
-	[ -o functrace ] && {
-		builtin set +T
-		[ "$(type -t bahelite_toggle_ondebug_trap)" = 'function' ]  \
-			&& bahelite_toggle_ondebug_trap  unset
-		BAHELITE_BRING_BACK_FUNCTRACE=t
-	}
-	return 0
-}
-bahelite_functrace_on() {
-	#  Internal! No xtrace_off/on needed!
-	[ -v BAHELITE_BRING_BACK_FUNCTRACE ] && {
-		unset BAHELITE_BRING_BACK_FUNCTRACE
-		builtin set -T
-		[ "$(type -t bahelite_toggle_ondebug_trap)" = 'function' ]  \
-			&& bahelite_toggle_ondebug_trap  set
-	}
-	return 0
-}
-#
-#
- # Turn off xtrace output (usually enabled with set -x) during the execution
-#    of Bahelite internal functions. Their output is normally not needed
-#    in the mother script.
-#  What these two functions essentially do is hiding Bahelite code from xtrace,
-#    so that when “set -x” is called in the main script, only the main script
-#    code is shown in the xtrace output.
-#  These two functions are supposed to be used only in this expression
-#      bahelite_xtrace_off  &&  trap bahelite_xtrace_on  RETURN
-#    that should be the first line in an internal fucntion of the first level
-#    (i.e. not the secondary helpers to them). The bahelite_xtrace_off func-
-#    tion is responsible for switching xtrace off temporarily, and bahelite_
-#    xtrace_on  is a trap on RETURN signal, that is set on the first call to
-#    an internal function. The trap on RETURN is set only in case bahelite_
-#    xtrace_off has actually changed the state of xtrace, hence the “&&” in
-#    the expression. The trap returns the state of xtrace to the original
-#    state, when the execution leaves internal function and return to the
-#    code of the main script.
-#  To show Bahelite code anyway, add “unset BAHELITE_HIDE_FROM_XTRACE” in the
-#    main script someplace after sourcing bahelite.sh.
-#
-bahelite_xtrace_off() {
-	#  This prevents disabling xtrace recursively.
-	[ ! -v BAHELITE_BRING_XTRACE_BACK ] && {
-		#  If xtrace is not enabled, we have nothing to do. Calling xtrace_off
-		#    by mistake may initiate unwanted hiding, which will lead to unex-
-		#    pected results.
-		#  Essentially, this prevents calling it by a lowskilled user mistake.
-		[ -o xtrace ] || return 0
-
-		#  When set -x enables trace, the commands are prepended with ‘+’.
-		#  To differentiate between main script commands and Bahelite,
-		#  we temporarily change the plus ‘+’ from PS4 to a middle dot ‘⋅’.
-		#  (The mnemonic is “objects further in the distance look smaller”.)
-		declare -g OLD_PS4="$PS4" && declare -g PS4='⋅'
-		[ -v BAHELITE_HIDE_FROM_XTRACE ] && {
-			builtin set +x
-			declare -g BAHELITE_BRING_XTRACE_BACK=${#FUNCNAME[*]}
-		}
-		return 0
-	}
-	return 1
-}
-bahelite_xtrace_on() {
-	(( ${BAHELITE_BRING_XTRACE_BACK:-0} == ${#FUNCNAME[*]} )) && {
-		unset BAHELITE_BRING_XTRACE_BACK
-		builtin set -x
-		#  Salty experience of learning how traps on RETURN work resulted
-		#  in the following:
-		#  - a trap on RETURN defined in a function persists after that func-
-		#    tion quits. That means that one cannot set a trap on RETURN on
-		#    entering a function and hope that it will only work once. Even
-		#    though without “functrace” shell option set other functions
-		#    *will not* inherit it, the source command *will*. In other words,
-		#    each time you source an external file and the control returns
-		#    back to the main file, the trap on RETURN triggers;
-		#  - thus the trap on RETURN has a wider scope than it seems – and this
-		#    means, that it’s possible to remove it from global scope when it
-		#    completes what it needs. This way set/unset should come strictly
-		#    in pairs – as needed for hiding xtrace diving into bahelite func-
-		#    tions;
-		#  - in order to be sure, that the return trap is executed and unset
-		#    only the level, when it was set, BAHELITE_BRING_XTRACE_BACK
-		#    contains the current function nesting level.
-		trap '' RETURN
-		#  Restoring the original PS4.
-		#  Currently doesn’t work well, because xtrace off and on somehow
-		#  don’t go in pairs sometimes. Needs an investigation.
-		#  Most users presumably don’t alter PS4 anyway, so just set it to ‘+’.
-		#declare -g PS4="${OLD_PS4:-+}"
-		declare -g PS4='+'
-	}
-	return 0
-}
-#
-#  ^ The functions above could be made into a single function “bahelite_set”
-#  that would work analogous to the overridden “set” above, but this would be
-#  less convenient:
-#    - to hide xtrace output as much as possible for the internal functions,
-#      it is necessary to limit down to the bare minimum extra commands before
-#      the xtrace can be temporarily disabled. This makes a dedicated function
-#      (like bahelite_xtrace_off) the preferrable choice, because it saves
-#      commands that would need to determine, for which purpose (with which
-#      parameters) that hypotetical common function “bahelite_set” is called.
-#    - as xtrace functions cannot be put into one common function, this would
-#      create a confusion about the role of the function that would be put
-#      in the body of the “common” function (e.g. bahelite_errexit_on/off and
-#      bahelite_noglob_on/off). Being implemented all in one style helps to
-#      distinguish they closeness.
-#  ^ That would be a mistake to merge the above functions with the overridden
-#  “set”, for that would require knowledge about which of the functions in
-#  “internals” and “facilities” play primary and which – secondary roles.
-
-export -f  set  \
-           bahelite_errexit_off  \
-           bahelite_errexit_on  \
-           bahelite_noglob_off  \
-           bahelite_noglob_on  \
-           bahelite_functrace_off  \
-           bahelite_functrace_on  \
-           bahelite_xtrace_off  \
-           bahelite_xtrace_on
-
-
-
                         #  Initial settings  #
 
-BAHELITE_VERSION="2.15"
+BAHELITE_VERSION="2.16"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -493,16 +261,13 @@ BAHELITE_VERSION="2.15"
 
 CMDLINE="$0 $@"
 ARGS=("$@")
-#
-#  Terminal variables
-if [[ "$-" =~ ^.*i.*$ ]]; then
-	TERM_COLS=$(tput cols)
+if [ -v COLUMNS  -a  -v LINES ]; then
+	declare -nx TERM_COLS=COLUMNS
+	declare -nx TERM_LINES=LINES
 else
-	#  For non-interactive shells restrict the width to 80 characters,
-	#  in order for the logs to not be excessively wi-i-ide.
-	TERM_COLS=80
+	declare -x TERM_COLS=80
+	declare -x TERM_LINES=25
 fi
-TERM_LINES=$(tput lines)
 
 
  # The directory for temporary files
@@ -537,11 +302,7 @@ TMPDIR=$(mktemp --tmpdir=${TMPDIR:-/tmp/}  -d ${MYNAME%*.sh}.XXXXXXXXXX  )
 
 declare -rx  MYNAME  MYNAME_AS_IN_DOLLARZERO  MYPATH  MYDIR  MY_DISPLAY_NAME  \
              BAHELITE_VERSION  BAHELITE_DIR  BAHELITE_LOCAL_TMPDIR  \
-             CMDLINE  ARGS  TERM_COLS  TERM_LINES  TMPDIR
-
- # Dummy logfile
-#  To enable proper logging, call start_log().
-export LOG=/dev/null
+             CMDLINE  ARGS  TMPDIR
 
 
  # By default Bahelite turns off xtrace for its internal functions.
@@ -615,9 +376,9 @@ declare -Ax REQUIRED_UTILS_HINTS=()
 #  are normally not shown. Works per module. Redefine elements in the mother
 #  script after sourcing bahelite.sh, but before calling any bahelite func-
 #  tions. For example, to enable verbose messages for bahelite_rcfile.sh:
-#  BAHELITE_VERBOSITY=( [rcfile]=t )
+#  BAHELITE_MODULE_VERBOSITY=( [rcfile]=t )
 #
-declare -Ax BAHELITE_VERBOSITY=(
+declare -Ax BAHELITE_MODULE_VERBOSITY=(
 	[bahelite]=f                  # the main module = bahelite.sh = this file.
 	[colours]=f                   # bahelite_colours.sh
 	[dialog]=f                    # etc.
@@ -627,8 +388,10 @@ declare -Ax BAHELITE_VERBOSITY=(
 	[logging]=f
 	[menus]=f
 	[messages]=f
+	[messages_to_desktop]=f
 	[misc]=f
 	[rcfile]=f
+	[set_overrides]=f
 	[versioning]=f
 	[x_desktop]=f
 )
@@ -649,7 +412,7 @@ bahelite_check_module_verbosity() {
 	caller_module_filename=${caller_module_filename##*/}
 	caller_module_filename=${caller_module_filename%.sh}
 	caller_module_filename=${caller_module_filename#bahelite_}
-	[ "${BAHELITE_VERBOSITY[$caller_module_filename]}" = t ]  \
+	[ "${BAHELITE_MODULE_VERBOSITY[$caller_module_filename]}" = t ]  \
 		&& return 0  \
 		|| return 1
 }
@@ -661,7 +424,7 @@ bahelite_verify_error_code() {
 	if	[[ "$error_code" =~ ^[0-9]{1,3}$ ]]  \
 		&&  ((
 		            (       $error_code >= 7
-		                &&  $error_code <= 124
+		                &&  $error_code <= 125
 		            )
 
 		        ||  (       $error_code >= 166
@@ -677,50 +440,44 @@ bahelite_verify_error_code() {
 export -f bahelite_verify_error_code
 
 
-. "$BAHELITE_DIR/bahelite_messages.sh" || {
-	echo "Bahelite error: cannot find module “messages” which is required." >&2
-	exit 4
+bahelite_load_module() {
+	local module_name="$1"
+	local module_file="$BAHELITE_DIR/bahelite_$module_name.sh"
+	[ -r "$module_file" ]  || {
+		echo "Bahelite error: cannot find module “$module_name”." >&2
+		return 4
+	}
+	#  As we are currently in a function scope, the “source” command
+	#  will make all declare calls local. To define global variables
+	#  “declare -g” must be used in all modules!
+	source "$module_file"  || {
+		echo "Bahelite error: cannot load module “$module_name”." >&2
+		return 4
+	}
+	return 0
 }
+export -f bahelite_load_module
+
+
+#  Required modules
+bahelite_load_module 'util_overrides' || exit $?
+bahelite_load_module 'messages' || exit $?
 if [ -v BAHELITE_CHERRYPICK_MODULES ]; then
 	for module_name in "${BAHELITE_CHERRYPICK_MODULES[@]}"; do
-		. "$BAHELITE_DIR/bahelite_$module_name.sh" || {
-			echo "Bahelite error: cannot find module “$module_name”." >&2
-			exit 4
-		}
+		bahelite_load_module "$module_name" || exit $?
 	done
 else
 	bahelite_noglob_off
 	for bahelite_module in "$BAHELITE_DIR"/bahelite_*.sh; do
-		. "$bahelite_module" || {
-			module_name=${bahelite_module##*/}
-			module_name=${module_name%.sh}
-			echo "Bahelite error: cannot find module “$module_name”." >&2
-			exit 4
-		}
+		module_name=${bahelite_module##*/}
+		module_name=${module_name#bahelite_}
+		module_name=${module_name%.sh}
+		bahelite_load_module "$module_name" || exit $?
 	done
 	bahelite_noglob_on
 fi
 unset  module_name  bahelite_module
 
-
-bahelite_check_module_verbosity  \
-	&& info "BAHELITE_VERSION = $BAHELITE_VERSION
-	         BAHELITE_DIRECTORY = $BAHELITE_DIRECTORY
-	         TMPDIR = $TMPDIR
-	         LOG = $LOG
-	         $(  [ -v BAHELITE_LOGGING_STARTED ] \
-	                 && echo "BAHELITE_LOGGING_STARTED = Yes" \
-	                 || echo "BAHELITE_LOGGING_STARTED = No"
-	         )
-	         $(	 for bahelite_module_var in ${!BAHELITE_MODULE*}; do
-	                 echo -n "$bahelite_module_var = "
-	                 declare -n bahelite_module_var_val=$bahelite_module_var
-	                 echo "$bahelite_module_var_val"
-	             done
-	         )
-
-	         MYNAME = $MYNAME
-	         MYDIR = $MYDIR"
 
  # Dependency checking
 #  Call this function after extending REQUIRED_UTILS in the main script.
@@ -750,19 +507,17 @@ check_required_utils() {
 }
 export -f check_required_utils
 
-
 [ -v ERROR_CODES ] && [ ${#ERROR_CODES[*]} -ne 0 ] && {
 	for key in ${!ERROR_CODES[*]}; do
 		bahelite_verify_error_code "${ERROR_CODES[key]}" || {
 			echo "Bahelite error: Invalid exit code in ERROR_CODES[$key]:" >&2
-			echo "should be a number in range 7…124 or 166…254 inclusively." >&2
+			echo "should be a number in range 7…125 or 166…254 inclusively." >&2
 			invalid_code=t
 		}
 	done
 	[ -v invalid_code ] && exit 4
 }
 unset  key  invalid_code
-
 
  # The sign, that bahelite.sh successfully finished loading.
 #  This variable is used in the check for chainload above, so that the chain-
@@ -782,7 +537,7 @@ BAHELITE_STARTUP_ID=$(mktemp -u "XXXXXXXXXX")
 #  this list would be compared to the other, created before exiting,
 #  and the diff will be placed in "$LOGDIR/variables"
 #
-BAHELITE_STARTUP_VARLIST="$(compgen -A variable)"
+BAHELITE_VARLIST_AFTER_STARTUP="$(compgen -A variable)"
 
 if   (( BAHELITE_VERBOSITY_LEVEL == 10 )); then
 	#  Be ready for metric tons of logs.

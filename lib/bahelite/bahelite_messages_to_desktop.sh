@@ -2,35 +2,39 @@
 
 #  bahelite_messages_to_desktop.sh
 #  To send notifications to desktop with notify-send.
-#  deterenkelt © 2019
+#  © deterenkelt 2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo 'Must be sourced from bahelite.sh.' >&2
-	return 5
+	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
+	echo "load the core module (bahelite.sh) first." >&2
+	return 4
 }
-. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER ] && return 0
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.0'
+declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.0.1'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	notify-send   # (libnotify or libtinynotify)
 )
 
 
- # Desktop notifications
-#
-#  To send a notification to both console and desktop, main script should
+                      #  Desktop notifications  #
+
+ # To send a notification to both console and desktop, main script should
 #  call info-ns(), warn-ns() or err() functions, which are defined
 #  in bahelite_messages.sh.
+#
+#  To suppress sending desktop notifications, set this variable in the
+#  main script.
+# declare -gx MSG_DISABLE_DESKTOP_NOTIFICATIONS=t
 
 
  # Define this variable to make notifications with icons.
 #
-# export MSG_NOTIFYSEND_USE_ICON=t
+# declare -gx MSG_NOTIFYSEND_USE_ICON=t
 
 
  # Shows a desktop notification
@@ -39,6 +43,7 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #
 bahelite_notify_send() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	[ -v MSG_DISABLE_DESKTOP_NOTIFICATIONS ] && return 0
 	local msg="$1" type="$2" duration urgency icon
 	msg=${msg##+([[:space:]])}
 	msg=${msg%%+([[:space:]])}

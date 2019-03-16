@@ -2,21 +2,21 @@
 
 #  bahelite_rcfile.sh
 #  Functions to source an RC file and verify, that its version is compatible.
-#  deterenkelt © 2018–2019
+#  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo 'Must be sourced from bahelite.sh.' >&2
-	return 5
+	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
+	echo "load the core module (bahelite.sh) first." >&2
+	return 4
 }
-. "$BAHELITE_DIR/bahelite_messages.sh" || return 5
-. "$BAHELITE_DIR/bahelite_versioning.sh" || return 5
-. "$BAHELITE_DIR/bahelite_directories.sh" || return 5
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_RCFILE_VER ] && return 0
+bahelite_load_module 'versioning' || return $?
+bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-BAHELITE_MODULE_RCFILE_VER='1.4.8'
+declare -grx BAHELITE_MODULE_RCFILE_VER='1.4.9'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -35,7 +35,7 @@ BAHELITE_ERROR_MESSAGES+=(
 #  if there’s no such variable and unset the variables having negative
 #  value (so that they could be later checked with [ -v varname ]).
 #
-declare -ax RCFILE_BOOLEAN_VARS=()
+declare -gax RCFILE_BOOLEAN_VARS=()
 
 
  # Pass the main script’s positional parameters to this function
@@ -58,7 +58,7 @@ declare -ax RCFILE_BOOLEAN_VARS=()
 #       own functions.
 #    2. It sets RCFILE to a custom RC file, if such an option is found.
 #    3. It removes the option, that was setting a custom rc file, from the
-#       argument list and sets the updated list to the global array $args.
+#       argument list and sets the updated list to the global array $NEW_ARGS.
 #  The options for alternating $RCFILE, that would be detected
 #    and removed, are:
 #    - a string that is an existing file name in $CONFDIR, ending with
@@ -70,13 +70,13 @@ declare -ax RCFILE_BOOLEAN_VARS=()
 #  Arguments:
 #    $1..n – positional arguments for the main script, i.e. "$@".
 #  Sets:
-#    $args – the new array containing $@ without the options, that set
-#            a custom RC file.
+#    $NEW_ARGS – the new array containing $@ without the options, that set
+#                a custom RC file.
 #
 set_rcfile_from_args() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	declare -g  RCFILE  args
-	[ $# -eq 0 ] &&	{ args=(); return 0; }
+	declare -gx  RCFILE  NEW_ARGS
+	[ $# -eq 0 ] &&	{ NEW_ARGS=(); return 0; }
 
 	local  temp_args=( "$@" )  i  args_to_unset=()  \
 	       arg  next_arg  \
@@ -151,8 +151,7 @@ set_rcfile_from_args() {
 	for i in ${args_to_unset[*]}; do
 		unset temp_args[$i]
 	done
-	args=( "${temp_args[@]}" )
-	export RCFILE
+	NEW_ARGS=( "${temp_args[@]}" )
 	return 0
 }
 
@@ -175,7 +174,7 @@ set_rcfile_from_args() {
 #
 place_rc_and_examplerc() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	declare -g  RCFILE  EXAMPLE_RCFILE
+	declare -gx  RCFILE  EXAMPLE_RCFILE
 	local config_name="${MYNAME%.*}"
 	[ "${1:-}" ] && config_name="$1"
 	local rc_path="$CONFDIR/$config_name.rc.sh"
@@ -188,10 +187,10 @@ place_rc_and_examplerc() {
 			[ "$installed_examplerc_path" -nt "$local_examplerc_path" ] \
 				&&  cp "$installed_examplerc_path" "$local_examplerc_path"
 		else
-			warn "Example RC file doesn’t exist in the installation
-			      $installed_examplerc_path
-			      Check that “set_exampleconfdir” is called prior to calling
-			      “prepare_confdir”, and the latter – before this function."
+			redmsg "Example RC file doesn’t exist in the installation
+			        $installed_examplerc_path
+			        Check that “set_exampleconfdir” is called prior to calling
+			        “prepare_confdir”, and the latter – before this function."
 			err "Example RC file doesn’t exist."
 		fi
 		[ ! -r "$rc_path" ] && {
@@ -206,7 +205,6 @@ place_rc_and_examplerc() {
 			RCFILE="$rc_path"
 			EXAMPLE_RCFILE="$local_examplerc_path"
 		}
-		export  RCFILE  EXAMPLE_RCFILE
 	else
 		err "EXAMPLECONFDIR is not set."
 	fi
@@ -224,23 +222,27 @@ place_rc_and_examplerc() {
 read_rcfile() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local  rcfile_min_ver="$1"  rcfile  example_rcfile  \
-	       rcfile_ver  varname  old_vars  new_vars  missing_variable_list=() \
-	       plural_s  verb
+	       rcfile_ver  varname  old_vars  new_vars  missing_variable_list=()
 
 	if [ "${2:-}" ]; then
 		rcfile="$2"
 	else
-		[ -v RCFILE ] || err 'No RC file provided and RCFILE is not set.
-		                      Did you forget to run prepare_confdir?'
+		[ -v RCFILE ] || {
+			redmsg 'No RC file provided and RCFILE is not set.
+			        Did you forget to run prepare_confdir?'
+			err 'Cannot read config file: RCFILE is not set.'
+		}
 		rcfile="$RCFILE"
 	fi
 
 	if [ "${3:-}" ]; then
 		example_rcfile="$3"
 	else
-		[ -v EXAMPLE_RCFILE ] \
-			|| err "No example RC file provided and EXAMPLE_RCFILE is not set.
-		            Did you forget to run place_rc_and_examplerc?"
+		[ -v EXAMPLE_RCFILE ] || {
+			redmsg "No example RC file provided and EXAMPLE_RCFILE is not set.
+			        Did you forget to run place_rc_and_examplerc?"
+			err 'Cannot read config file: EXAMPLE_RCFILE is not set.'
+		}
 		example_rcfile="$EXAMPLE_RCFILE"
 	fi
 	#  This allows to keep user RC files short.
@@ -258,13 +260,13 @@ read_rcfile() {
 			warn "RC file format changed!
 			      Current RC version: $rcfile_ver
 			      Minimum compatible version: $rcfile_min_ver"
-			warn-ns 'Please COPY and EDIT the new RC file!'
-			exit 7
+			warn-ns 'Please COPY and EDIT the new config file!'
+			exit 5
 		fi
 		. "$rcfile"
 
 	else
-		err "RC file doesn’t exist:
+		err "Config file doesn’t exist:
 		     $rcfile"
 	fi
 
@@ -274,6 +276,7 @@ read_rcfile() {
 	done
 	return 0
 }
+
 
 
 export -f  set_rcfile_from_args  \
