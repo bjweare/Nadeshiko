@@ -18,7 +18,7 @@
 	bahelite_load_module 'colours' || return $?
 }
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_VER='2.5'
+declare -grx BAHELITE_MODULE_MESSAGES_VER='2.6'
 
 
 
@@ -30,73 +30,125 @@ declare -grx BAHELITE_MODULE_MESSAGES_VER='2.5'
 
                         #  Verbosity levels  #
 
- # Lvl  Destination    What messages go to that destination and notes.
+#  See the wiki. (It’s not written yet.)
+
+ # Removes spacing characters: “-”, “_” and “ ” from VERBOSITY_LEVEL
 #
-#  0    Log            none (if logging is enabled at all).
-#       Console        none.
-#       Desktop        none.
-#                                           Note
-#                         Only the exit codes will tell about errors
-#                                      on this level.
+bahelite_sanitise_verbosity_level() {
+	declare -g VERBOSITY_LEVEL
+	if [[ "$VERBOSITY_LEVEL" =~ ^([0-9]{2})[\ _-]?([0-9]{2})[\ _-]?([0-9]{2}) ]]; then
+		#  All six numbers? Just remove spacing.
+		VERBOSITY_LEVEL="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+
+	elif [[ "$VERBOSITY_LEVEL" =~ ^([0-9])[\ _-]?([0-9])[\ _-]?([0-9]) ]]; then
+		#  Short form of three numbers? Remove spacing, add zeroes
+		#  for user-level verbosity.
+		VERBOSITY_LEVEL="${BASH_REMATCH[1]}0${BASH_REMATCH[2]}0${BASH_REMATCH[3]}0"
+
+	else
+		redmsg "Incorrect value for VERBOSITY_LEVEL: “$VERBOSITY_LEVEL”.
+		        Should be a string of six numbers, optionally divided by either
+		        a space, a hyphen or an underscore, e.g. 303030 or 30-10-00."
+		err "VERBOSITY_LEVEL must be a string of six numbers."
+	fi
+	return 0
+}
+#  No export: init stage function.
+
+
+ # Verifies, that VERBOSITY_LEVEL is a correct string.
+#  To be used in runtime calls to get_bahelite/user_verbosity().
 #
-#  1    Log            all messages.
-#       Console        none.
-#       Desktop        none.
+bahelite_verify_verbosity_level() {
+	#  In the future more format may appear, e.g. as an associative array
+	#  or as a string with spaces like “30 30 30”.
+	[[ "$VERBOSITY_LEVEL" =~ ^[0-9]{6}$ ]] || {
+		redmsg "Incorrect value for VERBOSITY_LEVEL: “$VERBOSITY_LEVEL”.
+		        Should be a string of six numbers, optionally divided by either
+		        a space, a hyphen or an underscore."
+		err "VERBOSITY_LEVEL must be a string of six numbers."
+	}
+	return 0
+}
+export -f  bahelite_verify_verbosity_level
+
+
+ # Extracts output (log/console/desktop) verbosity level from VERBOSITY_LEVEL.
 #
-#  2    Log            all messages.
-#       Console        all messages.
-#       Desktop        none.
+#  Returns the first number of the output verbosity number,
+#  e.g. 123456 for requested output “log” will return “1”
+get_bahelite_verbosity()  { __get_verbosity "$1" bahelite; }
 #
-#  3    Log            only *err*(), redmsg() and whatever output that goes
-#                      to stderr in the main script. (Stdout is essentially
-#                      redirected to /dev/null.)
-#       Console        ——»——
-#       Desktop        only *err*().
+#  Returns the second digit of the output verbosity number,
+#  e.g. 123456 for requested output “log” will return “2”
+get_user_verbosity()      { __get_verbosity "$1" user; }
 #
-#  4    Log            Everything, but *info*().
-#       Console        ——»——
-#       Desktop        all desktop messages.¹
-#
-#  5    Log            all messages.
-#       Console        all messages.
-#       Desktop        all desktop messages.¹
-#                                           Note
-#                                This is the default level.
-#
-#  6    —————————————————————————RESERVED—————————————————————————————————————
-#
-#  7    Log            all messages. Enables the internal module messages, if
-#                      module is enabled in BAHELITE_MODULE_VERBOSITY.
-#       Console        ——»——
-#       Desktop        all desktop messages.¹
-#
-#  8    —————————————————————————RESERVED—————————————————————————————————————
-#
-#  9    Log            all messages plus the internal messages enabled on L7.
-#                      Turns on xtrace shell option, when Bahelite finishes
-#                      loading.
-#       Console        ——»——
-#       Desktop        all desktop messages.¹
-#
-#  10   Log            all messages plus the internal messages enabled on L7.
-#                      Turns on xtrace shell option, when Bahelite finishes
-#                      loading and unsets BAHELITE_HIDE_FROM_XTRACE.
-#       Console        ——»——
-#       Desktop        all desktop messages.¹
+#  Returns both digits of the output verbosity number,
+#  e.g. 123456 for requested output “log” will return “10”
+get_overall_verbosity()   { __get_verbosity "$1" overall; }
 #
 #
-#  Notes
-#  1. Desktop messages are those sent with info-ns(), warn-ns() and err().
-#  2. Desktop messages are sent only as long as NO_DESKTOP_NOTIFICATIONS
-#     remains undefined. (See below.)
-#  3. Logging is enabled only if the logging module was included
-#     in the main script and it called start_logging(). That function also
-#     controls verbosity of the log output.
-#  4. The verbosity of console and desktop functions is controlled in the
-#     __msg() below.
-#
-[ -v BAHELITE_VERBOSITY_LEVEL ] \
-	|| declare -gx BAHELITE_VERBOSITY_LEVEL=5
+__get_verbosity() {
+	local output="$1" mode="$2"
+	bahelite_verify_verbosity_level
+	case "$output" in
+		log)
+			case "$mode" in
+				'bahelite')
+					echo "${VERBOSITY_LEVEL:0:1}"
+					;;
+				'user')
+					echo "${VERBOSITY_LEVEL:1:1}"
+					;;
+				'overall')
+					echo "${VERBOSITY_LEVEL:0:2}"
+					;;
+			esac
+			;;
+
+		console)
+			case "$mode" in
+				'bahelite')
+					echo "${VERBOSITY_LEVEL:2:1}"
+					;;
+				'user')
+					echo "${VERBOSITY_LEVEL:3:1}"
+					;;
+				'overall')
+					echo "${VERBOSITY_LEVEL:2:2}"
+					;;
+			esac
+			;;
+
+		desktop)
+			case "$mode" in
+				'bahelite')
+					echo "${VERBOSITY_LEVEL:4:1}"
+					;;
+				'user')
+					echo "${VERBOSITY_LEVEL:5:1}"
+					;;
+				'overall')
+					echo "${VERBOSITY_LEVEL:4:2}"
+					;;
+			esac
+			;;
+		*)
+			err "Unknown verbosity output: “$output”.
+			     Must be one of: log, console, desktop."
+			;;
+	esac
+	return 0
+}
+export -f  __get_verbosity  \
+               get_bahelite_verbosity  \
+               get_user_verbosity  \
+               get_overall_verbosity  \
+
+[ -v VERBOSITY_LEVEL ]  \
+	|| declare -gx VERBOSITY_LEVEL='333'
+bahelite_sanitise_verbosity_level
+
 
 
 
@@ -223,6 +275,7 @@ mi_assemble() {
 	[ "$__mi" ] || __mi='  '
 	return 0
 }
+export -f  mi_assemble
 
 
  # Increments the indentation level.
@@ -237,6 +290,7 @@ milinc() {
 	done
 	mi_assemble || return $?
 }
+export -f  milinc
 
 
  # Decrements the indentation level.
@@ -256,6 +310,7 @@ mildec() {
 	fi
 	return 0
 }
+export -f  mildec
 
 
  # Sets the indentation level to a specified number.
@@ -271,6 +326,7 @@ milset () {
 	MSG_INDENTATION_LEVEL=$mi_level
 	mi_assemble || return $?
 }
+export -f  milset
 
 
  # Removes any indentation.
@@ -280,6 +336,7 @@ mildrop() {
 	MSG_INDENTATION_LEVEL=$MSG_INDENTATION_LEVEL_UPON_ENTRANCE
 	mi_assemble || return $?
 }
+export -f  mildrop
 
 
 
@@ -312,7 +369,7 @@ mildrop() {
 # 	#  type/role, if MSG_ASTERISK_WITH_MSGTYPE is set.
 # 	[asterisk]=''
 # 	#  A string, that etermines, whether the message should go desktop
-# 	#  (at the default BAHELITE_VERBOSITY level). Should be “yes” or “no”.
+# 	#  (at the default VERBOSITY_LEVEL). Should be “yes” or “no”.
 # 	[desktop_message]=''
 # 	#  The type of message to pass for “notify-send”, if the message goes
 # 	#  to desktop. Either “info”, “dialog-warning” or “dialog-error”.
@@ -326,8 +383,8 @@ mildrop() {
 # 	#  be cut.
 # 	[stay_on_line]=''
 # 	#  Whether the message should go to “stdout” or “stderr” (at the
-# 	#  default BAHELITE_VERBOSITY_LEVEL).
-# 	[redir]=''
+# 	#  default VERBOSITY_LEVEL).
+# 	[output]=''
 # 	#  Whether the message is internal, i.e. generated by Bahelite itself.
 # 	#  Internal messages always use keywords, and this is a hook to tell
 # 	#  __msg to enter the necessary part of code without activating
@@ -355,13 +412,15 @@ info() {
 		[desktop_message]='no'
 		[desktop_message_type]=''
 		[stay_on_line]='no'
-		[redir]='stdout'
+		[output]='stdout'
 		[internal]='no'
 		[exit_code]=''
 	)
 	__msg "$@"
 	return 0
 }
+export -f  info
+
 
  # Same as info(), but omits the ending newline, like “echo -n” does.
 #  This allows to print whatever with just simple “echo” later.
@@ -377,13 +436,15 @@ infon() {
 		[desktop_message]='no'
 		[desktop_message_type]=''
 		[stay_on_line]='yes'
-		[redir]='stdout'
+		[output]='stdout'
 		[internal]='no'
 		[exit_code]=''
 	)
 	__msg "$@"
 	return 0
 }
+export -f  infon
+
 
  # Like info(), but has a higher rank than usual info(),
 #  which allows its message to be also shown on desktop.
@@ -400,13 +461,14 @@ info-ns() {
 		[desktop_message]='yes'
 		[desktop_message_type]='info'
 		[stay_on_line]='no'
-		[redir]='stdout'
+		[output]='stdout'
 		[internal]='no'
 		[exit_code]=''
 	)
 	__msg "$@"
 	return 0
 }
+export -f  info-ns
 
 
  # Shows an info message and waits for the given command to finish,
@@ -430,7 +492,7 @@ info-wait() {
 		[desktop_message]='no'
 		[desktop_message_type]=''
 		[stay_on_line]='yes'
-		[redir]='stdout'
+		[output]='stdout'
 		[internal]='no'
 		[exit_code]=''
 	)
@@ -449,6 +511,7 @@ info-wait() {
 	}
 	return 0
 }
+export -f  info-wait
 
 
  # Like info, but the output goes to stderr.
@@ -464,13 +527,14 @@ warn() {
 		[desktop_message]='no'
 		[desktop_message_type]=''
 		[stay_on_line]='no'
-		[redir]='stdout'
+		[output]='stdout'
 		[internal]='no'
 		[exit_code]=''
 	)
 	__msg "$@"
 	return 0
 }
+export -f  warn
 
 
  # Like warn(), but has a higher rank than usual info(),
@@ -486,15 +550,16 @@ warn-ns() {
 		[whole_message_in_colour]='no'
 		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+WARNING: }"
 		[desktop_message]='yes'
-		[desktop_message_type]='dialog-warning'
+		[desktop_message_type]='warn'
 		[stay_on_line]='no'
-		[redir]='stderr'
+		[output]='stderr'
 		[internal]='no'
 		[exit_code]=''
 	)
 	__msg "$@"
 	return 0
 }
+export -f  warn-ns
 
 
  # Shows an error message and calls “exit”.
@@ -512,15 +577,17 @@ err() {
 		[whole_message_in_colour]='no'
 		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+ERROR: }"
 		[desktop_message]='yes'
-		[desktop_message_type]='dialog-error'
+		[desktop_message_type]='err'
 		[stay_on_line]='no'
-		[redir]='stderr'
+		[output]='stderr'
 		[internal]='no'
 		[exit_code]='5'
 	)
 	__msg "$@"
 	#  ^ Exits.
 }
+export -f  err
+
 
  # Has the appearance of err(), but doesn’t call “exit” afterwards.
 #  It suites for printing big descriptive messages to console/logs,
@@ -538,13 +605,15 @@ redmsg() {
 		[desktop_message]='no'
 		[desktop_message_type]=''
 		[stay_on_line]='no'
-		[redir]='stderr'
+		[output]='stderr'
 		[internal]='no'
 		[exit_code]=''
 	)
 	__msg "$@"
 	return 0
 }
+export -f  redmsg
+
 
  # Same as err(), but prints the whole line in red.
 #
@@ -557,15 +626,17 @@ errw() {
 		[whole_message_in_colour]='yes'
 		[asterisk]="  ${MSG_ASTERISK_WITH_MSGTYPE:+ERROR: }"
 		[desktop_message]='yes'
-		[desktop_message_type]='dialog-error'
+		[desktop_message_type]='err'
 		[stay_on_line]='no'
-		[redir]='stderr'
+		[output]='stderr'
 		[internal]='no'
 		[exit_code]='5'
 	)
 	__msg "$@"
 	#  ^ Exits.
 }
+export -f errw
+
 
  # Like err(), but has the appearance of info message to both console
 #  and desktop. For the case when user aborts an action – for him this is
@@ -582,13 +653,14 @@ abort() {
 		[desktop_message]='yes'
 		[desktop_message_type]='info'
 		[stay_on_line]='no'
-		[redir]='stdout'
+		[output]='stdout'
 		[internal]='no'
 		[exit_code]='6'
 	)
 	__msg "$@"
 	#  ^ Exits.
 }
+export -f  abort
 
 
  # For Bahelite internal warnings and errors.
@@ -606,13 +678,14 @@ iwarn() {
 		[desktop_message]='no'
 		[desktop_message_type]=''
 		[stay_on_line]='no'
-		[redir]='stdout'
+		[output]='stdout'
 		[internal]='yes'
 		[exit_code]=''
 	)
 	__msg "$@"
 	return 0
 }
+export -f  iwarn
 
 
 ierr() {
@@ -624,15 +697,16 @@ ierr() {
 		[whole_message_in_colour]='no'
 		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+ERROR: }"
 		[desktop_message]='yes'
-		[desktop_message_type]='dialog-error'
+		[desktop_message_type]='err'
 		[stay_on_line]='no'
-		[redir]='stderr'
+		[output]='stderr'
 		[internal]='yes'
 		[exit_code]='4'
 	)
 	__msg "$@"
 	#  ^ Exits.
 }
+export -f  ierr
 
 
  # For internal use in alias functions, such as infow(), where we cannot use
@@ -653,13 +727,14 @@ plainmsg() {
 		[desktop_message]='no'
 		[desktop_message_type]=''
 		[stay_on_line]='no'
-		[redir]='stdout'
+		[output]='stdout'
 		[internal]='no'
 		[exit_code]=''
 	)
 	__msg "$@"
 	return 0
 }
+export -f  plainmsg
 
 
  # Shows an info, a warning or an error message
@@ -683,11 +758,12 @@ __msg() {
 	#  Internal! There should be no xtrace_off!
 	declare -gx  BAHELITE_STIPULATED_ERROR
 	local role  message_array  colour  whole_message_in_colour  asterisk  \
-	      desktop_message  desktop_message_type  stay_on_line  redir  \
+	      desktop_message  desktop_message_type  stay_on_line  output  \
 	      internal  exit_code  \
 	      f  f_count=0  \
-	       message=''  message_key  message_key_exists  \
-	       _message=''  message_nocolours  term_cols=$TERM_COLS
+	      message=''  message_key  message_key_exists  \
+	      _message=''  message_nocolours  \
+	      term_cols=$TERM_COLS  console_or_log
 
 	[[ "$-" =~ .*i.* ]] || term_cols=80
 	#  As a precaution against internal bugs, check how many times __msg()
@@ -718,29 +794,86 @@ __msg() {
 	desktop_message_type=${__msg_properties[desktop_message_type]}
 	[ "${__msg_properties[stay_on_line]}" = 'yes' ]  \
 		&& stay_on_line=${__msg_properties[stay_on_line]}
-	redir=${__msg_properties[redir]}
+	output=${__msg_properties[output]}
 	[ "${__msg_properties[internal]}" = 'yes' ]  \
 		&& internal=${__msg_properties[internal]}
 	[[ "${__msg_properties[exit_code]}" =~ ^[0-9]{1,3}$ ]]  \
 		&& exit_code=${__msg_properties[exit_code]}
 
-	case "$BAHELITE_VERBOSITY_LEVEL" in
-		0)	redir='devnull'
+	 # Checks, if the stdout/stderr stream is going to be disabled, judging
+	#  by the VERBOSITY_LEVEL, but the logging module will redirect the
+	#  streams to log.
+	#
+	is_log_gonna_catch_the_message() {
+		local log_verbosity=$(get_bahelite_verbosity 'log')  \
+		      console_verbosity=$1  \
+		      output=$2
+		case "$output" in
+			'stdout')
+				(( console_verbosity < 2  &&  log_verbosity >= 2 ))  \
+					&& return 0  \
+					|| return 1
+				;;
+			'stderr')
+				(( console_verbosity < 1  &&  log_verbosity >= 1 ))  \
+					&& return 0  \
+					|| return 1
+				;;
+		esac
+	}
+
+	 # See also the second part at the end of bahelite.sh.
+	#
+	case "$(get_bahelite_verbosity  'console')" in
+		0)	#  Actually handled in the code piece below __msg.
+			#  Here output is specified to expose the internal mechanism.
+			#  This also prevents any message being actually echoed anywhere,
+			#  so there’s no need to catch it later.
+			is_log_gonna_catch_the_message '0' "$output"  \
+				|| output='devnull'
 			;;
 
-		2)	unset desktop_message
+		1)	#  Actually handled in the code piece below __msg.
+			#  Here output is specified to expose the internal mechanism.
+			#  This also prevents any non-error message being echoed anywhere,
+			#  so there’s no need to catch it later.
+			[[ "$role" =~ ^(redmsg|err)$  &&  "$output" = 'stderr' ]]  || {
+				is_log_gonna_catch_the_message '1' "$output"  \
+					|| output='devnull'
+			}
 			;;
 
-		3)	[ "$redir" = 'stdout' ]  \
-				&& redir='devnull'
-			[ "$role" != 'err' ] && [ -v desktop_message ]  \
-				&& unset  desktop_message
+		2)
+			[[ "$role" =~ ^(warn|redmsg|err)$  &&  "$output" = 'stderr' ]]  \
+				|| output='devnull'
 			;;
 
-		4)	[[ "$role" =~ ^(info|plainmsg)$ ]]  \
-				&& redir='devnull'
+		3|4|5|6|7|8|9)
+			: "All messages allowed."
+			;;
+		#  See also stream control below.
+	esac
+
+	case "$(get_bahelite_verbosity  desktop)" in
+		0)
+			unset desktop_message
+			;;
+
+		1)
+			[ -v desktop_message  -a  "$role" = 'err' ]  \
+				|| unset desktop_message
+			;;
+
+		2)
+			[[ -v desktop_message  &&  "$role" =~ ^(err|warn)$ ]]  \
+				|| unset desktop_message
+			;;
+
+		3|4|5|6|7|8|9)
+			: "All messages allowed."
 			;;
 	esac
+
 
 	if [ -v MSG_USE_KEYWORDS  -o  -v internal ]; then
 		#  What was passed to us is not a message per se,
@@ -784,7 +917,7 @@ __msg() {
 		message=$(echo -e ${stay_on_line:+-n} "$_message" \
 		              | sed -r "1s/^/${__mi#  }/; 1!s/^/$__mi/g" )
 	fi
-	case "$redir" in
+	case "$output" in
 		stdout)  echo ${stay_on_line:+-n} "$message"  ;;
 		stderr)  echo ${stay_on_line:+-n} "$message" >&2  ;;
 		devnull) :  ;;
@@ -812,6 +945,7 @@ __msg() {
 	}
 	return 0
 }
+export -f  __msg
 
 
 
@@ -819,24 +953,27 @@ bahelite_xtrace_off
 mi_assemble
 bahelite_xtrace_on
 
-export -f  mi_assemble  \
-           milinc  \
-           mildec  \
-           milset  \
-           mildrop  \
-           __msg  \
-               info  \
-                   infon  \
-                   info-ns  \
-                   info-wait  \
-               warn  \
-                   warn-ns  \
-                   iwarn  \
-               err  \
-                   redmsg  \
-                   errw  \
-                   abort  \
-                   ierr  \
-               plainmsg
+ # Stream control
+#  Setting initial verbosity according to VERBOSITY_LEVEL.
+#
+case "$(get_bahelite_verbosity  'console')" in
+	0)	exec {STDOUT_ORIG_FD}>&1
+		exec                1>/dev/null
+		exec {STDERR_ORIG_FD}>&2
+		exec                2>/dev/null
+		;;
+
+	1)	exec {STDOUT_ORIG_FD}>&1
+		exec                1>/dev/null
+		;;
+
+	4|5|6|7|8|9)
+		BAHELITE_XTRACE_ALLOWED=t
+		;;&
+
+	5|6|7|8|9)
+		BAHELITE_MODULES_ARE_VERBOSE=t
+		;;
+esac
 
 return 0

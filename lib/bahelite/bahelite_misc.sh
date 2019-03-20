@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MISC_VER='1.9.5'
+declare -grx BAHELITE_MODULE_MISC_VER='1.10'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # (procps) Single process check.
@@ -80,22 +80,13 @@ is_true() {
 	fi
 	return 0
 }
+export -f  is_true
 
 
-is_function() {  [ "$(type -t "$1")" = 'function' ];  }
-
-
- # Dumps values of variables to stdout and to the log
-#  $1..n – variable names
-#
-dumpvar() {
-	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	local var
-	for var in "$@"; do
-		msg "$(declare -p $var)"
-	done
-	return 0
+is_function() {
+	[ "$(type -t "$1")" = 'function' ]
 }
+export -f  is_function
 
 
  # Sets MYRANDOM global variable to a random number either fast or secure way
@@ -140,6 +131,9 @@ __random() {
 	MYRANDOM=$(shuf --random-source=$random_source -r -n 1 -i 0-$max_number)
 	return 0
 }
+export -f  __random  \
+               random-fast  \
+               random-secure
 
 
  # Removes or replaces characters, that are forbidden in Windows™ filenames.
@@ -160,6 +154,7 @@ remove_windows_unfriendly_chars() {
 	echo -n "$str"
 	return 0
 }
+export -f  remove_windows_unfriendly_chars
 
 
  # Allows only one instance of the main script to run.
@@ -189,6 +184,7 @@ single_process_check() {
 	}
 	return 0
 }
+#  No export: init stage function.
 
 
  # Expands a string like “1-5” into the range of numbers “1 2 3 4 5”.
@@ -204,6 +200,7 @@ expand_range() {
 	seq -s ' ' ${BASH_REMATCH[1]} ${BASH_REMATCH[2]}
 	return 0
 }
+export -f  expand_range
 
 
  # Check a number and echo either a plural string or a singular string.
@@ -254,17 +251,8 @@ plur_sing() {
 		|| echo -n "$plural_ending"
 	return 0
 }
+export -f  plur_sing
 
 
-export -f  is_true  \
-           is_function \
-           dumpvar  \
-           __random  \
-               random-fast  \
-               random-secure  \
-           remove_windows_unfriendly_chars  \
-           single_process_check  \
-           expand_range  \
-           plur_sing
 
 return 0

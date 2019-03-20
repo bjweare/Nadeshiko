@@ -142,9 +142,8 @@ check_for_new_release() {
 	fi
 	return 0
 }
-
-
-
 export -f  check_for_new_release
+
+
 
 return 0

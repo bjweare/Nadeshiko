@@ -16,7 +16,7 @@
 bahelite_load_module 'versioning' || return $?
 bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_RCFILE_VER='1.4.9'
+declare -grx BAHELITE_MODULE_RCFILE_VER='1.4.10'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -152,8 +152,17 @@ set_rcfile_from_args() {
 		unset temp_args[$i]
 	done
 	NEW_ARGS=( "${temp_args[@]}" )
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
+		info "${FUNCNAME[0]}: setting NEW_ARGS."
+		milinc
+		for ((i=0; i<${#NEW_ARGS[@]}; i++)) do
+			echo "${__mi}NEW_ARGS[$i] = ${NEW_ARGS[i]}"
+		done
+		mildec
+	}
 	return 0
 }
+#  No export: init stage function.
 
 
  # Copies example RC file from the installation files into user’s CONFDIR.
@@ -210,6 +219,7 @@ place_rc_and_examplerc() {
 	fi
 	return 0
 }
+#  No export: init stage function.
 
 
  # Reads an RC file and verifies, that it has a compatible version.
@@ -276,11 +286,8 @@ read_rcfile() {
 	done
 	return 0
 }
+#  No export: init stage function.
 
 
-
-export -f  set_rcfile_from_args  \
-           place_rc_and_examplerc  \
-           read_rcfile
 
 return 0

@@ -20,7 +20,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.2'
+declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.3'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
 )
@@ -136,6 +136,7 @@ bahelite_on_each_command() {
 	# echo "${BAHELITE_STORED_LNOS[*]}" >&2
 	return 0
 }
+export -f  bahelite_on_each_command
 
 
  # Trap on DEBUG is a part of the system, that helps to build a meaningful
@@ -190,6 +191,7 @@ bahelite_toggle_ondebug_trap() {
 	esac
 	return 0
 }
+export -f  bahelite_on_each_command
 
 
  # This trap handles various signals that cause bash to quit.
@@ -212,7 +214,6 @@ bahelite_on_exit() {
 	local command="$1"  retval="$2"  stored_lnos="$3"  signal="$4"  \
 	      current_varlist  varname
 	mildrop
-
 	#  Normally, when a subshell exits, trap on EXIT is called is the main
 	#    shell. However, if called explicitly, e.g. from another trap – on ERR
 	#    for example (Bahelite doesn’t do that) it may be called in the sub-
@@ -262,7 +263,7 @@ bahelite_on_exit() {
 	#    uncaught bash error. And they will go by the “else” clause here,
 	#    to bahelite_show_error().
 	#
-	[ "$signal" = 'EXIT'  -a   $retval -ne 0 ] && {
+	[ "$signal" = 'EXIT' ]  &&  (( retval > 0  &&  retval != 6 ))  &&  {
 		if [[ "$command" =~ ^exit[[:space:]] ]]  &&  ((retval >= 5)); then
 			#  If it was exit that the author of the main script caught
 			#  with err() or errw()
@@ -288,7 +289,7 @@ bahelite_on_exit() {
 	#  $? is already frozen.
 	[ "$(type -t on_exit)" = 'function' ] && on_exit
 	#  Stop logging, if started
-	[ -v BAHELITE_LOGGING_STARTED ] && stop_logging
+	[ "$(type -t stop_logging)" = 'function' ] && stop_logging
 	[ -v BAHELITE_DUMP_VARIABLES ] && {
 		current_varlist=$(
 			compgen -A variable  \
@@ -312,6 +313,9 @@ bahelite_on_exit() {
 	[ "$signal" != 'EXIT' ] && err "Caught SIG$signal."
 	return 0
 }
+#  No export: runs only on the top level, using it inside of subshell is not
+#  necessary (exit from subshells are caught and handled) and could cause
+#  harm, if would run twice.
 
 
 bahelite_print_call_stack() {
@@ -343,6 +347,7 @@ bahelite_print_call_stack() {
 	done
 	return 0
 }
+export -f  bahelite_print_call_stack
 
 
 bahelite_on_error() {
@@ -412,6 +417,8 @@ bahelite_on_error() {
 	fi
 	return 0
 }
+#  No export: must not be used in subshell context (for the same reason as
+#  bahelite_on_exit() function above).
 
 
  # When it is needed to disable the errexit shell option (you usually do this
@@ -449,6 +456,7 @@ bahelite_toggle_onerror_trap() {
 	esac
 	return 0
 }
+#  No export: must not be used in subshell context.
 
 
 
@@ -474,17 +482,5 @@ bahelite_toggle_onerror_trap  set
 #
 [ -o functrace ]  \
 	&& bahelite_toggle_ondebug_trap  set
-
-export -f  bahelite_on_each_command  \
-           bahelite_toggle_ondebug_trap
-
- # Should not be exported:
-#  running traps twice (from within a subshell and from the main shell later)
-#  may lead to unforseen consequences.
-#
-# export -f  bahelite_on_exit  \
-#            bahelite_on_error  \
-#            bahelite_toggle_onerror_trap
-
 
 return 0

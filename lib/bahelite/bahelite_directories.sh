@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_DIRECTORIES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_DIRECTORIES_VER='1.1.4'
+declare -grx BAHELITE_MODULE_DIRECTORIES_VER='1.1.6'
 
 
 
@@ -28,85 +28,87 @@ declare -grx BAHELITE_MODULE_DIRECTORIES_VER='1.1.4'
 	|| declare -gx  XDG_DATA_HOME="$HOME/.local/share"
 
 
- # Prepares config directory with respect to XDG
-#  [$1] – script name, whose config directory will be used.
-#         If unset, uses $MYNAME. (Useful for when there’s a script suite,
-#         which should use same directory, or when one script is a testing
-#         suite for another and should be able to retrieve other script’s
-#         config directory).
+ # Creates the directory for storing configuration files.
+#    If CONFDIR isn’t already set in the environment, a subdirectory would be
+#    created under XDG_CONFIG_HOME.
+#  [$1] – subdirectory name. If not set, ${MYNAME%.*} will be used
+#         (i.e. the main script file name without an extension).
+#
+#         Setting $1 manually may help when you have a bunch (a family)
+#         of scripts, but want them to use single config directory.
+#         E.g. if you have my-script.sh and my-script-something-else.sh,
+#         the config directory would probably called “my-script”, so
+#         in my-script.sh use “prepare_confdir”
+#         in my-script-something-else use “prepare_confdir 'my-script'”
 #
 prepare_confdir() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -gx CONFDIR
-	declare -g BAHELITE_CONFDIR_PREPARED   #  Must NOT be exported!
 	local own_subdir
-	[ -v BAHELITE_CONFDIR_PREPARED ] && {
-		info "Config directory is already prepared!"
-		return 0
-	}
-	[ "${1:-}" ] \
-		&& own_subdir="$1" \
-		|| own_subdir="${MYNAME%.*}"
-	[ -v CONFDIR ]  \
-		|| CONFDIR="$XDG_CONFIG_HOME/$own_subdir"
+	if [ -v CONFDIR ]; then
+		info 'CONFDIR is already set!'
+	else
+		[ "${1:-}" ] \
+			&& own_subdir="$1" \
+			|| own_subdir="${MYNAME%.*}"
+		CONFDIR="$XDG_CONFIG_HOME/$own_subdir"
+	fi
 	bahelite_check_directory "$CONFDIR" 'Config'
-	BAHELITE_CONFDIR_PREPARED=t
 	return 0
 }
+#  No export: init stage function.
 
 
- # Prepares cache directory with respect to XDG
-#  [$1] – script name, whose cache directory will be used.
-#         If unset, uses $MYNAME. (Useful for when there’s a script suite,
-#         which should use same directory, or when one script is a testing
-#         suite for another and should be able to retrieve other script’s
-#         cache directory).
+ # Creates the directory for storing cache files (logging module also uses it).
+#    If CACHEDIR isn’t already set in the environment, a subdirectory would be
+#    created under XDG_CACHE_HOME.
+#  [$1] – subdirectory name. If not set, ${MYNAME%.*} will be used
+#         (i.e. the main script file name without an extension).
+#
+#         See also the comment to prepare_confdir() above.
 #
 prepare_cachedir() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -gx CACHEDIR
-	declare -g BAHELITE_CACHEDIR_PREPARED   # Must NOT be exported!
 	local own_subdir
-	[ -v BAHELITE_CACHEDIR_PREPARED ] && {
-		info "Cache directory is already prepared!"
-		return 0
-	}
-	[ "${1:-}" ] \
-		&& own_subdir="$1" \
-		|| own_subdir="${MYNAME%.*}"
-	[ -v CACHEDIR ]  \
-		|| CACHEDIR="$XDG_CACHE_HOME/$own_subdir"
+	if [ -v CACHEDIR ]; then
+		info 'CACHEDIR is already set!'
+	else
+		[ "${1:-}" ] \
+			&& own_subdir="$1" \
+			|| own_subdir="${MYNAME%.*}"
+		CACHEDIR="$XDG_CACHE_HOME/$own_subdir"
+	fi
 	bahelite_check_directory "$CACHEDIR" 'Cache'
-	BAHELITE_CACHEDIR_PREPARED=t
 	return 0
 }
+#  No export: init stage function.
 
 
- # Prepares data directory with respect to XDG
-#  [$1] – script name, whose data directory will be used.
-#         If unset, uses $MYNAME. (Useful for when there’s a script suite,
-#         which should use same directory, or when one script is a testing
-#         suite for another and should be able to retrieve other script’s
-#         data directory).
+ # Creates the directory for storing persistent extra files.
+#    If DATADIR isn’t already set in the environment, a subdirectory would be
+#    created under XDG_DATA_HOME.
+#  [$1] – subdirectory name. If not set, ${MYNAME%.*} will be used
+#         (i.e. the main script file name without an extension).
+#
+#         See also the comment to prepare_confdir() above.
 #
 prepare_datadir() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -gx DATADIR
-	declare -g BAHELITE_DATADIR_PREPARED   # Must NOT be exported!
 	local own_subdir
-	[ -v BAHELITE_DATADIR_PREPARED ] && {
-		info "Data directory is already prepared!"
-		return 0
-	}
-	[ "${1:-}" ] \
-		&& own_subdir="$1" \
-		|| own_subdir="${MYNAME%.*}"
-	[ -v DATADIR ]  \
-		|| DATADIR="$XDG_DATA_HOME/$own_subdir"
+	if [ -v DATADIR ]; then
+		info 'DATADIR is already set!'
+	else
+		[ "${1:-}" ] \
+			&& own_subdir="$1" \
+			|| own_subdir="${MYNAME%.*}"
+		DATADIR="$XDG_DATA_HOME/$own_subdir"
+	fi
 	bahelite_check_directory "$DATADIR" 'Data'
-	BAHELITE_DATADIR_PREPARED=t
 	return 0
 }
+#  No export: init stage function.
 
 
 
@@ -119,93 +121,71 @@ prepare_datadir() {
 #  - IF THE SOURCE REMAINS A SOLID PIECE, e.g. it is downloaded by the user
 #    (or cloned with some version control system) somewhere under his own
 #    $HOME, the source directories are searched in the same directory, where
-#    the executable file – mother script for bahelite – itself resides.
+#    the main script (the mother script for bahelite) itself resides.
 #
 #  - IF THE SOURCE IS SPLIT, because a package manager (or a Linux enthusiast)
-#    utilised some Makefile, and now the files are spread across several direc-
-#    tories under the the disk root, e.g. executables go to /usr/bin, libra-
-#    ries go to /lib/…/…,  other files are placed in /usr/share/,  then the
-#    source subdirectories are searched by the common paths such as the ones
-#    just mentioned – these paths are hardcoded – but source subdirectories
-#    are expected to be within a subfolder named like ${MY_NAME%.*} (a com-
-#    mon policy for the files in /usr/share, but not so common for e.g. /lib).
+#    utilised some Makefile, then the subdirectories are searched depending on
+#    where the executable file – the main script – resides, and on the purpose
+#    of the subdirectory. Where each subdirectory is search, read below.
 #
 #  Bahelite tries to intellectually determine, whether the installation is
 #    a solid, standalone or it is split across the root filesystem. For that
 #    MYDIR is tested to be /usr/local/bin or /usr/bin, and if it appears to be
-#    one of them, BAHELITE_SPLIT_INSTALLATION is set.
+#    one of them, BAHELITE_SPLIT_INSTALLATION is set. See the code at the bot-
+#    tom of this file.
 #  This variable prevents search for source subdirectories in MYDIR. In the
-#    case when a user might install the main program with both ways – with a
-#    package manager and locally, calling the executable from the local instal-
-#    lation should not look into system directories, and stay in MYDIR instead.
-#    And vice versa, a split installation should not try to find source subdi-
-#    rectories in $PATH, around the executable.
+#    case when a user might install the main program both ways – with a pack-
+#    age manager and locally, then calling the executable from the local in-
+#    stallation should not look into system directories, and stay in MYDIR
+#    instead. And vice versa, a split installation will not try to find
+#    source subdirectories in $PATH, around the executable.
 #
-#  Possible paths for source subdirectories are as follows:
-#    LIBDIR:
-#    /usr/local/lib/${MY_NAME%.*}
-#    /usr/lib/${MY_NAME%.*}
-#    /usr/share/${MY_NAME%.*}/lib
-#    <MYDIR>/lib
 #
-#    MODULESDIR:
-#      (Modules are essentially libraries too, the separation exists
-#       for the ability to separate the ones developed specifially for this
-#       mother script/main program from the libs attached as third-party –
-#       those may have their own licences and update hooks, so they are
-#       better kept separately on the development stage. For an installer
-#       or a Makefile there is no difference between “libs” and “modules”.)
-#    /usr/local/lib/${MY_NAME%.*}
-#    /usr/lib/${MY_NAME%.*}
-#    /usr/share/${MY_NAME%.*}/modules
-#    <MYDIR>/modules
+#                 Possible paths for source subdirectories
 #
-#    Whatever else: EXAMPLECONFDIR, RESOURCESDIR and whatever else you invent.
-#    /usr/local/share/<MY_DISPLAY_NAME>/<whatevername>
-#    /usr/share/<MY_DISPLAY_NAME>/<whatevername>
-#    <MYDIR>/<whatevername>
+#                    SOLID INSTALLATION     SPLIT INSTALLATION
+#                    (all in MYDIR)         (separated across filesystem)
 #
-#  To the packager (the human) – you can split the source files either
-#    in a simple, or in a complex way.
-#         Simple split           │     Complex split
-#     ───────────────────────────┼────────────────────────────
-#         “binaries”             │     “binaries”
-#         “everything else”      │     “libs and modules”
-#                                │     “resources”
-#    If you go the “simple split” way,
-#      1. Copy the executables to /usr/bin or /usr/local/bin.
-#      2. Create directory /usr/share/${MYNAME%.*}/  and copy the source sub-
-#         directories in there AS THEY ARE, do not rename them or delete.
-#    If you go the “complex split” way,
-#      1. Copy the executables to /usr/bin or /usr/local/bin.
-#      2. Put libraries from lib/ and modules/ to a subdirectory under
-#         /usr/lib or /usr/local/lib, that is create /use/lib/${MYNAME%.*}/
-#         and copy the libraries from lib/ (the “lib” in the source directory)
-#         in there. DO NOT CREATE a lib/ within lib/ (e.g. /usr/lib/my-prog/lib/).
-#      3. Copy the rest of the source directories (various “res”, “misc”)
-#         AS THEY ARE to /usr/share/${MYNAME%.*} or /usr/local/share/${MYNAME%.*}/
-#         (create that directory beforehand). Here DO LEAVE the original name
-#         or the subdirectory:
-#           e.g. /usr/share/my-prog/resources  — OK
-#                /usr/share/my-prog/<the content of “resources/”>  — NOT OK.
-#         This is true for the irregular subdirectories, man pages, icons,
-#         fonts should go to their respective directories under /usr/share
-#         (or /usr/local/share) – since the burden of making those files acces-
-#         sible relies on the OS, the main script should not bother about the
-#         paths. However, if the main script will need these files in the run-
-#         time and it cannot rely on the provision of paths by OS, it better
-#         remain the source directory structure under /usr/share
-#         or /usr/local/share.
+#            LIBDIR¹ ./lib                        /usr/lib/${MYNAME%.*}
+#                                           /usr/local/lib/${MYNAME%.*}
 #
-#  Notes
-#  1. The author doesn’t believe, that somebody would use Bahelite for essen-
-#     tial system software, hence the basic directories like /bin and /lib
-#     are never searched.
-#  2. For all subdirectories both singular and plural forms are valid and will
-#     be found. The variable name set will be whatever is passed to set_source_
-#     dir(), so if you use the set_libdir() alias for example, the variable
-#     will still be created as LIBDIR. To create it as LIBSDIR do not use an
-#     alias and use set_source_dir() directly with the preferred variable name.
+#        MODULESDIR² ./modules                    /usr/lib/${MYNAME%.*}
+#                                           /usr/local/lib/${MYNAME%.*}
+#
+#    EXAMPLECONFDIR³ ./exampleconf          /usr/share/${MYNAME%.*}/exampleconf
+#                                           /usr/local/share/${MYNAME%.*}/exampleconf
+#
+#    Notes
+#    1. Note, that in the OS the “lib” directory is a common one, so a subdi-
+#       rectory is created. the files from the lib in the source code go to
+#                    <usr prefix>/lib/${MYNAME%.sh},
+#           not into <usr prefix>/lib/${MYNAME%.sh}/lib !
+#    2. Modules are essentially libraries too. The division on libs and modu-
+#       les in the split installation only reflects the way of keeping files
+#       in the source code, where libraries may be third-party and better to
+#       be kept separately because of their licence or the ease of updating
+#       them, while modules are just parts of the main script separated into
+#       their own physical files. If the main script would be distributed
+#       as is, merging modules into libs would require a post-unpack hook
+#       in the archive or a post-clone hook in the repository, what isn’t
+#       conceivable.
+#    3. EXAMPLECONFDIR can be any extra directory, e.g. RESDIR or MY_SPECIAL_
+#       DATA_DIR.
+#    4. Plural forms are possible:
+#         - for the solid type of installation both “lib” and “libs” are accep-
+#           table, as well as “module and modules”, “exampleconf” and “example-
+#           confs”;
+#         - for the split type of installation only the extra files may have
+#           plural forms (the common “lib” directory belongs to OS).
+#       The provided alias functions: set_libdir(), set_modulesdir() etc. set
+#       variables in their specific form: LIBDIR, MODULESDIR (not LIBSDIR,
+#       MODULEDIR), but you may call set_source_dir() with the variables named
+#       to your taste, the underlying function __set_source_dir() will recog-
+#       nise both lib/libs and module/modules and will direct it properly
+#       in the case of split installation.
+#    5. The author doesn’t believe, that somebody would use Bahelite for essen-
+#       tial system software, hence the basic directories like /bin and /lib
+#       are never searched.
 
 
  # Helpers for setting the most common source subdirectories.
@@ -251,17 +231,13 @@ __set_source_dir() {
 			;&
 			libs|modules)
 				possible_paths+=(
-					"/usr/local/lib/$own_subdir"
-					"/usr/lib/$own_subdir"
-					"/usr/share/$own_subdir/$whats_the_dir"
+					"$BAHELITE_USRDIR_PREFIX/lib/$own_subdir"
 				)
 				;;
 			*)
 				possible_paths+=(
-					"/usr/local/share/$own_subdir/$whats_the_dir"
-					"/usr/local/share/$own_subdir/${whats_the_dir}s"
-					"/usr/share/$own_subdir/$whats_the_dir"
-					"/usr/share/$own_subdir/${whats_the_dir}s"
+					"$BAHELITE_USRDIR_PREFIX/share/$own_subdir/$whats_the_dir"
+					"$BAHELITE_USRDIR_PREFIX/share/$own_subdir/${whats_the_dir}s"
 				)
 				;;
 		esac
@@ -273,8 +249,8 @@ __set_source_dir() {
 	fi
 	for dir in "${possible_paths[@]}"; do
 		[ -d "$dir" ] && {
-			bahelite_check_module_verbosity \
-				&& info "$varname = $dir"
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+				&& info "$FUNCNAME: setting $varname to “$dir”"
 			declare -gx $varname="$dir"
 			break
 		}
@@ -282,6 +258,7 @@ __set_source_dir() {
 	[ -v "$varname" ] || err "Cannot find directory for $varname."
 	return 0
 }
+#  No export: init stage functions.
 
 
  # Makes sure, that a directory exists and has R/W permissions.
@@ -303,21 +280,15 @@ bahelite_check_directory() {
 	fi
 	return 0
 }
+#  No export: init stage function.
 
 
 
-[[ "$MYDIR" =~ (/usr/bin|/usr/local/bin) ]]  \
-	&& declare -grx BAHELITE_SPLIT_INSTALLATION=t
-
-export -f  prepare_confdir  \
-           prepare_cachedir  \
-           prepare_datadir  \
-           __set_source_dir  \
-               set_libdir  \
-               set_modulesdir  \
-               set_exampleconfdir  \
-               set_resdir  \
-               set_sourcedir  \
-           bahelite_check_directory
+ # For the use in __set_source_dir().
+#
+[[ "$MYDIR" =~ (/usr/bin|/usr/local/bin) ]] && {
+	declare -gr BAHELITE_SPLIT_INSTALLATION=t
+	declare -gr BAHELITE_USRDIR_PREFIX=${BASH_REMATCH[1]%/bin}
+}
 
 return 0

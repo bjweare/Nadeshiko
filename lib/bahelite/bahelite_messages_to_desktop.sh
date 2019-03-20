@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.0.1'
+declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	notify-send   # (libnotify or libtinynotify)
@@ -27,9 +27,14 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #  call info-ns(), warn-ns() or err() functions, which are defined
 #  in bahelite_messages.sh.
 #
-#  To suppress sending desktop notifications, set this variable in the
-#  main script.
-# declare -gx MSG_DISABLE_DESKTOP_NOTIFICATIONS=t
+#  To suppress sending certain desktop notifications or completely disable
+#  them, set VERBOSITY_LEVEL to xxxxNx, where N can be a number from the
+#  following list:
+#  0 – turn off all messages
+#  1 – show only error messages (type == err|error|dialog-error)
+#  2 – show only error and warning messages (type == err|error|dialog-error|
+#      warn|warning|dialog-warning)
+#  3–9 – show all messages.
 
 
  # Define this variable to make notifications with icons.
@@ -44,21 +49,37 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 bahelite_notify_send() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	[ -v MSG_DISABLE_DESKTOP_NOTIFICATIONS ] && return 0
+	case "$(get_bahelite_verbosity  desktop)" in
+		0)	return 0
+			;;
+
+		1)	[[ "$type" =~ ^(dialog-|)(info(rmation|)|warn(ing|))$ ]]  \
+				&& return 0
+			;;
+
+		2)	[[ "$type" =~ ^(dialog-|)info(rmation|)$ ]]  \
+				&& return 0
+			;;
+	esac
 	local msg="$1" type="$2" duration urgency icon
 	msg=${msg##+([[:space:]])}
 	msg=${msg%%+([[:space:]])}
+	#  Support all the possible variations, that may come to mind to the
+	#  author of the main script: bahelite function names and notify-send
+	#  icons (along with the inconsistency in the icon names, that is
+	#  with or without “dialog-” prefix).
 	case "$type" in
-		error|dialog-error)
+		err|error|dialog-error)
 			icon='dialog-error'
 			urgency=critical
 			duration=10000
 			;;
-		warning|dialog-warning)
+		warn|warning|dialog-warning)
 			icon='dialog-warning'
 			urgency='normal'
 			duration=10000
 			;;
-		info|information)
+		info|information|dialog-information)
 			icon='info'
 			urgency='normal'
 			duration=3000
@@ -73,9 +94,8 @@ bahelite_notify_send() {
 	            ${icon:+--icon=$icon}
 	return 0
 }
-
-
-
 export -f  bahelite_notify_send
+
+
 
 return 0

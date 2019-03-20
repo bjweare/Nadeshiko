@@ -15,7 +15,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_SET_OVERRIDES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_SET_OVERRIDES_VER='1.0'
+declare -grx BAHELITE_MODULE_SET_OVERRIDES_VER='1.1'
 
 
 
@@ -43,6 +43,28 @@ declare -grx BAHELITE_MODULE_SET_OVERRIDES_VER='1.0'
 #    also needs the same options set or unset), complicates the issue.
 
 
+ # To turn on extglob (shopt -s extglob) temporarily.
+#
+bahelite_extglob_on() {
+	#  Internal! No xtrace_off/on needed!
+	shopt -q extglob || {
+		builtin shopt -s extglob
+		declare -gx BAHELITE_BRING_BACK_EXTGLOB=t
+	}
+	return 0
+}
+bahelite_extglob_off() {
+	#  Internal! No xtrace_off/on needed!
+	[ -v BAHELITE_BRING_BACK_EXTGLOB ] && {
+		unset BAHELITE_BRING_BACK_EXTGLOB
+		builtin shopt -u extglob
+	}
+	return 0
+}
+export -f  bahelite_extglob_on  \
+           bahelite_extglob_off
+
+
  # To turn off errexit (set -e) and disable trap on ERR temporarily.
 #  bahelite_toggle_onerror_trap() is defined in bahelite_error_handling.sh,
 #  which is an optional module.
@@ -67,6 +89,8 @@ bahelite_errexit_on() {
 	}
 	return 0
 }
+export -f  bahelite_errexit_off  \
+           bahelite_errexit_on
 
 
  # To turn noglob on and off (usually done with set -f/+f) temporarily,
@@ -89,6 +113,8 @@ bahelite_noglob_on() {
 	}
 	return 0
 }
+export -f  bahelite_noglob_off  \
+           bahelite_noglob_on
 
 
  # Analogous to errexit functions. You may actually need them in your
@@ -115,6 +141,8 @@ bahelite_functrace_on() {
 	}
 	return 0
 }
+export -f  bahelite_functrace_off  \
+           bahelite_functrace_on
 
 
  # Turn off xtrace output (usually enabled with set -x) during the execution
@@ -138,58 +166,70 @@ bahelite_functrace_on() {
 #    main script someplace after sourcing bahelite.sh.
 #
 bahelite_xtrace_off() {
-	#  This prevents disabling xtrace recursively.
-	[ ! -v BAHELITE_BRING_XTRACE_BACK ] && {
-		#  If xtrace is not enabled, we have nothing to do. Calling xtrace_off
-		#    by mistake may initiate unwanted hiding, which will lead to unex-
-		#    pected results.
-		#  Essentially, this prevents calling it by a lowskilled user mistake.
-		[ -o xtrace ] || return 0
+	#  If this function was already called on a higher level,
+	#    there’s no need to run it twice.
+	#  The return code 1 prevents the run of bahelite_xtrace_on().
+	[ -v BAHELITE_BRING_XTRACE_BACK ] && return 1
 
+	#  If xtrace is not enabled, there’s no need to continue.
+	[ -o xtrace ] || return 1
+
+	if [ -v BAHELITE_HIDE_FROM_XTRACE ]; then
+		#  Won’t that lead to unexpected behaviour because of the regular
+		#  xtrace_off()?
+		builtin set +x
+		declare -gx BAHELITE_BRING_XTRACE_BACK=${#FUNCNAME[*]}
+	else
 		#  When set -x enables trace, the commands are prepended with ‘+’.
 		#  To differentiate between main script commands and Bahelite,
 		#  we temporarily change the plus ‘+’ from PS4 to a middle dot ‘⋅’.
 		#  (The mnemonic is “objects further in the distance look smaller”.)
-		declare -gx OLD_PS4="$PS4" && declare -gx PS4='⋅'
-		[ -v BAHELITE_HIDE_FROM_XTRACE ] && {
-			builtin set +x
-			declare -gx BAHELITE_BRING_XTRACE_BACK=${#FUNCNAME[*]}
-		}
-		return 0
-	}
-	return 1
-}
-bahelite_xtrace_on() {
-	(( ${BAHELITE_BRING_XTRACE_BACK:-0} == ${#FUNCNAME[*]} )) && {
-		unset BAHELITE_BRING_XTRACE_BACK
-		builtin set -x
-		#  Salty experience of learning how traps on RETURN work resulted
-		#  in the following:
-		#  - a trap on RETURN defined in a function persists after that func-
-		#    tion quits. That means that one cannot set a trap on RETURN on
-		#    entering a function and hope that it will only work once. Even
-		#    though without “functrace” shell option set other functions
-		#    *will not* inherit it, the source command *will*. In other words,
-		#    each time you source an external file and the control returns
-		#    back to the main file, the trap on RETURN triggers;
-		#  - thus the trap on RETURN has a wider scope than it seems – and this
-		#    means, that it’s possible to remove it from global scope when it
-		#    completes what it needs. This way set/unset should come strictly
-		#    in pairs – as needed for hiding xtrace diving into bahelite func-
-		#    tions;
-		#  - in order to be sure, that the return trap is executed and unset
-		#    only the level, when it was set, BAHELITE_BRING_XTRACE_BACK
-		#    contains the current function nesting level.
-		trap '' RETURN
-		#  Restoring the original PS4.
-		#  Currently doesn’t work well, because xtrace off and on somehow
-		#  don’t go in pairs sometimes. Needs an investigation.
-		#  Most users presumably don’t alter PS4 anyway, so just set it to ‘+’.
-		#declare -g PS4="${OLD_PS4:-+}"
-		declare -gx PS4='+'
-	}
+		declare -gx OLD_PS4="$PS4"  &&  declare -gx PS4='⋅'
+	fi
+# declare -gx PS4="$__bri$__y$PS4"
 	return 0
 }
+bahelite_xtrace_on() {
+	#  If this function runs not on the level, where its counterpart
+	#  has set BAHELITE_BRING_XTRACE_BACK, quit.
+	(( ${BAHELITE_BRING_XTRACE_BACK:- -1} != ${#FUNCNAME[*]} ))  &&  return 0
+
+	unset BAHELITE_BRING_XTRACE_BACK
+	#  Salty experience of learning how traps on RETURN work resulted
+	#  in the following:
+	#  - a trap on RETURN defined in a function persists after that func-
+	#    tion quits. That means that one cannot set a trap on RETURN on
+	#    entering a function and hope that it will only work once. Even
+	#    though without “functrace” shell option set other functions
+	#    *will not* inherit it, the source command *will*. In other words,
+	#    each time you source an external file and the control returns
+	#    back to the main file, the trap on RETURN triggers;
+	#  - thus the trap on RETURN has a wider scope than it seems – and this
+	#    means, that it’s possible to remove it from global scope when it
+	#    completes what it needs. This way set/unset should come strictly
+	#    in pairs – as needed for hiding xtrace diving into bahelite func-
+	#    tions;
+	#  - in order to be sure, that the return trap is executed and unset
+	#    only the level, when it was set, BAHELITE_BRING_XTRACE_BACK
+	#    contains the current function nesting level.
+	trap '' RETURN
+
+	# #  Restoring the original PS4.
+	# [ -v BAHELITE_HIDE_FROM_XTRACE ] || {
+	# 	# declare -gx PS4='+'
+	# 	declare -gx PS4="$OLD_PS4"
+	# }
+
+	#  Restoring the original PS4.
+	declare -gx PS4='+'
+
+	builtin set -x
+	#  No return, because after PS4 changes back to '+' a line like
+	#  “+return 0” may be mistaken for a line from the main script,
+	#  while it actually belongs to this Bahelite internal function.
+}
+export -f  bahelite_xtrace_off  \
+           bahelite_xtrace_on
 #
 #  ^ The functions above could be made into a single function “bahelite_set”
 #  that would work analogous to the overridden “set” above, but this would be
@@ -238,8 +278,22 @@ set() {
 		#  led in the main script (usually with “set -T”) and “error_handling”
 		#  module is sourced.
 		'-x')
-			bahelite_functrace_off
-			command=(builtin set -x)
+			#  Xtrace is available on console verbosity (or the log verbosity,
+			#  if logging was started) from the level 50 or higher (the default
+			#  level is 30). The reasons are:
+			#  1. To put the activation of xtrace behind the default verbosity
+			#     level and behind the extra (moderately verbose) output, im-
+			#     plemented in Bahelite or in the main script.
+			#  2. If the lines activating xtrace would happen to be forgotten
+			#     in the main script and it gets published with them, this
+			#     wouldn’t cause a problem for regular users, as the default
+			#     verbosity level doesn’t allow activation of xtrace.
+			#  The controlling variable is set in bahelite_messages.sh after
+			#  checking VERBOSITY_LEVEL for console/log.
+			[ -v BAHELITE_XTRACE_ALLOWED ] && {
+				bahelite_functrace_off
+				command=(builtin set -x)
+			}
 			;;
 		'+x')
 			bahelite_functrace_on
@@ -273,11 +327,21 @@ set() {
 			command=(builtin set "$@")
 			;;
 	esac
+	#  May be empty, not an error.
 	"${command[@]}"
 	#  No “return”, to minimise the output from this hook. (If people called
 	#  “set -x”, they probably expect to see a trace of their code and not
 	#  the trace from this function and how it returns.
 }
+export -f  set  \
+               errexit_off    \
+               errexit_on     \
+               xtrace_off     \
+               xtrace_on      \
+               noglob_off     \
+               noglob_on      \
+               functrace_off  \
+               functrace_on
 
 
  # Overrides env to allow running a child process in a clean environment.
@@ -308,27 +372,8 @@ env() {
 	bahelite_functrace_on
 	return $retval
 }
+export -f  env
 
 
-
-export -f  bahelite_errexit_off    \
-           bahelite_errexit_on     \
-           bahelite_noglob_off     \
-           bahelite_noglob_on      \
-           bahelite_functrace_off  \
-           bahelite_functrace_on   \
-           bahelite_xtrace_off     \
-           bahelite_xtrace_on
-
-export -f  set  \
-	           errexit_off    \
-	           errexit_on     \
-	           xtrace_off     \
-	           xtrace_on      \
-	           noglob_off     \
-	           noglob_on      \
-	           functrace_off  \
-	           functrace_off  \
-	       env
 
 return 0

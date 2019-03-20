@@ -86,9 +86,8 @@ strip_colours() {
 	#sed -r 's/[[:cntrl:]]\[[0-9]{1,3}[mKG]//g' <<<"$1"
 	return 0
 }
-
-
-
 export -f strip_colours
+
+
 
 return 0

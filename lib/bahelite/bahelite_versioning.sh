@@ -125,6 +125,8 @@ update_version() {
 	sed -ri "s/^(\s*(declare\s+-r\s+|))$varname=['\"]?[0-9\.]+['\"]?\s*$/\1$varname='$new_version'/" "$file"
 	return 0
 }
+export -f  update_version
+
 
  # Returns 0, if the passed string is a valid version number,
 #  e.g. “X”, “X.Y” or “X.Y.Z”. Returns 1 otherwise.
@@ -136,6 +138,8 @@ is_version_valid() {
 		&& return 0 \
 		|| return 1
 }
+export -f  is_version_valid
+
 
  # Compares two versions, and returns either the bigger one or “equal”.
 #  Version strings are numbers separated with dots: 1, 1.0, 1.0.0.1 are all
@@ -203,11 +207,8 @@ compare_versions() {
 	esac
 	return 0
 }
+export -f  compare_versions
 
 
-
-export -f  update_version  \
-           is_version_valid  \
-           compare_versions
 
 return 0

@@ -244,7 +244,7 @@ unset  sed_version  grep_version  getopt_version  yes_version
 
                         #  Initial settings  #
 
-BAHELITE_VERSION="2.16"
+BAHELITE_VERSION="2.17"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -363,60 +363,23 @@ declare -Ax REQUIRED_UTILS_HINTS=()
 
                              #  Modules  #
 
- # Module verbosity goes first, so that the modules performing something
-#  right on the source time could have default values.
-#
- # When everything goes right, modules do not output anything to stdout. Only
-#  in case of a potential trouble or an error they output messages. Sometimes
-#  however, it would be useful to make the modules print intermediate infor-
-#  mation, i.e. info messages. In regular use such messages would only unneces-
-#  sarily clog the output, so they are allowed only on the increased verbosity
-#  level.
-#     The array below controls displaying extra info and warn messages, that
-#  are normally not shown. Works per module. Redefine elements in the mother
-#  script after sourcing bahelite.sh, but before calling any bahelite func-
-#  tions. For example, to enable verbose messages for bahelite_rcfile.sh:
-#  BAHELITE_MODULE_VERBOSITY=( [rcfile]=t )
-#
-declare -Ax BAHELITE_MODULE_VERBOSITY=(
-	[bahelite]=f                  # the main module = bahelite.sh = this file.
-	[colours]=f                   # bahelite_colours.sh
-	[dialog]=f                    # etc.
-	[directories]=f
-	[error_handling]=f
-	[github]=f
-	[logging]=f
-	[menus]=f
-	[messages]=f
-	[messages_to_desktop]=f
-	[misc]=f
-	[rcfile]=f
-	[set_overrides]=f
-	[versioning]=f
-	[x_desktop]=f
-)
-
-
-
- # Checks whether verbosity is enabled for a certain module
-#  This function is supposed to be called from within a Bahelite module,
-#  i.e. bahelite_*.sh files, in the following manner:
-#      bahelite_check_module_verbosity \
-#          && info "Trying RC file:
-#                   $rcfile"
-#
-bahelite_check_module_verbosity() {
-	(( BAHELITE_VERBOSITY_LEVEL < 7 )) && return 1
-	local caller_module_funcname=${FUNCNAME[1]}
-	local caller_module_filename=${BASH_SOURCE[1]}
-	caller_module_filename=${caller_module_filename##*/}
-	caller_module_filename=${caller_module_filename%.sh}
-	caller_module_filename=${caller_module_filename#bahelite_}
-	[ "${BAHELITE_MODULE_VERBOSITY[$caller_module_filename]}" = t ]  \
-		&& return 0  \
-		|| return 1
+bahelite_load_module() {
+	local module_name="$1"
+	local module_file="$BAHELITE_DIR/bahelite_$module_name.sh"
+	[ -r "$module_file" ]  || {
+		echo "Bahelite error: cannot find module “$module_name”." >&2
+		return 4
+	}
+	#  As we are currently in a function scope, the “source” command
+	#  will make all declare calls local. To define global variables
+	#  “declare -g” must be used in all modules!
+	source "$module_file"  || {
+		echo "Bahelite error: cannot load module “$module_name”." >&2
+		return 4
+	}
+	return 0
 }
-export -f  bahelite_check_module_verbosity
+export -f bahelite_load_module
 
 
 bahelite_verify_error_code() {
@@ -438,25 +401,6 @@ bahelite_verify_error_code() {
 	fi
 }
 export -f bahelite_verify_error_code
-
-
-bahelite_load_module() {
-	local module_name="$1"
-	local module_file="$BAHELITE_DIR/bahelite_$module_name.sh"
-	[ -r "$module_file" ]  || {
-		echo "Bahelite error: cannot find module “$module_name”." >&2
-		return 4
-	}
-	#  As we are currently in a function scope, the “source” command
-	#  will make all declare calls local. To define global variables
-	#  “declare -g” must be used in all modules!
-	source "$module_file"  || {
-		echo "Bahelite error: cannot load module “$module_name”." >&2
-		return 4
-	}
-	return 0
-}
-export -f bahelite_load_module
 
 
 #  Required modules
@@ -538,15 +482,5 @@ BAHELITE_STARTUP_ID=$(mktemp -u "XXXXXXXXXX")
 #  and the diff will be placed in "$LOGDIR/variables"
 #
 BAHELITE_VARLIST_AFTER_STARTUP="$(compgen -A variable)"
-
-if   (( BAHELITE_VERBOSITY_LEVEL == 10 )); then
-	#  Be ready for metric tons of logs.
-	unset BAHELITE_HIDE_FROM_XTRACE
-	set -x
-
-elif (( BAHELITE_VERBOSITY_LEVEL == 9  )); then
-	set -x
-
-fi
 
 return 0

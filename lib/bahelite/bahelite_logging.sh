@@ -15,7 +15,7 @@
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_LOGGING_VER='1.5.4'
+declare -grx BAHELITE_MODULE_LOGGING_VER='1.6'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date   #  (coreutils) to add date to $LOGPATH file name and to the log itself.
 #	ls     #  (coreutils)
@@ -41,9 +41,12 @@ fi
 #  see below. Logging obeys verbosity leves, see more about them
 #  in bahelite_messages.sh.
 #
+#  Enabling extglob temporarily or the “source” command will catch an error
+#  while trying to source the function code.
+bahelite_extglob_on
 start_logging() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	#  Must NOT be exported!
+	[ "$(get_bahelite_verbosity  log)" == '0' ] && return 0
 	declare -gx  LOGPATH  LOGDIR  LOGNAME  \
 	             BAHELITE_LOGGING_STARTED  BAHELITE_LOGGING_USES_TEE
 	local arg  overwrite_logpath=t
@@ -61,11 +64,10 @@ start_logging() {
 	#          (In this case you may also want to set
 	#           BAHELITE_DONT_CLEAR_TMPDIR.)
 	if [ -v LOGPATH ]; then
-		[ -w "$LOGPATH" ] || {
-			redmsg "LOGPATH specified in the environment is not writeable:
+		touch "$LOGPATH" || {
+			redmsg "Cannot write to LOGPATH specified in the environment:
 			        $LOGPATH"
-			redmsg "Unsetting LOGPATH variable."
-			err "Specified log file doesn’t exist or is not writeable."
+			err "LOGPATH is not writeable."
 		}
 		LOGDIR=${LOGPATH%/*}
 		LOGNAME=${LOGPATH##*/}
@@ -96,10 +98,16 @@ start_logging() {
 	pushd "$LOGDIR" >/dev/null
 	#  Deleting leftover variable dump.
 	rm -f variables
+
 	bahelite_noglob_off
-	( ls -r "${MYNAME%.*}_"* 2>/dev/null || true ) \
+	bahelite_extglob_on
+	(ls -r "${MYNAME%.*}_"+([_0-9:-]).log 2>/dev/null || true ) \
 		| tail -n+$LOGGING_MAX_LOGFILES \
 		| xargs rm -v &>/dev/null || true
+	(ls -r "${MYNAME%.*}_"+([_0-9:-]).xtrace.log 2>/dev/null || true ) \
+		| tail -n+$LOGGING_MAX_LOGFILES \
+		| xargs rm -v &>/dev/null || true
+	bahelite_extglob_off
 	bahelite_noglob_on
 	popd >/dev/null
 	[ -v overwrite_logpath ]  \
@@ -116,23 +124,83 @@ start_logging() {
 	#  When we will be exiting (even successfully), we will need to send
 	#  SIGPIPE to that tee, so it would quit nicely, without terminating
 	#  and triggering an error. It will, however, quit with a code >0,
-	#  so we catch it here with “||:”.
-	case "$BAHELITE_VERBOSITY_LEVEL" in
-		0)    exec  &>/dev/null
-		      ;;
+	#  so we catch it here with “|| true”.
+	case "$(get_bahelite_verbosity  log)" in
+		0)	#  Not writing anything to log.
+			;;
 
-		1)    exec >>"$LOGPATH"  2>>"$LOGPATH"
-		      ;;
+		1)	#  Writing only stderr to log.
+			#
+			#  If console verbosity (that is primary and not aware of whether
+			#  logging would be enabled afterwards) has directed the stderr
+			#  to /dev/null, it must be restored, and then the FD 2 must be
+			#  redirected to the file in $LOGPATH.
+			[ -v STDERR_ORIG_FD ] && {
+				#  Restore the original FD 2 for the exec
+				exec 2>&${STDERR_ORIG_FD}
+			}
+			if [ -v STDERR_ORIG_FD ]; then
+				#  Console has directed FD 2 to /dev/null, so we’re free
+				#    to take it and redirect it to the log, which needs
+				#    that output.
+				#  Moreover, we cannot make it so that FD 2 would point
+				#    to /dev/null (for console) and still use the same FD 2
+				#    to pipe output from commands to the log or to a subpro-
+				#    cess with tee.
+				exec 2>>"$LOGPATH"
+			else
+				exec 2> >(tee -ia "$LOGPATH" >&2 ||  true)
+				BAHELITE_LOGGING_USES_TEE=t
+			fi
+			;;
 
-		3)    exec  > /dev/null  \
-		           2> >(tee -ia "$LOGPATH" >&2  || true)
-		      BAHELITE_LOGGING_USES_TEE=t
-		      ;;
+		2|3|4|5|6|7|8|9)
+			#  Writing stdout and stderr.
+			#  The messages differ between levels 2 and 3:
+			#    - on level 2 messages of info/abort/plainmsg level
+			#      are forbidden in the messages module. The logging verbosity
+			#      uses console settings here, this cannot be changed.
+			#    - on level 3+ all messages are allowed.
+			#
+			#  Same story as above, expect that here we handle both
+			#  stdout and stderr.
+			#
+			[ -v STDOUT_ORIG_FD ] && {
+				#  Restore the original FD 1 for the exec
+				exec 1>&${STDOUT_ORIG_FD}
+			}
+			if [ -v STDOUT_ORIG_FD ]; then
+				#  Console doesn’t need this FD, but the log does.
+				exec >>"$LOGPATH"
+			else
+				exec > >(tee -ia "$LOGPATH"  ||  true)
+				BAHELITE_LOGGING_USES_TEE=t
+			fi
 
-		2|5)  exec  > >(tee -ia "$LOGPATH"      || true)  \
-		           2> >(tee -ia "$LOGPATH" >&2  || true)
-		      BAHELITE_LOGGING_USES_TEE=t
-		      ;;
+			[ -v STDERR_ORIG_FD ] && {
+				#  Restore the original FD 2 for the exec
+				exec 2>&${STDERR_ORIG_FD}
+			}
+			if [ -v STDERR_ORIG_FD ]; then
+				#  Console doesn’t need this FD, but the log does.
+				exec 2>>"$LOGPATH"
+			else
+				exec 2> >(tee -ia "$LOGPATH" >&2 ||  true)
+				BAHELITE_LOGGING_USES_TEE=t
+			fi
+			;;&
+
+		6|7|8|9)
+			exec {BASH_XTRACEFD}<>"$LOGDIR/${LOGNAME%.log}.xtrace.log"
+			;;&
+
+		7|8|9)
+			set -x
+			;;&
+
+		9)	#  Be ready for metric tons of logs.
+			unset BAHELITE_HIDE_FROM_XTRACE
+			;;
 	esac
 	#  Restoring the trap on DEBUG
 	bahelite_functrace_on
@@ -140,6 +208,8 @@ start_logging() {
 	BAHELITE_LOGGING_STARTED=t
 	return 0
 }
+bahelite_extglob_off
+#  No export: init stage function.
 
 
 print_logpath() {
@@ -148,6 +218,7 @@ print_logpath() {
 	      $LOGPATH"
 	return 0
 }
+export -f  print_logpath
 
 
  # Returns absolute path to the last modified log in $LOGDIR.
@@ -168,6 +239,7 @@ set_lastlog_path() {
 	LASTLOG_PATH="$LOGDIR/$lastlog_name"
 	return 0
 }
+export -f  set_lastlog_path
 
 
  # Reads the contents of the log file by path set in LASTLOG_PATH
@@ -240,6 +312,7 @@ read_lastlog() {
 
 	return 0
 }
+export -f read_lastlog
 
 
 stop_logging() {
@@ -254,23 +327,19 @@ stop_logging() {
 		#    need to kill it, as the main process catches all the signals,
 		#    and tee now receives SIGPIPE (or SIGHUP) in a natural way.
 		#  Is this still needed?
-		pkill -PIPE  --session 0  -f "tee -ia $LOGPATH" || true
+		: pkill -PIPE  --session 0  -f "tee -ia $LOGPATH" || true
 
 		#  Kills for sure
 		# pkill -9  --session 0  -f "tee -ia $LOGPATH" || true
 
-		#  Leaves an ugly message to console/log
+		#  Less reliable than -KILL, and leaves an ugly message
 		# pkill -HUP  --session 0  -f "tee -ia $LOGPATH" || true
 	}
 	return 0
 }
+#  No export: it’s for bahelite_on_exit() function, that executes only
+#  in top level context.
 
 
-
-export -f  start_logging      \
-           print_logpath      \
-           set_lastlog_path   \
-           read_lastlog       \
-           stop_logging
 
 return 0
