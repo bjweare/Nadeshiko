@@ -1,3 +1,45 @@
+——— v 2.6 ————————————————————————————————————————————————————————————————————
+                                                          Nadeshiko-mpv 2.3.18
+                                                    Nadeshiko-do-postponed 2.3
+1. Update to Bahelite 2.17
+   - **bugfix:** now Nadeshiko-mpv and Nadeshiko-do-postponed fully control
+     the verbosity of the backend: log, console and desktop messages separa-
+     tely, and the backend desktop messages are now fully disabled. (Before
+     that you might receive one message from the backend and one from the
+     frontend.)
+   - **improved logging:** thanks to the new verbosity levels it is possible
+     to gather logs while disabling output to console, gather xtrace to a se-
+     parate file and more.
+   - automatic killing of the logging “tee” processes is disabled, as that
+     caused signals not reaching the main script. Probably because of the
+     reworked verbosity levels and redirections. The “tee” processes are
+     all closing nicely and immediately, no delay was observed between
+     the end of the program and the exiting of all processes in the group.
+   - reduced the number of functions, that are exported by default. Should
+     make subshells a little faster.
+
+2. **New config option** in Nadeshiko-do-postponed allows to change, how much
+   messages Nadeshiko (the backend) will send to desktop. The option name is
+   `nadeshiko_desktop_notifications` and it takes one of the following values:
+   “none” – Nadeshiko (the backend) will not send any desktop notifications.
+           (But Nadeshiko-do-postponed will still inform you, when all jobs
+            would be done.)
+   “error” – Send a desktop notification, only when a video wasn’t encoded
+             successfully.
+   “all” – The normal behaviour, each time a video is encoded, a message
+           is sent. This allows to watch it as soon as it is ready.
+
+3. Bugfix in Nadeshiko-do-postponed: fix the bright colour not being stopped
+   after reporting a job “Complete”.
+
+4. Reduced the number of subshell calls in Nadeshiko-mpv. Should make it
+   a little faster.
+
+5. Nadeshiko-mpv code is now split into modules.
+
+
+
+
 ——— v 2.5.12 —————————————————————————————————————————————————————————————————
                                                           Nadeshiko-mpv 2.3.17
                                                  Nadeshiko-do-postponed 2.2.13
@@ -32,19 +74,16 @@
    and also the number of the current job in the list, e.g. “1/15”).
 
 4. **Bugfix** in Nadeshiko-mpv: due to limitations of data export, the order
-   or Time1 and Time2 was checked up to seconds. This might lead to incorrect
-   order, if the times would both belong to one second. With the improved
-   precision the timestamps are now checked up to the milliseconds, as it
-   shold be.
+   of Time1 and Time2 was checked up to seconds. This might have lead to
+   an incorrect order, if the times would both belong to one second. With the
+   improved precision the timestamps are now checked up to the milliseconds,
+   as it should be.
 
 5. **Improvement** in Nadeshiko-mpv: human-readable times in the postponed
    job file name and in the parameters to Nadeshiko within it. Changing
    timestamps to format 12:34:56.789 will make it easier to collate a webm
    (or mp4) with its job file by time – previously Nadeshiko-mpv used time-
    stamps in format 1234.567.
-
-   The corresponding config option `postponed_jobs_with_human_readable_time`
-   is enabled by default.
 
 6. Increased durations for two messages, that Nadeshiko-mpv sends to player:
    - the first launch of predictor (if it’s enabled), that also does scene

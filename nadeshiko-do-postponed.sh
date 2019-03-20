@@ -31,7 +31,7 @@ set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 
-declare -r version="2.2.13"
+declare -r version="2.3"
 info "Nadeshiko-do-postponed v$version" >>"$LOGPATH"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"

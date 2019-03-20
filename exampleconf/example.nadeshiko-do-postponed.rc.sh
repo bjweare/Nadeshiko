@@ -1,4 +1,4 @@
-# nadeshiko-do-postponed.rc.sh v2.0
+# nadeshiko-do-postponed.rc.sh v2.3
 
 
  # Limit the number of CPU cores, on which the encoding process may run.
