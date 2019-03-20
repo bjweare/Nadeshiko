@@ -37,28 +37,6 @@ declare -r rcfile_minver='2.0'
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 declare -r failed_jobs_dir="$postponed_commands_dir/failed"
 
-read_rcfile "$rcfile_minver"
-[ "${taskset_cpulist:-}" ] && {
-	[[ "$taskset_cpulist" =~ ^[0-9,-]+$ ]] \
-		|| err 'Invalid CPU list for taskset.'
-	REQUIRED_UTILS+=(taskset)  # (util-linux)
-	taskset_cmd="taskset --cpu-list $taskset_cpulist"
-}
-[ "${niceness_level:-}" ] && {
-	[[ "$niceness_level" =~ ^-?[0-9]{1,2}$ ]] \
-		|| err 'Invalid level for nice.'
-	REQUIRED_UTILS+=(nice)  # (coreutils)
-	nice_cmd="nice -n $niceness_level"
-}
-check_required_utils
-declare -r xml=$(which xmlstarlet)  # for lib/xml_and_python_functions.sh
-
-single_process_check
-pgrep -u $USER -af "bash.*nadeshiko.sh" &>/dev/null  \
-	&& err 'Cannot run at the same time with Nadeshiko.'
-pgrep -u $USER -af "bash.*nadeshiko-mpv.sh" &>/dev/null  \
-	&& err 'Cannot run at the same time with Nadeshiko-mpv.'
-
 
 
 on_exit() {
@@ -75,6 +53,39 @@ move_job_to_failed() {
 	[ -d "$failed_jobs_dir" ] || mkdir "$failed_jobs_dir"
 	mv "$jobfile"    "$failed_jobs_dir/"
 	mv "$job_logdir" "$failed_jobs_dir/"
+	return 0
+}
+
+
+post_read_rcfile() {
+	declare -g taskset_cpulist  taskset_cmd  niceness_level  nice_cmd  \
+	           nadeshiko_desktop_notifications
+	[ "${taskset_cpulist:-}" ] && {
+		[[ "$taskset_cpulist" =~ ^[0-9,-]+$ ]] \
+			|| err 'Invalid CPU list for taskset.'
+		REQUIRED_UTILS+=(taskset)  # (util-linux)
+		taskset_cmd="taskset --cpu-list $taskset_cpulist"
+	}
+	[ "${niceness_level:-}" ] && {
+		[[ "$niceness_level" =~ ^-?[0-9]{1,2}$ ]] \
+			|| err 'Invalid level for nice.'
+		REQUIRED_UTILS+=(nice)  # (coreutils)
+		nice_cmd="nice -n $niceness_level"
+	}
+	if [[ "$nadeshiko_desktop_notifications" =~ ^(none|error|all)$ ]]; then
+		case "$nadeshiko_desktop_notifications" in
+			none)
+				nadeshiko_desktop_notifications=0;;
+			error)
+				nadeshiko_desktop_notifications=1;;
+			all)
+				nadeshiko_desktop_notifications=3;;
+		esac
+	else
+		redmsg "nadeshiko_desktop_notifications parameter should be set
+		        to one of: none, error, all."
+		err "Invalid value for desktop notifications in the config."
+	fi
 	return 0
 }
 
@@ -103,13 +114,13 @@ process_dir() {
 
 		if	env  \
 				LOGDIR="$job_logdir"  \
-				BAHELITE_VERBOSITY_LEVEL=1  \
+				VERBOSITY_LEVEL=30$nadeshiko_desktop_notifications  \
 				MSG_INDENTATION_LEVEL="$MSG_INDENTATION_LEVEL"  \
 				${nice_cmd:-} ${taskset_cmd:-} "$jobfile"
 
 		then
 			let '++completed_jobs || 1'
-			echo -e "${__g}${__bri}Complete${__bri_rst} "
+			echo -e "${__g}${__bri}Complete${__s} "
 			rm -rf "$jobfile" "$job_logdir"
 
 		else
@@ -125,6 +136,10 @@ process_dir() {
 		let '++processed_jobs || 1'
 
 	done < <( find "$postponed_commands_dir" -maxdepth 1 -type f -print0 )
+	info-ns 'All jobs processed.'
+	info "Encoded: $completed_jobs
+	      Failed:  $failed_jobs
+	      Total:   $total_jobs"
 	return 0
 }
 
@@ -169,6 +184,15 @@ collect_jobs() {
 
 
 cd "$TMPDIR"
+read_rcfile "$rcfile_minver"
+post_read_rcfile
+check_required_utils
+declare -r xml=$(which xmlstarlet)   # for lib/xml_and_python_functions.sh
+single_process_check
+pgrep -u $USER -af "bash.*nadeshiko.sh" &>/dev/null  \
+	&& err 'Cannot run at the same time with Nadeshiko.'
+pgrep -u $USER -af "bash.*nadeshiko-mpv.sh" &>/dev/null  \
+	&& err 'Cannot run at the same time with Nadeshiko-mpv.'
 
 jobs_in_dir=0
 jobs_to_run=0
