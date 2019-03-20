@@ -1,6 +1,6 @@
 #  Should be sourced.
 
-#  stage03_fit_bitrate_to_filesize.sh
+#  nadeshiko_stage03_fit_bitrate_to_filesize.sh
 #  Nadeshiko module, that finds an appropriate bitrate and resolution
 #  for a given file size.
 #  © deterenkelt 2018–2019

@@ -1,6 +1,6 @@
 #  Should be sourced.
 
-#  stage01_preparation.sh
+#  nadeshiko_stage01_preparation.sh
 #  Nadeshiko module containing preparation stage functions.
 #  © deterenkelt 2018–2019
 #

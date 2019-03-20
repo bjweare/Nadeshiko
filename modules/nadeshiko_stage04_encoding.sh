@@ -1,6 +1,6 @@
 #  Should be sourced.
 
-#  stage03_encoding.sh
+#  nadeshiko_stage03_encoding.sh
 #  Nadeshiko module for the final stage – the encoding. This stage includes
 #  the preparations too, such as combining new file name, metadata
 #  and assembling the filter option string.
@@ -10,7 +10,7 @@
 
 
 print_encoding_info() {
-	local encinfo vbr_c abr_c sc_c scale_text
+	local  encinfo  vbr_c  abr_c  sc_c  scale_text
 	#  Bright (bold) white for command line overrides.
 	#  Yellow for automatic scaling.
 	encoding_info="Encoding with "

@@ -1,6 +1,6 @@
 #  Should be sourced.
 
-#  stage02_arguments_processing.sh
+#  nadeshiko_stage02_arguments_processing.sh
 #  Nadeshiko module that contains functions for parsing, verifying,
 #  and processing arguments. It also has a function that would
 #  display the initial set of parameters.
