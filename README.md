@@ -48,7 +48,7 @@ Wrapper to be used with mpv player.
   * Download and run. No compilation is needed.
 * Hardsubbing
   * SubRip (.srt), ASS (.ass, .ssa), WebVTT (.vtt), built-in or external – **yes**.
-  * DVD and Bluray subtitlies – **yes**(**!**) *(only built-in streams)*
+  * DVD and Bluray subtitlies – built-in only – **yes**
   * with fonts, as you see them in the player – Nadeshiko will extract them, if necessary, and turn on OpenType for FFmpeg.
 * Cropping
   * Set coordinates by hand…
