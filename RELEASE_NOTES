@@ -5,8 +5,8 @@
    - **bugfix:** now Nadeshiko-mpv and Nadeshiko-do-postponed fully control
      the verbosity of the backend: log, console and desktop messages separa-
      tely, and the backend desktop messages are now fully disabled. (Before
-     that you might receive one message from the backend and one from the
-     frontend.)
+     that in certain cases that wasn’t possible to show only the frontend
+     message and the message from backend also had to be shown.)
    - **improved logging:** thanks to the new verbosity levels it is possible
      to gather logs while disabling output to console, gather xtrace to a se-
      parate file and more.

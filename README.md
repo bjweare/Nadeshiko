@@ -27,27 +27,38 @@ Wrapper to be used with mpv player.
 
 ## Main features
 
-* Guarantees to fit clip in a specified size.
-* Avoids artefacts by choosing optimal bitrate and resolution.
-* No need to learn FFmpeg.
-* No tweaking is needed, Nadeshiko analyses each video to find the best encoding options.
-* Encode fast with H.264 or get the maximum duration per megabyte and higher quality with VP9.
-* Hardsub ASS, DVD and Bluray subtitlies – with fonts, as you see them in the player.
-* Choose the defaults suiting your workflow:
-  * add or remove subtitles and audio by default;
-  * add or change FFmpeg parameters – for both input and output.
-* Cropping (built-in [mpv_crop_script](https://github.com/TheAMM/mpv_crop_script)).
-* Create presets and choose them on the fly.
-<a href="https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko%E2%80%91mpv.-Predictor">
+* <ins>Guarantees</ins> to fit clip in a specified size.
+  * One run – one clip. No more encoding by trial and error.
+* Keeps the quality good or refuses to encode.
+  * Optimal bitrate ranges are determined by the codec type, resolution and scene complexity.
+  * No need to learn FFmpeg!
+  * Resolution may be lowered as necessary to save quality.
+  * Built-in predictor <br><a href="https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko%E2%80%91mpv.-Predictor">
 <img alt="Predictor" src="https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/nadeshiko-mpv-predictor/predictor.gif"/>
 </a>
 
+* Customiseable
+  * Every setting is configurable through a simple config file.
+  * Preconfigured options for VP9 (+2 audio codecs) and H.264 (+3 audio codecs).
+  * Turn subtitles and audio `on` or `off` by default.
+  * Fine-tune the encoding mechanism (but be careful!)
+  * If you feel like adding a key or two to the default FFmpeg command – you can add them as input or output options (1 pass and 2 pass separately).
+  * Clone configs to create custom presets!
+* Simple installation
+  * Download and run. No compilation is needed.
+* Hardsubbing
+  * SubRip (.srt), ASS (.ass, .ssa), WebVTT (.vtt), built-in or external – **yes**.
+  * DVD and Bluray subtitlies – **yes**(**!**) *(only built-in streams)*
+  * with fonts, as you see them in the player – Nadeshiko will extract them, if necessary, and turn on OpenType for FFmpeg.
+* Cropping
+  * Set coordinates by hand
+  * Or pick them interactively (built-in [mpv_crop_script](https://github.com/TheAMM/mpv_crop_script)).
 
  
 
 ## Don’t look down
 
-Read about [which codec is best at what](https://github.com/deterenkelt/Nadeshiko/wiki/Tips#----differences-between-codec-sets) or even better go through the [**Crash course**](https://github.com/deterenkelt/Nadeshiko/wiki/Crash-course), you d-don’t need to know the scary truth… Don’t look down.
+Read about [which codec is best at what](https://github.com/deterenkelt/Nadeshiko/wiki/Tips#----differences-between-codec-sets) or even better – go through the [**Crash course**](https://github.com/deterenkelt/Nadeshiko/wiki/Crash-course), you d-don’t need to know the scary truth… Don’t look down.
 
 
 <p align="center">
