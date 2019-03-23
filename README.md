@@ -33,7 +33,7 @@ Wrapper to be used with mpv player.
   * Optimal bitrate ranges are determined by the codec type, resolution and scene complexity.
   * No need to learn FFmpeg!
   * Resolution may be lowered as necessary to save quality.
-  * Built-in predictor <br><a href="https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko%E2%80%91mpv.-Predictor">
+  * Built-in predictor: <br><a href="https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko%E2%80%91mpv.-Predictor">
 <img alt="Predictor" src="https://raw.githubusercontent.com/wiki/deterenkelt/Nadeshiko/img/nadeshiko-mpv-predictor/predictor.gif"/>
 </a>
 
