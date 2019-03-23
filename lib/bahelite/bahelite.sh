@@ -126,7 +126,7 @@ if [ -v BAHELITE_TOTAL_ENV_CLEAN ]; then
 		exit $?
 	}
 fi
-BAHELITE_VARLIST_BEFORE_STARTUP="$(compgen -A variable)"
+declare -r BAHELITE_VARLIST_BEFORE_STARTUP="$(compgen -A variable)"
 
 
                     #  Checking basic dependencies  #
@@ -244,7 +244,7 @@ unset  sed_version  grep_version  getopt_version  yes_version
 
                         #  Initial settings  #
 
-BAHELITE_VERSION="2.17"
+BAHELITE_VERSION="2.17.1"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -287,8 +287,8 @@ fi
 #
 [ -v TMPDIR ] && {
 	if [ -d "${TMPDIR:-}" ]; then
-		#  If custom TMPDIR is provided, preserve it after exit: this is
-		#  one main script chainloading another.
+		#  If custom TMPDIR is provided and BAHELITE_STARTUP_ID is set, pre-
+		#  serve it after exit: this is one main script chainloading another.
 		[ -v BAHELITE_STARTUP_ID ] && BAHELITE_DONT_CLEAR_TMPDIR=t
 	else
 		echo "Bahelite warning: no such directory: “$TMPDIR”, will use /tmp." >&2
@@ -481,6 +481,6 @@ BAHELITE_STARTUP_ID=$(mktemp -u "XXXXXXXXXX")
 #  this list would be compared to the other, created before exiting,
 #  and the diff will be placed in "$LOGDIR/variables"
 #
-BAHELITE_VARLIST_AFTER_STARTUP="$(compgen -A variable)"
+declare -r BAHELITE_VARLIST_AFTER_STARTUP="$(compgen -A variable)"
 
 return 0

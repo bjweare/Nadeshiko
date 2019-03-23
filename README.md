@@ -51,7 +51,7 @@ Wrapper to be used with mpv player.
   * DVD and Bluray subtitlies – **yes**(**!**) *(only built-in streams)*
   * with fonts, as you see them in the player – Nadeshiko will extract them, if necessary, and turn on OpenType for FFmpeg.
 * Cropping
-  * Set coordinates by hand
+  * Set coordinates by hand…
   * Or pick them interactively (built-in [mpv_crop_script](https://github.com/TheAMM/mpv_crop_script)).
 
  
