@@ -20,7 +20,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.3'
+declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.4'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
 )
@@ -319,14 +319,19 @@ bahelite_on_exit() {
 
 
 bahelite_print_call_stack() {
-	#  Skip only 1 level (this very function), when printing the call stack.
+	#  Skip only 3 levels (this very function, __msg and err*/abort), when
+	#  printing the call stack.
+	local  levels_to_skip
 	local  from_on_exit="${1:-}" real_line_number="${2:-}"   \
 	       line_number_to_print  f  i term_cols=$TERM_COLS
 	[[ "$-" =~ .*i.* ]] || term_cols=80
+	[ -v BAHELITE_HIDE_FROM_XTRACE ] \
+		&& levels_to_skip=3  \
+		|| levels_to_skip=0
 	echo -en "${__bright:-}--- Call stack " >&2
 	for ((i=0; i<term_cols-15; i++)); do  echo -n '-';  done
 	echo -e "${__stop:-}" >&2
-	for ((f=${#FUNCNAME[@]}-1; f>0; f--)); do
+	for ((f=${#FUNCNAME[@]}-1; f>levels_to_skip; f--)); do
 		#  Hide on_exit and on_error, as the error only bypasses through
 		#  there. We don’t show THIS function in the call stack, right?
 		[ "${FUNCNAME[f]}" = bahelite_on_error ] && continue
