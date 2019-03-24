@@ -4,12 +4,10 @@
 *.jpeg
 *.png
 *.txt
+*.log
 
-*_logs
-nadeshiko-mpv_data
+logs
 nadeshiko*.rc.sh
-updater_timestamp
-postponed
 # Manual running of ffmpeg leaves a log,
 # if interrupted.
 ffmpeg2pass-0.log
