@@ -1,3 +1,45 @@
+——— v 2.7 ————————————————————————————————————————————————————————————————————
+                                                          Nadeshiko-mpv 2.3.19
+                                                  Nadeshiko-do-postponed 2.3.1
+
+1. Updated error handling lib
+   - covered more cases, when the logging processes might keep hanging
+     in memory, now they’d be forcefully killed in most bad cases.
+   - improved call trace verbosity.
+
+2. Updated messaging lib
+   - Now message functions can be called safely in subshells: their output
+     won’t be grabbed along with the regular output to stdout or stderr.
+     This allowed to remove a bunch of in place redirections.
+   - New functions for header messages made the code cleaner.
+
+
+#### Nadeshiko
+
+3. A direct check on ffmpeg encoders fixes #17.
+
+4. Split the config option `$ffmpeg` into two options:
+   - `$ffmpeg` to specify the calling name (or a custom path) to the ffmpeg
+     binary. Default value is `'ffmpeg'`.
+   - `$ffmpeg_input_options` is an array of custom options, that can be set
+    for the input file. Default value is empty. Formerly used options
+    `-v error  -nostdin` are now hardcoded into encoding modules (as they
+    are obligatory anyway).
+   Config file update is recommended, but not necessary.
+
+#### Nadeshiko-mpv
+
+5. Lifted the restriction on running Nadeshiko-mpv at the same time
+   with Nadeshiko-do-postponed – now nothing prevents those to run
+   simultaneously.
+
+#### Nadeshiko-do-postponed
+
+6. **Bugfix:** missing desktop messages are now shown as usual.
+
+
+
+
 ——— v 2.6 ————————————————————————————————————————————————————————————————————
                                                           Nadeshiko-mpv 2.3.18
                                                     Nadeshiko-do-postponed 2.3

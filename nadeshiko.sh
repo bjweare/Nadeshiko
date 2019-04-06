@@ -24,17 +24,17 @@ BAHELITE_CHERRYPICK_MODULES=(
 )
 mypath=$(dirname "$(realpath --logical "$0")")
 case "$mypath" in
-	'/usr/bin')
-		source "/usr/lib/nadeshiko/bahelite/bahelite.sh";;
-	'/usr/local/bin')
-		source "/usr/local/lib/nadeshiko/bahelite/bahelite.sh";;
+	'/usr/bin'|'/usr/local/bin')
+		source "${mypath%/bin}/lib/nadeshiko/bahelite/bahelite.sh";;
 	*)
 		source "$mypath/lib/bahelite/bahelite.sh";;
 esac
 prepare_cachedir
 start_logging
 noglob_off
-rm -f "$LOGDIR/"ffmpeg*  "$LOGDIR/"mkvextract*  "$LOGDIR/time_output"
+rm -f "$LOGDIR/"ffmpeg*  \
+      "$LOGDIR/"mkvextract*  \
+      "$LOGDIR/time_output"
 noglob_on
 set_libdir
 #  For parsing ffprobe and mediainfo output into usable format.
@@ -52,7 +52,7 @@ prepare_confdir
 place_rc_and_examplerc
 
 declare -r version='2.6'
-info "Nadeshiko v$version" >>"$LOGPATH"
+info "Nadeshiko v$version"
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 declare -r rcfile_minver='2.2.4'
 
@@ -64,7 +64,6 @@ declare -r libavutil_minver='56'
 declare -r libavcodec_minver='58'
 declare -r libavformat_minver='58'
 
-declare where_to_place_new_file="$PWD"
 #  Defining them here, so that the definition in the RC file would be shorter
 #  and didn’t confuse users with “declare -gA …”.
 declare -A codec_names_as_formats

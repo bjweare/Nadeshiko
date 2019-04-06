@@ -142,49 +142,51 @@ encode-libvpx-vp9() {
 	libvpx18_auto_alt_ref_check
 
 	pass() {
-		local pass=$1 \
-		      pass1_params=( -pass 1 -sn -an -f webm /dev/null ) \
+		local pass=$1  \
+		      pass1_params=( -pass 1 -sn -an -f webm /dev/null )  \
 		      pass2_params=( -pass 2 -sn $audio_opts "$new_file_name" )
 		declare -n ffmpeg_command_end=pass${pass}_params
 		declare -n deadline=libvpx_pass${pass}_deadline
 		declare -n cpu_used=libvpx_pass${pass}_cpu_used
 		declare -n extra_options=libvpx_pass${pass}_extra_options
 		info "PASS $pass"
-		FFREPORT=file=$LOGDIR/ffmpeg-pass$pass.log:level=32 \
-		$ffmpeg -y \
-		            -ss "${start[ts]}" \
-		            -to "${stop[ts]}" \
-		        -i "$video" \
-		        "${ffmpeg_color_primaries[@]}" \
-		        "${ffmpeg_color_trc[@]}" \
-		        "${ffmpeg_colorspace[@]}" \
-		        "${vf_string[@]}" \
-		        $map_string \
-		        ${libvpx_max_q:+-qmax $libvpx_max_q} \
-		        ${libvpx_min_q:+-qmin $libvpx_min_q} \
-		            ${libvpx_cq_level:+-crf $libvpx_cq_level} \
-		        -aq-mode $libvpx_aq_mode \
-		        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt \
-		            -b:v $vbitrate_bits \
-		                -minrate $minrate \
-		                -maxrate $maxrate \
-		        -g $libvpx_kf_max_dist \
-		        -auto-alt-ref $libvpx_auto_alt_ref \
-		            -lag-in-frames $libvpx_lag_in_frames \
-		        -frame-parallel $libvpx_frame_parallel \
-		        -tile-columns $libvpx_tile_columns \
-		        -threads $libvpx_threads \
-		        -row-mt $libvpx_row_mt \
-		        ${libvpx_bias_pct:+-qcomp $libvpx_bias_pct} \
-		            -overshoot-pct $libvpx_overshoot_pct \
-		            -undershoot-pct $libvpx_undershoot_pct \
-		        -deadline $deadline \
-		            -cpu-used $cpu_used \
-		        "${extra_options[@]}" \
-		        -map_metadata -1  -map_chapters -1 \
-		        -metadata title="$video_title" \
-		        -metadata comment="Converted with Nadeshiko v$version" \
-		        "${ffmpeg_command_end[@]}" \
+		FFREPORT=file=$LOGDIR/ffmpeg-pass$pass.log:level=32  \
+		$ffmpeg -y -v error  -nostdin  \
+		            -ss "${start[ts]}"  \
+		            -to "${stop[ts]}"  \
+		        "${ffmpeg_input_options[@]}"  \
+		        -i "$video"  \
+		        "${ffmpeg_color_primaries[@]}"  \
+		        "${ffmpeg_color_trc[@]}"  \
+		        "${ffmpeg_colorspace[@]}"  \
+		        "${vf_string[@]}"  \
+		        $map_string  \
+		        ${libvpx_max_q:+-qmax $libvpx_max_q}  \
+		        ${libvpx_min_q:+-qmin $libvpx_min_q}  \
+		            ${libvpx_cq_level:+-crf $libvpx_cq_level}  \
+		        -aq-mode $libvpx_aq_mode  \
+		        -c:v $ffmpeg_vcodec  \
+		            -pix_fmt $ffmpeg_pix_fmt  \
+		            -b:v $vbitrate_bits  \
+		                -minrate $minrate  \
+		                -maxrate $maxrate  \
+		        -g $libvpx_kf_max_dist  \
+		        -auto-alt-ref $libvpx_auto_alt_ref  \
+		            -lag-in-frames $libvpx_lag_in_frames  \
+		        -frame-parallel $libvpx_frame_parallel  \
+		        -tile-columns $libvpx_tile_columns  \
+		        -threads $libvpx_threads  \
+		        -row-mt $libvpx_row_mt  \
+		        ${libvpx_bias_pct:+-qcomp $libvpx_bias_pct}  \
+		            -overshoot-pct $libvpx_overshoot_pct  \
+		            -undershoot-pct $libvpx_undershoot_pct  \
+		        -deadline $deadline  \
+		            -cpu-used $cpu_used  \
+		        "${extra_options[@]}"  \
+		        -map_metadata -1  -map_chapters -1  \
+		        -metadata title="$video_title"  \
+		        -metadata comment="Converted with Nadeshiko v$version"  \
+		        "${ffmpeg_command_end[@]}"  \
 			|| err "ffmpeg error on pass $pass."
 		return 0
 	}

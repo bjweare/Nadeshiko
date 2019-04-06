@@ -17,7 +17,7 @@ parse_args() {
 	declare -g  subs  subs_explicitly_requested  subs_external_file  \
 	            subs_track_id  \
 	            audio  audio_explicitly_requested  audio_track_id  \
-	            kilo  scale  crop  video  where_to_place_new_file  \
+	            kilo  scale  crop  video  where_to_place_new_file="$PWD"  \
 	            new_filename_user_prefix  max_size  vbitrate  abitrate \
 	            scene_complexity  dryrun
 	local args=("$@") arg pid
@@ -164,7 +164,7 @@ check_util_support() {
 	#  Encoding modules may need to know versions of ffmpeg or its libraries.
 	declare -g  ffmpeg_version_output  ffmpeg_ver  \
 	            libavutil_ver  libavcodec_ver  libavformat_ver
-	local  codec_list  missing_encoders  arg  ffmpeg_is_too_old
+	local  encoder_info  missing_encoders  arg  ffmpeg_is_too_old
 	for arg in "$@"; do
 		case "$arg" in
 			video)
@@ -270,19 +270,18 @@ check_util_support() {
 		err 'FFmpeg is too old.'
 	fi
 
-	codec_list=$($ffmpeg -hide_banner -codecs)
 	for arg in "$@"; do
 		case "$arg" in
 			video)
-				grep -qE "\s.EV... .*encoders:.*$ffmpeg_vcodec" \
-					<<<"$codec_list" || {
+				encoder_info=$($ffmpeg -h encoder="$ffmpeg_vcodec")
+				[[ "$encoder_info" =~ ^Encoder\ $ffmpeg_vcodec\  ]] || {
 					warn "FFmpeg doesn’t support $ffmpeg_vcodec encoder."
 					missing_encoders=t
 				}
 				;;
 			audio)
-				grep -qE "\s.EA... .*encoders:.*$ffmpeg_acodec" \
-					<<<"$codec_list" || {
+				encoder_info=$($ffmpeg -h encoder="$ffmpeg_acodec")
+				[[ "$encoder_info" =~ ^Encoder\ $ffmpeg_acodec\  ]] || {
 					warn "FFmpeg doesn’t support $ffmpeg_acodec encoder."
 					missing_encoders=t
 				}
@@ -293,10 +292,12 @@ check_util_support() {
 				#    in SSA format;
 				#  - OpenType font features can be enabled only with
 				#    “ass” filter, not available with “subtitles” filter.
-				grep -qE "\s.ES... ass" <<<"$codec_list" || {
+				encoder_info=$($ffmpeg -h encoder=ass)
+				[[ "$encoder_info" =~ ^Encoder\ ass\  ]] || {
 					warn "FFmpeg doesn’t support encoding ASS/SSA subtitles."
 					missing_encoders=t
 				}
+				#  Also check fontconfig support?
 				;;
 		esac
 	done
@@ -524,7 +525,7 @@ prepare_subtitles() {
 		#   It’s the number among SUBTITLE tracks, not overall!
 
 		FFREPORT=file=$LOGDIR/ffmpeg-subs-extraction.log:level=32 \
-		$ffmpeg -y -hide_banner \
+		$ffmpeg -y -hide_banner  -v error  -nostdin  \
 		        -i "$video" \
 		        -map 0:s:$subs_track_id \
 		        "$prepped_ext_subs" \
@@ -555,7 +556,8 @@ prepare_subtitles() {
 		#  If external file was in ASS/SSA format, it was already placed
 		#  in $TMPDIR as subs.ass.
 		FFREPORT=file=$LOGDIR/ffmpeg-subs-conversion.log:level=32 \
-		$ffmpeg -hide_banner -i "$prepped_ext_subs"  "$TMPDIR/subs.ass" \
+		$ffmpeg -hide_banner -v error  -nostdin  \
+		        -i "$prepped_ext_subs"  "$TMPDIR/subs.ass" \
 			|| err "Cannot convert subtitles to ASS: ffmpeg error."
 	}
 	return 0
@@ -626,12 +628,13 @@ determine_scene_complexity() {
 	      It takes 2–20 seconds depending on video.'
 	total_scenes=$(
 		FFREPORT=file=$LOGDIR/ffmpeg-scene-complexity.log:level=32 \
-		$ffmpeg  -ss "$start_time"  -to "$stop_time"  -i "$video" \
+		$ffmpeg  -hide_banner  -v error  -nostdin  \
+		         -ss "$start_time"  -to "$stop_time"  -i "$video" \
 		         -vf "select='gte(scene,0.3)',metadata=print:file=-" \
 		         -an -sn -f null -
 	) || err "Couldn’t determine scene complexity: ffmpeg error."
 	total_scenes=$(
-		grep -cE '^lavfi\.scene_score=0\.[0-9]{6}$' <<<"$total_scenes" || :
+		grep -cE '^lavfi\.scene_score=0\.[0-9]{6}$' <<<"$total_scenes" || true
 		# When ffmpeg finds no scene changes – and there may be none, if the
 		# clip is simply too short to have them – grep will print the count
 		# as “0” to stdout, but will quit with return code 1 as no matches

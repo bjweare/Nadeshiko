@@ -10,16 +10,15 @@
 set -feEuT
 BAHELITE_CHERRYPICK_MODULES=(
 	error_handling
+	messages_to_desktop
 	logging
 	rcfile
 	misc
 )
 mypath=$(dirname "$(realpath --logical "$0")")
 case "$mypath" in
-	'/usr/bin')
-		source "/usr/lib/nadeshiko/bahelite/bahelite.sh";;
-	'/usr/local/bin')
-		source "/usr/local/lib/nadeshiko/bahelite/bahelite.sh";;
+	'/usr/bin'|'/usr/local/bin')
+		source "${mypath%/bin}/lib/nadeshiko/bahelite/bahelite.sh";;
 	*)
 		source "$mypath/lib/bahelite/bahelite.sh";;
 esac
@@ -31,7 +30,7 @@ set_exampleconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 
-declare -r version="2.3"
+declare -r version="2.3.1"
 info "Nadeshiko-do-postponed v$version" >>"$LOGPATH"
 declare -r rcfile_minver='2.0'
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -136,7 +135,7 @@ process_dir() {
 		let '++processed_jobs || 1'
 
 	done < <( find "$postponed_commands_dir" -maxdepth 1 -type f -print0 )
-	info-ns 'All jobs processed.'
+	(( processed_jobs > 0 ))  &&  info-ns 'All jobs processed.'
 	info "Encoded: $completed_jobs
 	      Failed:  $failed_jobs
 	      Total:   $total_jobs"

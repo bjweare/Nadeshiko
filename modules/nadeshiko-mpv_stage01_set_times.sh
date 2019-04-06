@@ -82,6 +82,7 @@ populate_data_file() {
 			              .[$i].external,  .[$i].\"external-filename\""; \
 			     echo -en '\0'
 			   )
+		echo
 		info "Track $i
 		      Type: $tr_type
 		      Selected: $tr_is_selected

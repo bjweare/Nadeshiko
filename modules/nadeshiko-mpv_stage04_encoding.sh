@@ -85,24 +85,16 @@ encode() {
 		exit 0
 	else
 		info 'Running Nadeshiko'
-		milinc
-		echo -en "${__mi}${__y}${__bri}+++ Nadeshiko log " >&2
-		for ((i=0; i<TERM_COLS-18-${#__mi}; i++)); do  echo -n '+';  done
-		echo -e "${__s}"
+		headermsg 'Nadeshiko log'
 		errexit_off
 
 		env  \
-			LOGPATH="$LOGPATH"                              \
-			VERBOSITY_LEVEL=300                             \
-			MSG_INDENTATION_LEVEL="$MSG_INDENTATION_LEVEL"  \
+			VERBOSITY_LEVEL=330  \
 			"${nadeshiko_command[@]}"
 		nadeshiko_retval=$?
 
 		errexit_on
-		echo -en "${__mi}${__y}${__bri}+++ End of Nadeshiko log "
-		for ((i=0; i<TERM_COLS-25-${#__mi}; i++)); do  echo -n '+';  done
-		echo -e "${__s}"
-		mildec
+		footermsg 'End of Nadeshiko log'
 		rm "$data_file"
 		if [ -e "/proc/${mpv_pid:-not exists}" ]; then
 			if [ $nadeshiko_retval -eq 0 ]; then

@@ -2,8 +2,8 @@
 
 #  RC file uses bash syntax:
 #    key=value
-#  Quotes can be omitted, unless the string with value has spaces.
-#  The equals sign should stick to both key and value. No spaces around “=”.
+#  Quotes can be omitted, if the value is a string without spaces.
+#  The equals sign should stick to both key and value – no spaces around “=”.
 #
 #  Nadeshiko wiki may answer a question before you ask it!
 #  https://github.com/deterenkelt/Nadeshiko/wiki
@@ -16,16 +16,20 @@
 #  From time to time Nadeshiko will check for updates (40 kilobytes)
 #  and display a message, if a new release would be available.
 #  Default value: yes
+#
 check_for_updates=yes
 #
-#  Interval in days to check for updates
+#
+ # Interval in days to check for updates
 #  Doesn’t do anything, if check_for_updates is set to “no”.
 #  Default value: 21
+#
 new_release_check_interval=21
 
 
  # Whether to send notifications to desktop.
 #  Default value: yes
+#
 desktop_notifications=yes
 
 
@@ -33,34 +37,46 @@ desktop_notifications=yes
 #
 #  [kMG] suffixes use powers of 2, unless kilo is set to 1000.
 #
-#  Normal size. Command line option to force this maximum size: “normal”.
+#
+ # Normal size. Command line option to force this maximum size: “normal”.
 #  Default value: 20M
+#
 max_size_normal=20M
 #
-#  Small size. Command line option to force this maximum size: “small”.
+#
+ # Small size. Command line option to force this maximum size: “small”.
 #  Default value: 10M
+#
 max_size_small=10M
 #
-#  Tiny size. Command line option to force this maximum size: “tiny”.
+#
+ # Tiny size. Command line option to force this maximum size: “tiny”.
 #  Default value: 2M
+#
 max_size_tiny=2M
 #
-#  Unlimited size. For manual control and experiments. Intended to be used
+#
+ # Unlimited size. For manual control and experiments. Intended to be used
 #  along with vbNNNN, abNNNN and XXXp. Command line option to force this
 #  maximum size: “unlimited”.
 #  Default value: 99999M
+#
 max_size_unlimited=99999M
 #
+#
+ # Which of max_size_* use by default.
 #  One of: tiny, small, normal, unlimited
 #  Default value: normal
+#
 max_size_default=normal
 #
 #
-#  Multiplier for max_size “k” “M” “G” suffixes. Can be 1024 or 1000.
+ # Multiplier for max_size “k” “M” “G” suffixes. Can be 1024 or 1000.
 #  For a one time override pass “si” or “k=1000” via command line.
 #    Change this to 1000, if the server you often upload to uses SI units
 #    and complains about exceeded maximum file size.
 #  Default value: 1024
+#
 kilo=1024
 
 
@@ -70,11 +86,13 @@ kilo=1024
 #  - the encoded file is compatible with most devices.
 #  Only for libx264. Prints messages only to console.
 #  Default value: off
+#
 pedantic=off
 
 
  # Whether to show the time spent on encoding.
 #  Default value: off
+#
 time_stat=off
 
 
@@ -85,24 +103,38 @@ time_stat=off
 #  If you’re dualbooting, then enabling this option will allow to launch
 #  the videos from the drive.
 #  Default value: no
+#
 create_windows_friendly_filenames=no
 
 
 
                          #  FFmpeg options  #
 
- # FFmpeg binary
-#  Default value: 'ffmpeg -v error -nostdin'
-ffmpeg='ffmpeg -v error -nostdin'
+ # Calling name for the FFmpeg binary.
+#  To direct nadeshiko to a custom path, where ffmpeg is installed, specify
+#  the absolute path here.
+#  Default value: 'ffmpeg'
 #
-#  Chroma subsampling
+ffmpeg='ffmpeg'
+#
+#
+ # Input file options for encoding.
+#  Extend this array with strings, one option or key per string.
+#  Default value: an empty array
+#
+ffmpeg_input_options=()
+#
+#
+ # Chroma subsampling
 #  Not all browsers support yuv422 or yuv444p yet.
 #  VP9 encodes with yuv444p play well in FF-52 ESR, Chromium-72,
 #    but not in Vivaldi-2.3.
 #  Default value: 'yuv420p'
+#
 ffmpeg_pix_fmt='yuv420p'
 #
-#  Colourspace options
+#
+ # Colourspace options
 #  Convert source video colourspace to the given standard.
 #  By default ffmpeg uses native source colourspace, but browsers may not
 #    recognise some of them properly. In this case try to enable these options.
@@ -111,6 +143,7 @@ ffmpeg_pix_fmt='yuv420p'
 #    (hardware, flash/silverlight/java…) cannot play the video properly.
 #  Colourspace conversion is lossy, so it shouldn’t be enabled
 #    without a necessity.
+#
 #ffmpeg_color_primaries='bt709'
 #ffmpeg_color_trc='bt709'
 #ffmpeg_colorspace='bt709'
@@ -123,6 +156,7 @@ ffmpeg_pix_fmt='yuv420p'
 #  “libvpx-vp9” – better picture quality, better efficiency in frames per MiB,
 #                 but slower and its behaviour is less predictable.
 #  Default value: 'libvpx-vp9'
+#
 ffmpeg_vcodec='libvpx-vp9'
 #
 #
@@ -140,23 +174,29 @@ ffmpeg_vcodec='libvpx-vp9'
 #  libmp3lame      MP4     Worse, than all abovementioned.
 #         ac3      MP4     Comparable to libmp3lame.
 #  Default value: 'libopus'
+#
 ffmpeg_acodec='libopus'
 #
-#  Container
+#
+ # Container
 #  “mp4” – use for libx264.
 #  “webm” – use for libvpx-vp9.
 #  “auto” – pick appropriate container based on the chosen set of A/V codecs.
 #  Default value: auto
+#
 container=auto
 #
-#  Space required for the container header and footer.
+#
+ # Space required for the container header and footer.
 #  The value is a percent of the maximum allowed file size, e.g. “1%”, “5%”.
 #  Default value: 3%
+#
 container_own_size_pct=3%
 
 
  # The defaults for hardcoding subtitles into video and adding audio track.
 #  Default is “yes” for both.
+#
 subs=yes
 audio=yes
 
@@ -171,19 +211,20 @@ audio=yes
 #    in this doc: with http://moodub.free.fr/video/ass-specs.doc
 #  By default this array of options is set, but empty, and doesn’t affect
 #    anything.
+#
 ffmpeg_subtitle_fallback_style=(
 
 	#  Font family name.
 	#  Format: any string, escaping is not needed.
-	#[Fontname]='Roboto Medium'
+	[Fontname]='Roboto Medium'
 
 	#  Font size
-	#[Fontsize]='24'
+	[Fontsize]='24'
 
 	#  Text colour
 	#  Format: &HCC332211, hex codes in ABGR order, prepended with “&H”.
 	#  Alpha means transparency: 00 = 0%, FF = 100%.
-	#[PrimaryColour]='&H00F0F0F0'
+	[PrimaryColour]='&H00F0F0F0'
 
 	#  Uncertain. “may be used instead of the Primary colour” (how?!)
 	#  Format: see PrimaryColour
@@ -192,7 +233,7 @@ ffmpeg_subtitle_fallback_style=(
 	#  Text outline colour. Description warns, that it “may be used instead
 	#  of the Primary or Secondary colour”
 	#  Format: see PrimaryColour
-	#[OutlineColour]='&H03111111'
+	[OutlineColour]='&H03111111'
 
 	#  Uncertain. The description says: “the colour of the subtitle outline
 	#  or shadow, if these are used.”
@@ -205,19 +246,19 @@ ffmpeg_subtitle_fallback_style=(
 	#[Bold]=''
 
 	#  Format: 1 = Outline + drop shadow, 3 = Opaque box
-	#[BorderStyle]='1'
+	[BorderStyle]='1'
 
 	#  If BorderStyle is 1, then this specifies the width of the outline
 	#  around the text, in some abstract measure.
 	#  Format: 0, 1, 2, 3 or 4.
-	#[Outline]='2'
+	[Outline]='2'
 
 	#  If BorderStyle is 1, then this specifies the depth of the drop shadow
 	#  behind the text, in some abstract measure too, probably. Drop shadow
 	#  is always used in addition to an outline – SSA will force an outline
 	#  of 1 pixel if no outline width is given.
 	#  Format: 0, 1, 2, 3 or 4.
-	#[Shadow]='0'
+	[Shadow]='0'
 )
 
 
@@ -229,6 +270,7 @@ ffmpeg_subtitle_fallback_style=(
 #    will be necessary to fit the duration.
 #  Possible values are 2160p, 1440p, 1080p, 720p, 576p, 480p, 360p and “no”.
 #  Default value: no
+#
 scale=no
 
 
@@ -239,6 +281,7 @@ scale=no
 #  Dynamic clips lock bitrate-resolution range on desired values –
 #    high motion calls for the top bitrate possible.
 #  Default value: 2.5
+#
 video_sps_threshold=2.5
 
 
@@ -251,6 +294,7 @@ video_sps_threshold=2.5
 #    encoded. This is probably why the demand for bitrate of the cropped
 #    part draws close to the demand of the entire frame.
 #  Default value: yes
+#
 crop_uses_profile_vbitrate=yes
 
 
@@ -287,6 +331,7 @@ crop_uses_profile_vbitrate=yes
 #    you should rise the percentage here.
 #  Don’t confuse with libvpx_minrate and libvpx_maxrate.
 #  Default value: 60%
+#
 minimal_bitrate_pct=60%
 
 bitres_profile_360p=(
@@ -329,7 +374,7 @@ bitres_profile_1080p=(
 	[audio_desired_bitrate]=128k
 )
 
-# Experimental.
+#  Experimental.
 bitres_profile_1440p=(
 	[libx264_desired_bitrate]=11900k
 	[libvpx-vp9_desired_bitrate]=6000k
@@ -338,7 +383,7 @@ bitres_profile_1440p=(
 	[audio_desired_bitrate]=128k
 )
 
-# Experimental.
+#  Experimental.
 bitres_profile_2160p=(
 	[libx264_desired_bitrate]=23900k
 	[libvpx-vp9_desired_bitrate]=12000k
@@ -353,30 +398,41 @@ bitres_profile_2160p=(
                                             #   wiki: https://git.io/fhSkC
  # Speed / quality preset
 #  “veryslow” > “slower” > “slow” > shit > “medium” > … > “ultrafast”.
-libx264_preset='veryslow'
 #
-#  Preset tune. Less significant than the preset itself
+libx264_preset='veryslow'
+
+
+ # Preset tune. Less significant than the preset itself
 #  “animation” / “film” > shit > “fastdecode” > “zerolatency”.
 #  “animation” = “film” + more B-frames.
-libx264_tune='animation'
 #
-#  Profile enables encoding features. A decoder must also support them
+libx264_tune='animation'
+
+
+ # Profile enables encoding features. A decoder must also support them
 #  in order to play the video
 #  high444p > high10 > high > main > baseline
 #  Browsers do not support high10 or high444p.
-libx264_profile='high'
 #
-#  Video codec profile level
+libx264_profile='high'
+
+
+ # Video codec profile level
 #  Higher profiles optimise bitrate better.
 #  Very old devices may require level 3.0 and baseline profile.
+#
 libx264_level='4.2'
+
+
+ # Keyframe interval
 #
-#  Keyframe interval
 libx264_keyint=50
-#
-#  Place for user-specified ffmpeg options
+
+
+ # Place for user-specified ffmpeg options
 #  These will be applied ONLY when used with libx264 as an encoder.
 #  Array of strings!  I.e. =(-key value  -other-key "value with spaces")
+#
 libx264_pass1_extra_options=()
 libx264_pass2_extra_options=()
 
@@ -402,35 +458,45 @@ libx264_pass2_extra_options=()
 #  “The requested tile columns will be capped by encoder based on image size
 #   limitation. Tile column width minimum is 256 pixels, maximum is 4096.”
 #  The docs on Google Devs recommend to calculate it (see below).
-libvpx_tile_columns=6
 #
-#  Same as tile-columns, but for rows.
+libvpx_tile_columns=6
+
+
+ # Same as tile-columns, but for rows.
 #  Usefulness is uncertain, as vpxenc hints, that it’s set to 0 when threads
 #  is used: “Number of tile rows to use, log2 (set to 0 while threads > 1)”.
-#libvpx_tile_rows
 #
-#  Maximum number of CPU threads to use.
+#libvpx_tile_rows
+
+
+ # Maximum number of CPU threads to use.
 #  The docs on Google Devs recommend to calculate it, so whether the value
 #  here will in effect or not, depends on whether libvpx_adaptive_tile_columns
 #  is enabled (see below).
-libvpx_threads=8
 #
-#  When enabled, Nadeshiko calculates the values for tile-columns and threads
+libvpx_threads=8
+
+
+ # When enabled, Nadeshiko calculates the values for tile-columns and threads
 #  adaptively to the video resolution as the docs on Google Devs recommend:
 #  tile-columns = log2(target video width / tile-column minimum width)
 #  threads = 2^tile-columns × 2
-libvpx_adaptive_tile_columns=yes
 #
-#  Frame parallel decodability features
+libvpx_adaptive_tile_columns=yes
+
+
+ # Frame parallel decodability features
 #  “Turns off backward update of probability context”, which supposedly should
 #  mean, that B-frames would be based only on their predecessors. This option
 #  “allows staged parallel processing of more than one video frames
 #  in the decoder”. Spotted to hurt quality in the tests.
 #  0 – disable
 #  1 – enable
-libvpx_frame_parallel=0
 #
-#  Encode speed / quality profiles
+libvpx_frame_parallel=0
+
+
+ # Encode speed / quality profiles
 #  --deadline ffmpeg option specifies a profile to libvpx. Profiles are
 #    “best” – a kind of “placebo” in libvpx, although not as pointless.
 #    “good” – around “slow”, “slower” and “veryslow”, the range we need.
@@ -444,12 +510,14 @@ libvpx_frame_parallel=0
 #    ces, among others, the encoder’s selection of motion estimation methods.”
 #    This is actually of CRITICAL importance to get better quality.
 #    −8…8 are the values for VP9 (−16…16 was allowed for VP8).
+#
 libvpx_pass1_deadline=good
 libvpx_pass1_cpu_used=4
 libvpx_pass2_deadline=good
 libvpx_pass2_cpu_used=0
-#
-#  Frame prefetch for the buffer
+
+
+ # Frame prefetch for the buffer
 #  “Setting auto-alt-ref and lag-in-frames >= 12 will turn on VP9’s alt-ref
 #   frames, a VP9 feature that enhances quality.”
 #  “When --auto-alt-ref is enabled, the default mode of operation is to either
@@ -461,43 +529,58 @@ libvpx_pass2_cpu_used=0
 #               0 – disabled (default).
 #  libvpx-1.7:  1 – enabled.
 #  libvpx-1.8:  1–6 – enabled with a specific number of ref frames(?)
-libvpx_auto_alt_ref=6
 #
-#  Upper limit on the number of frames into the future,
+libvpx_auto_alt_ref=6
+
+
+ # Upper limit on the number of frames into the future,
 #  that the encoder can look for --auto-alt-ref.
 #  0–25. 25 is the default. 16 is recommended by webmproject.org.
-libvpx_lag_in_frames=25
 #
-#  Maximum interval between key frames (ffmpeg -g).
+libvpx_lag_in_frames=25
+
+
+ # Maximum interval between key frames (ffmpeg -g).
 #  “It is recommended to allow up to 240 frames of video between keyframes…”
 #  240 is the default.
 #  99999 is recommended by webmproject.org, so you couldn’t have keyframes.
 #  ― Ah, so that’s why webms take less space… Humu humu.
+#
 libvpx_kf_max_dist=9999
+
+
+ # Isn’t implemented in libvpx-vp9.
 #
-#  Isn’t implemented in libvpx-vp9.
 #libvpx_kf_min_dist
-#
-#  Lower and upper bitrate borders for a GOP, in % from target bitrate.
+
+
+ # Lower and upper bitrate borders for a GOP, in % from target bitrate.
 #  50% and 145% are recommended by the docs on Google Devs.
+#
 libvpx_minsection_pct=50
 libvpx_maxsection_pct=145
-#
-#  Datarate overshoot (maximum) target (%)
+
+ # Datarate overshoot (maximum) target (%)
 #  How much deviation in size from the target bitrate is allowed.
 #  −1…1000, default is −1.
-libvpx_overshoot_pct=0
 #
-#  Datarate undershoot (minimum) target (%)
+libvpx_overshoot_pct=0
+
+
+ # Datarate undershoot (minimum) target (%)
 #  How much deviation in size from the target bitrate is allowed.
 #  −1…100, default is −1.
+#
 libvpx_undershoot_pct=0
-#
-#  CBR/VBR bias (0=CBR, 100=VBR)
+
+
+ # CBR/VBR bias (0=CBR, 100=VBR)
 #  Default is unknown. Nadeshiko doesn’t use it by default (but may apply).
-#libvpx_bias_pct=0
 #
-#  Adaptive quantisation mode
+#libvpx_bias_pct=0
+
+
+ # Adaptive quantisation mode
 #  Segment based feature, that allows encoder to adaptively change quantisa-
 #    tion parameter for each segment within a frame to improve the subjective
 #    quality.
@@ -509,62 +592,78 @@ libvpx_undershoot_pct=0
 #  2 – complexity
 #  3 – cyclic refresh
 #  4 – equator360
-libvpx_aq_mode=0
 #
-#  Maximum keyframe bitrate as a percentage of the target bitrate
+libvpx_aq_mode=0
+
+
+ # Maximum keyframe bitrate as a percentage of the target bitrate
 #  This value controls additional clamping on the maximum size of a keyframe.
 #  It is expressed as a percentage of the average per-frame(!) bitrate, with
 #  the special (and default) value 0 meaning unlimited, or no additional
 #  clamping beyond the codec's built-in algorithm.
 #  Nadeshiko currently doesn’t use it.
-#libvpx_max_intra_rate
 #
-#  Maximum I-frame bitrate as a percentage of the target bitrate
+#libvpx_max_intra_rate
+
+
+ # Maximum I-frame bitrate as a percentage of the target bitrate
 #  This value controls additional clamping on the maximum size of an inter
 #  frame. It is expressed as a percentage of the average per-frame bitrate,
 #  with the special (and default) value 0 meaning unlimited, or no additional
 #  clamping beyond the codec’s built-in algorithm.
 #  Nadeshiko currently doesn’t use it; even ffmpeg-san has no option for it w
-#libvpx_max_inter_rate
 #
-#  Source video type
+#libvpx_max_inter_rate
+
+
+ # Source video type
 #  0: default – for any video
 #  1: screen – screen capture
 #  2: film – to preserve film grain(? no official description.)
 #  Nadeshiko doesn’t use it.
-#libvpx_tune_content
 #
-#  Static threshold
+#libvpx_tune_content
+
+
+ # Static threshold
 #  Should be understood literally: it’s an option to suppress noise on live
 #  translations, where real movements are low. Causes regions on image not
 #  being updated, which leads to artefacts. If you looked for motion-estima-
 #  tion methods, it’s defined by --cpu-used in VP9.
 #  “In most scenarios this value should be set to 0.”
 #  Nadeshiko doesn’t use this.
-#libvpx_static_threshold
 #
-#  Strip encoding features to ease playback
+#libvpx_static_threshold
+
+
+ # Strip encoding features to ease playback
 #  Used for low-capable devices or for enormous bitrates of 4K and higher.
 #  “For non-zero values the encoder increasingly optimizes for reduced comp-
 #   lexity playback on low powered devices at the expense of encode quality.”
 #  https://www.webmproject.org/docs/encoder-parameters/
 #  Nadeshiko doesn’t use this option.
-#libvpx_profile
 #
-#  vpxenc --target-level
+#libvpx_profile
+
+
+ # vpxenc --target-level
 #  Should be similar to the levels for libx264 (see above).
 #  https://www.webmproject.org/vp9/levels/
-libvpx_level=4.2
 #
-#  Literally an optimisation to pass synthetic tests better.
+libvpx_level=4.2
+
+
+ # Literally an optimisation to pass synthetic tests better.
 #  SSIM is considered closer to the human eye perception.
 #  “psnr” (default)
 #  “ssim” (isn’t supported for VP9 in libvpx-1.7.0)
 #  > Failed to set VP8E_SET_TUNING codec control: Invalid parameter
 #  > Option --tune=ssim is not currently supported.
-#libvpx_tune=ssim
 #
-#  Row based multi-threading.
+#libvpx_tune=ssim
+
+
+ # Row based multi-threading.
 #  0 = off, 1 = on.
 #  -> non-deterministic: two encodes will not be the same.
 #  -> “rows” refers to the rows of macroblocks within a single tile-column.
@@ -576,20 +675,24 @@ libvpx_level=4.2
 #  Enabling improves encoding speed ≈1/6…2 times, and produces video
 #  with a better perceptible quality with an equal SSIM score up to thou-
 #  sands. See “Tests. VP9: row-mt on and off” in the wiki for more details.
-libvpx_row_mt=1
 #
-#  Token parts (slices)
+libvpx_row_mt=1
+
+ # Token parts (slices)
 #  -tile-columns predecessor in VP8. Has no function in VP9.
 #  vpxenc-1.7.0 --help, 2016 docs and WebM SDK explicitly omit support in VP9.
 #  Topic in Google groups has a hint: “you can substitute --tile-columns
 #     for --token-parts for VP9.”
 #  ― https://groups.google.com/a/webmproject.org/d/msg/webm-discuss/ARlIuScFQFQ/j4xnhEpJCAAJ
 #  Nadeshiko doesn’t use it.
-#libvpx_token_parts
 #
-#  Place for user-specified ffmpeg options
+#libvpx_token_parts
+
+
+ # Place for user-specified ffmpeg options
 #  These will be applied ONLY when libvpx is used as an encoder.
 #  Array of strings!  I.e. =(-key value  -other-key "value with spaces")
+#
 libvpx_pass1_extra_options=()
 libvpx_pass2_extra_options=()
 
@@ -617,12 +720,15 @@ libvpx_pass2_extra_options=()
 #  ⋅ 23 for CQ mode by webmproject.org;
 #  ⋅ 15–35 in “Understanding rate control modes…”;
 #  ⋅ From 31 for 1080 to 36 for 360p in the docs on Google Devs.
-#libvpx_cq_level=23
 #
-#  Quantiser constraints
+#libvpx_cq_level=23
+
+
+ # Quantiser constraints
 #  Because apparently, -crf without -qmax likes 63 too much w
 #  These two parameters are the main levers on part with -deadline and
 #    -cpu-used, tuning everything else without them is futile.
+#
 #libvpx_min_q=23
 #libvpx_max_q=23
 
@@ -650,9 +756,10 @@ libvpx_pass2_extra_options=()
 #  Item format: [ffmpeg-codec-name]="Format as reported by mediainfo".
 #
 codec_names_as_formats=(
-	[libx264]=AVC
+
 	[libvpx-vp9]=VP9
 )
+
 
  # Working combinations of containers and audio/video codecs.
 #  One string represents a working combination. When $container is set
@@ -670,6 +777,7 @@ can_be_used_together=(
 	'webm libvpx-vp9 libvorbis'
 	#  No mkv, because browsers download it instead of playing.
 )
+
 
  # This list is used, when Nadeshiko needs to render subtitles, and the
 #  source subtitles are a stream, that is built in the source video file.

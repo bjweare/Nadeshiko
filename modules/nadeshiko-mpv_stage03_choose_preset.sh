@@ -115,8 +115,7 @@ prepare_preset_options() {
 	           bitres_profile_2160p
 	declare -A ffmpeg_subtitle_fallback_style
 
-	info "Preset: $nadeshiko_preset"                                   >&2
-	#                                              notice me, senpai!  ^^^
+	info "Preset: $nadeshiko_preset"
 	milinc
 	. "$EXAMPLECONFDIR/example.nadeshiko.rc.sh" \
 		|| err "Cannot read example.nadeshiko.rc.sh"
@@ -134,7 +133,7 @@ prepare_preset_options() {
 	option_list+=( "$nadeshiko_preset_name" )
 
 	#  3. Brief description of the configuration for the popup
-	option_list+=( "$( prepare_preset_info  2>&1)" )
+	option_list+=( "$( prepare_preset_info )" )  # in subshell was: 2>&1
 
 	if [ -v predictor ]; then
 		#  4. Source video description.
@@ -149,7 +148,7 @@ prepare_preset_options() {
 		[ ! -v predictor ] && {
 			option_list+=(
 				"$size"
-				"$( prepare_size_radiobox_label "$size"  2>&1 )"
+				"$( prepare_size_radiobox_label "$size" )"  # in subshell was: 2>&1
 				"$( [ "$max_size_default" = "$size" ] \
 						&& echo on  \
 						|| echo off  )"
@@ -163,7 +162,7 @@ prepare_preset_options() {
 		[ "$size" = unlimited ] && {
 			option_list+=(
 				"$size"
-				"$( prepare_size_radiobox_label "$size"  2>&1 )"
+				"$( prepare_size_radiobox_label "$size" )"  # in subshell was: 2>&1
 				"$( [ "$max_size_default" = "$size" ] \
 						&& echo on  \
 						|| echo off  )"
@@ -178,7 +177,7 @@ prepare_preset_options() {
 		if_predictor_runs_for_this_size "$size" || {
 			option_list+=(
 				"$size"
-				"$( prepare_size_radiobox_label "$size"  2>&1 )"
+				"$( prepare_size_radiobox_label "$size" )"  # in subshell was: 2>&1
 				"$( [ "$max_size_default" = "$size" ] \
 						&& echo on  \
 						|| echo off  )"
@@ -194,7 +193,7 @@ prepare_preset_options() {
 			continue
 		}
 
-		info "Size: $size"                                             >&2
+		info "Size: $size"
 		milinc
 		running_preset_mpv_msg='Running Nadeshiko predictor'
 		running_preset_mpv_msg+="\nPreset: “$nadeshiko_preset_name”"
@@ -221,72 +220,78 @@ prepare_preset_options() {
 			                      ${scene_complexity:+force_scene_complexity=$scene_complexity}
 
 		errexit_on
-		info 'Getting the path to the last log.'                       >&2
-		LOGDIR="$TMPDIR" \
-		read_lastlog 'nadeshiko' || err 'Nadeshiko didn’t write a log.'
-		lastline_in_lastlog=${LASTLOG_TEXT##*$'\n'}
-		grep -qE '(Encoding with|Cannot fit)' <<<"$lastline_in_lastlog" || {
-			warn 'Nadeshiko couldn’t perform the scene complexity test!'
-			echo -en "${__mi}${__y}${__bri}+++ Nadeshiko log "         >&2
-			for ((i=0; i<TERM_COLS-18-${#__mi}; i++)); do
-				echo -n '+'                                            >&2
-			done
-			#  Bad idea: to add a spacing “echo”.
-			#  It would confuse the one reading the log with a question
-			#  “Does this space belong to the log? Is this what causes
-			#   an error?”
-			echo -e "${__s}"                                           >&2
-			sed -r "s/.*/${__mi}&/" "$LASTLOG_PATH"                    >&2
-			#  Bad idea: to add a spacing “echo” (see above).
-			echo -en "${__mi}${__y}${__bri}+++ End of Nadeshiko log "  >&2
-			for ((i=0; i<TERM_COLS-25-${#__mi}; i++)); do
-				echo -n '+'                                            >&2
-			done
-			echo -e "${__s}"                                           >&2
-			err 'Error while parsing Nadeshiko log.'
-		}
 
-		[ -v scene_complexity ] || {    #  Once.
-			info 'Reading scene complexity from the log.'              >&2
-			scene_complexity=$(
-				sed -rn 's/\s*\*\s*Scene complexity:\s(static|dynamic).*/\1/p' \
+		 # Simulating scene complexity helps to debug frontend and backend
+		#  when that involves increasing verbosity in Bahelite.
+		#
+		# simulate_scene_complexity=t
+		#
+		if [ -v simulate_scene_complexity ]; then
+			plainmsg
+			warn 'SCENE COMPLEXITY IS SIMULATED AS DYNAMIC!'
+			plainmsg
+			echo 'dynamic' >"$TMPDIR/scene_complexity"
+			lastline_in_lastlog='Cannot fit'
+			container='webm'
+			native_profile='1080p'
+		else
+			info 'Getting the path to the last log.'
+			LOGDIR="$TMPDIR" \
+			read_lastlog 'nadeshiko' || err 'Nadeshiko didn’t write a log.'
+			lastline_in_lastlog=${LASTLOG_TEXT##*$'\n'}
+			[[ "$lastline_in_lastlog" =~ .*(Encoding\ with|Cannot\ fit).* ]] || {
+				headermsg 'Nadeshiko log'
+				plainmsg "$( <$LASTLOG_PATH )"
+				footermsg 'End of Nadeshiko log'
+				redmsg 'Nadeshiko couldn’t perform the scene complexity test.
+				        There is no “Encoding with” or “Cannot fit” on the last line
+				        in the log file.'
+				err 'Nadeshiko run for predictor failed.'
+			}
+
+			[ -v scene_complexity ] || {   #  Once.
+				info 'Reading scene complexity from the log.'
+				scene_complexity=$(
+					sed -rn 's/\s*\*\s*Scene complexity:\s(static|dynamic).*/\1/p' \
+						<<<"$LASTLOG_TEXT"
+				)
+				if [[ "$scene_complexity" =~ ^(static|dynamic)$ ]]; then
+					info "Determined scene complexity as $scene_complexity."
+					#  Updating preset info now that we know scene complexity.
+					option_list[2]="$( prepare_preset_info )"   # in subshell was: 2>&1
+					[ "${option_list[3]}" = ' ' ] && {
+						#  4. Updating source video description.
+						option_list[3]="$scene_complexity"
+					}
+				else
+					warn-ns "Couldn’t determine scene complexity."
+					scene_complexity='dynamic'
+				fi
+				echo "$scene_complexity" >"$TMPDIR/scene_complexity"
+			}
+
+			unset bitrate_corrections
+			grep -qF 'Bitrate corrections to be applied' <<<"$LASTLOG_TEXT" \
+				&& bitrate_corrections=t
+
+			container=$(
+				sed -rn 's/\s*\*\s*.*\+.*→\s*(.+)\s*.*/\1/p'  <<<"$LASTLOG_TEXT"
+			)
+			[ "$container" ] || warn-ns 'Couldn’t determine container.'
+			info "Container to be used: $container"
+
+			native_profile=$(
+				sed -rn 's/\s*\* Starting bitres profile: ([0-9]{3,4}p)\./\1/p' \
 					<<<"$LASTLOG_TEXT"
 			)
-			if [[ "$scene_complexity" =~ ^(static|dynamic)$ ]]; then
-				info "Determined scene complexity as $scene_complexity."  >&2
-				#  Updating preset info now that we know scene complexity.
-				option_list[2]="$( prepare_preset_info  2>&1)"
-				[ "${option_list[3]}" = ' ' ] && {
-					#  4. Updating source video description.
-					option_list[3]="$scene_complexity"
-				}
-			else
-				warn-ns "Couldn’t determine scene complexity."         >&2
-				scene_complexity='dynamic'
-			fi
-			echo "$scene_complexity" >"$TMPDIR/scene_complexity"
-		}
+		fi
 
-		unset bitrate_corrections
-		grep -qF 'Bitrate corrections to be applied' <<<"$LASTLOG_TEXT" \
-			&& bitrate_corrections=t
-
-		container=$(
-			sed -rn 's/\s*\*\s*.*\+.*→\s*(.+)\s*.*/\1/p'  <<<"$LASTLOG_TEXT"
-		)
-		[ "$container" ] || warn-ns 'Couldn’t determine container.'
-		info "Container to be used: $container"                        >&2
-
-		native_profile=$(
-			sed -rn 's/\s*\* Starting bitres profile: ([0-9]{3,4}p)\./\1/p' \
-				<<<"$LASTLOG_TEXT"
-		)
 		[[ "$native_profile" =~ ^[0-9]{3,4}p$ ]] \
-			|| warn-ns 'Couldn’t determine native bitres profile.'     >&2
-		info "Native bitres profile for the video: $native_profile"    >&2
+			|| warn-ns 'Couldn’t determine native bitres profile.'
+		info "Native bitres profile for the video: $native_profile"
 		for ((i=0; i<${#option_list[@]}; i++)); do
 			[ "${option_list[i]}" = '<Native>p' ] && {
-				info "Updating value “Native” in the option_list[$i] to $native_profile." >&2
+				info "Updating value “Native” in the option_list[$i] to $native_profile."
 				[ -v bitrate_corrections ] \
 					&& option_list[i]="$native_profile*" \
 					|| option_list[i]="$native_profile"
@@ -311,7 +316,7 @@ prepare_preset_options() {
 		else
 			preset_fitmark='?'
 			preset_fitdesc="Unknown"
-			warn-ns 'Unexpected value in Nadeshiko config.'            >&2
+			warn-ns 'Unexpected value in Nadeshiko config.'
 
 		fi
 

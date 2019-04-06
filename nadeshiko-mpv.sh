@@ -22,10 +22,8 @@ BAHELITE_CHERRYPICK_MODULES=(
 )
 mypath=$(dirname "$(realpath --logical "$0")")
 case "$mypath" in
-	'/usr/bin')
-		source "/usr/lib/nadeshiko/bahelite/bahelite.sh";;
-	'/usr/local/bin')
-		source "/usr/local/lib/nadeshiko/bahelite/bahelite.sh";;
+	'/usr/bin'|'/usr/local/bin')
+		source "${mypath%/bin}/lib/nadeshiko/bahelite/bahelite.sh";;
 	*)
 		source "$mypath/lib/bahelite/bahelite.sh";;
 esac
@@ -47,8 +45,8 @@ prepare_confdir 'nadeshiko'
 place_rc_and_examplerc
 place_rc_and_examplerc 'nadeshiko'
 
-declare -r version="2.3.18"
-info "Nadeshiko-mpv v$version" >>"$LOGPATH"
+declare -r version="2.3.19"
+info "Nadeshiko-mpv v$version"
 declare -r rcfile_minver='2.3'
 RCFILE_BOOLEAN_VARS=(
 	show_preview
@@ -66,8 +64,6 @@ declare -r postponed_commands="$CACHEDIR/postponed_commands"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 
 single_process_check
-pgrep -u $USER -af "bash.*nadeshiko-do-postponed.sh" \
-	&& err 'Cannot run at the same time with Nadeshiko-do-postponed.'
 
 [ -d "$datadir" ] || mkdir "$datadir"
 cd "$datadir"
