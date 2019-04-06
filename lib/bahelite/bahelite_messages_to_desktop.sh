@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1'
+declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1.1'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	notify-send   # (libnotify or libtinynotify)
@@ -48,7 +48,6 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #
 bahelite_notify_send() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	[ -v MSG_DISABLE_DESKTOP_NOTIFICATIONS ] && return 0
 	case "$(get_bahelite_verbosity  desktop)" in
 		0)	return 0
 			;;

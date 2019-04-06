@@ -18,7 +18,7 @@
 	bahelite_load_module 'colours' || return $?
 }
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_VER='2.6'
+declare -grx BAHELITE_MODULE_MESSAGES_VER='2.7'
 
 
 
@@ -207,6 +207,7 @@ declare -gx INFO_MESSAGE_COLOUR=${__green:-}
 declare -gx WARN_MESSAGE_COLOUR=${__yellow:-}
 declare -gx ERR_MESSAGE_COLOUR=${__red:-}
 declare -gx PLAIN_MESSAGE_COLOUR=${__fg_rst:-}
+declare -gx HEADER_MESSAGE_COLOUR=${__yellow:-}${__bright:-}
 
 
  # Define this variable to start each message not with just an asterisk
@@ -314,6 +315,8 @@ export -f  mildec
 
 
  # Sets the indentation level to a specified number.
+#  The use of this function is discouraged. milinc, mildec and mildrop are
+#  better for handling increases and drops in the message indentation level.
 #  $1 – desired indentation level, 0..9999.
 #
 milset () {
@@ -892,7 +895,8 @@ __msg() {
 			ierr 'no such msg' "$message_key"
 		fi
 	else
-		message="${1:-No message?}"
+		# message="${1:-No message?}"
+		message="${1:-}"
 	fi
 	#  Removing blank space before message lines.
 	#  This allows strings to be split across lines and at the same time
@@ -918,9 +922,37 @@ __msg() {
 		              | sed -r "1s/^/${__mi#  }/; 1!s/^/$__mi/g" )
 	fi
 	case "$output" in
-		stdout)  echo ${stay_on_line:+-n} "$message"  ;;
-		stderr)  echo ${stay_on_line:+-n} "$message" >&2  ;;
-		devnull) :  ;;
+		stdout)	if (( BASH_SUBSHELL == 0 )); then
+					echo ${stay_on_line:+-n} "$message"
+				else
+					#  If this is the subshell, use the parent shell’s
+					#    file descriptors to send messages, because they
+					#    shouldn’t be grabbed along with the output.
+					#  The parent shell’s FD may be closed, so a check
+					#    is needed to confirm, that it’s still writeable.
+					[ -w "$STDOUT_ORIG_FD_PATH" ]  \
+						&& echo ${stay_on_line:+-n} "$message"   \
+						        >$STDOUT_ORIG_FD_PATH
+				fi
+				;;
+
+		stderr)	if (( BASH_SUBSHELL == 0 )); then
+					echo ${stay_on_line:+-n} "$message" >&2
+				else
+					#  If this is the subshell, use the parent shell’s
+					#    file descriptors to send messages, because they
+					#    shouldn’t be grabbed along with the output.
+					#  The parent shell’s FD may be closed, so a check
+					#    is needed to confirm, that it’s still writeable.
+					[ -w "$STDERR_ORIG_FD_PATH" ]  \
+						&& echo ${stay_on_line:+-n} "$message"   \
+						        >$STDERR_ORIG_FD_PATH
+				fi
+				;;
+
+		devnull)
+				:  #  Not sending anything
+				;;
 	esac
 	if	[ -v desktop_message ]  \
 		&& [ "$(type -t bahelite_notify_send)" = 'function' ]
@@ -928,14 +960,14 @@ __msg() {
 		bahelite_notify_send "$message_nocolours" "$desktop_message_type"
 	fi
 	[ "$role" = err ] && BAHELITE_STIPULATED_ERROR=t
-	[[ "$role" =~ ^(err|abort)$ ]] && {
+	[[ "$role" =~ ^(err|abort)$ ]]  &&  {
 		(( BASH_SUBSHELL > 0 ))  \
-			&& touch "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL.$BAHELITE_STARTUP_ID"
+			&& touch "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL"
 		#  If this is an error message, we must also quit
 		#  with a certain exit code.
 		if	[ -v internal ]; then
 			exit $exit_code
-		elif  [ -v MSG_USE_KEYWORDS ] \
+		elif  [ -v MSG_USE_KEYWORDS ]  \
 		      &&  bahelite_verify_error_code "${ERROR_CODES[$*]}"
 		then
 			exit ${ERROR_CODES[$*]}
@@ -948,23 +980,110 @@ __msg() {
 export -f  __msg
 
 
+ # A divider is a message, that is printed highlighted and takes the entire
+#  line. It is intended to improve readability for the cases, when the output
+#  of the main script is temporarily suspended, and another program prints
+#  to console: for this reason the divider message also increases and decreases
+#  the message indentation level accordingly.
+#
+headermsg() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	milinc
+	#  Bad idea: to add a spacing “echo”.
+	#  It would confuse the one reading the inner output (probably a log)
+	#    with a question “Does this space belong to the log? Is this what
+	#    causes an error?”
+	divider_message "$@"
+	return 0
+}
+export -f headermsg
+
+
+footermsg() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	divider_message "$@"
+	#  No spacing echo for the same reason, as above.
+	mildec
+	return 0
+}
+export -f footermsg
+
+
+ # Print a message, that will span over entire line
+#  $1  – text message.
+# [$2] – character to use for the divider line. If unspecified, set to “+”.
+# [$3] – style to use for the line. If unspecified, uses whatever is set
+#        in the $HEADER_MESSAGE_COLOUR variable.
+#
+divider_message() {
+	#  Internal! There should be no xtrace_off!
+	local message="$1"  divider_line_character="${2:-+}"  \
+	      style="${3:-$HEADER_MESSAGE_COLOUR}"  \
+	      i  line_to_print=''  line_to_print_length
+	(( MSG_INDENTATION_LEVEL > 0 ))  \
+		&& line_to_print+="$__mi"
+	line_to_print+="$style"
+	for	(( i=0; i<3; i++ )); do
+		line_to_print+="$divider_line_character"
+	done
+	line_to_print+=" $message "
+	if [ -v MSG_DISABLE_COLOURS ]; then
+		line_to_print_length=${#line_to_print}
+	else
+		line_to_print_length="$(strip_colours "$line_to_print")"
+		line_to_print_length=${#line_to_print_length}
+	fi
+	for	(( i=0;  i < TERM_COLS - line_to_print_length;  i++ )); do
+		line_to_print+="$divider_line_character"
+	done
+	if (( BASH_SUBSHELL == 0 )); then
+		echo -e "$line_to_print${__s}"
+	else
+		#  If this is the subshell, use the parent shell’s
+		#    file descriptors to send messages, because they
+		#    shouldn’t be grabbed along with the output.
+		#  The parent shell’s FD may be closed, so a check
+		#    is needed to confirm, that it’s still writeable.
+		[ -w "$STDOUT_ORIG_FD_PATH" ]  \
+			&& echo -e "$line_to_print${__s}"  >$STDOUT_ORIG_FD_PATH
+	fi
+	return 0
+}
+export -f divider_message
+
+
 
 bahelite_xtrace_off
 mi_assemble
 bahelite_xtrace_on
 
  # Stream control
+#
+#  Remembering the original FD paths. They are needed to handle messages
+#  in subshells properly.
+#
+if (( BASH_SUBSHELL == 0 )); then
+	declare -gx STDIN_ORIG_FD_PATH="/proc/$$/fd/0"
+	declare -gx STDOUT_ORIG_FD_PATH="/proc/$$/fd/1"
+	declare -gx STDERR_ORIG_FD_PATH="/proc/$$/fd/2"
+else
+	[ -v STDIN_ORIG_FD_PATH ]  \
+		|| declare -gx STDIN_ORIG_FD_PATH="/proc/$$/fd/0"
+	[ -v STDOUT_ORIG_FD_PATH ]  \
+		|| declare -gx STDOUT_ORIG_FD_PATH="/proc/$$/fd/1"
+	[ -v STDERR_ORIG_FD_PATH ]  \
+		|| declare -gx STDERR_ORIG_FD_PATH="/proc/$$/fd/2"
+fi
+#
+#
 #  Setting initial verbosity according to VERBOSITY_LEVEL.
 #
 case "$(get_bahelite_verbosity  'console')" in
-	0)	exec {STDOUT_ORIG_FD}>&1
-		exec                1>/dev/null
-		exec {STDERR_ORIG_FD}>&2
-		exec                2>/dev/null
+	0)	exec {STDOUT_ORIG_FD}>&1;  exec 1>/dev/null
+		exec {STDERR_ORIG_FD}>&2;  exec 2>/dev/null
 		;;
 
-	1)	exec {STDOUT_ORIG_FD}>&1
-		exec                1>/dev/null
+	1)	exec {STDOUT_ORIG_FD}>&1;  exec 1>/dev/null
 		;;
 
 	4|5|6|7|8|9)

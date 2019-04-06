@@ -15,7 +15,7 @@
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_LOGGING_VER='1.6'
+declare -grx BAHELITE_MODULE_LOGGING_VER='1.6.2'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date   #  (coreutils) to add date to $LOGPATH file name and to the log itself.
 #	ls     #  (coreutils)
@@ -46,9 +46,13 @@ fi
 bahelite_extglob_on
 start_logging() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	[ "$(get_bahelite_verbosity  log)" == '0' ] && return 0
 	declare -gx  LOGPATH  LOGDIR  LOGNAME  \
-	             BAHELITE_LOGGING_STARTED  BAHELITE_LOGGING_USES_TEE
+	             BAHELITE_LOGGING_STARTED  BAHELITE_LOGGING_USES_TEE  \
+	             BAHELITE_SHOW_UP_IN_XTRACE
+	[ "$(get_bahelite_verbosity  log)" == '0' ] && {
+		LOGDIR="$TMPDIR"
+		return 0
+	}
 	local arg  overwrite_logpath=t
 	#  Priority of directories to be used as LOGDIR
 	#  LOGPATH set from the environment.              LOGPATH = LOGPATH
@@ -88,7 +92,6 @@ start_logging() {
 			}
 		}
 	fi
-
 	[ -v LOGPATH ] || {
 		LOGNAME="${MYNAME%.*}_$(date +%Y-%m-%d_%H:%M:%S).log"
 		LOGPATH="$LOGDIR/$LOGNAME"
@@ -149,7 +152,7 @@ start_logging() {
 				#    cess with tee.
 				exec 2>>"$LOGPATH"
 			else
-				exec 2> >(tee -ia "$LOGPATH" >&2 ||  true)
+				exec 2> >(tee -ia "$LOGPATH" >&2  || kill 0  || true)
 				BAHELITE_LOGGING_USES_TEE=t
 			fi
 			;;
@@ -173,7 +176,7 @@ start_logging() {
 				#  Console doesn’t need this FD, but the log does.
 				exec >>"$LOGPATH"
 			else
-				exec > >(tee -ia "$LOGPATH"  ||  true)
+				exec > >(tee -ia "$LOGPATH"  || kill 0  || true)
 				BAHELITE_LOGGING_USES_TEE=t
 			fi
 
@@ -185,7 +188,7 @@ start_logging() {
 				#  Console doesn’t need this FD, but the log does.
 				exec 2>>"$LOGPATH"
 			else
-				exec 2> >(tee -ia "$LOGPATH" >&2 ||  true)
+				exec 2> >(tee -ia "$LOGPATH" >&2  || kill 0  || true)
 				BAHELITE_LOGGING_USES_TEE=t
 			fi
 			;;&
@@ -194,12 +197,12 @@ start_logging() {
 			exec {BASH_XTRACEFD}<>"$LOGDIR/${LOGNAME%.log}.xtrace.log"
 			;;&
 
-		7|8|9)
+		8|9)
 			set -x
 			;;&
 
 		9)	#  Be ready for metric tons of logs.
-			unset BAHELITE_HIDE_FROM_XTRACE
+			BAHELITE_SHOW_UP_IN_XTRACE=t
 			;;
 	esac
 	#  Restoring the trap on DEBUG
@@ -327,13 +330,11 @@ stop_logging() {
 		#    need to kill it, as the main process catches all the signals,
 		#    and tee now receives SIGPIPE (or SIGHUP) in a natural way.
 		#  Is this still needed?
-		: pkill -PIPE  --session 0  -f "tee -ia $LOGPATH" || true
-
-		#  Kills for sure
-		# pkill -9  --session 0  -f "tee -ia $LOGPATH" || true
-
-		#  Less reliable than -KILL, and leaves an ugly message
-		# pkill -HUP  --session 0  -f "tee -ia $LOGPATH" || true
+		pkill -PIPE  --session 0  -f "tee -ia $LOGPATH" || true
+		sleep 2
+		pgrep --session 0  -f "tee -ia $LOGPATH" && {
+			pkill -KILL  --session 0  -f "tee -ia $LOGPATH" || true
+		}
 	}
 	return 0
 }

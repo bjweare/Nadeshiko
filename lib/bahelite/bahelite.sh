@@ -244,7 +244,7 @@ unset  sed_version  grep_version  getopt_version  yes_version
 
                         #  Initial settings  #
 
-BAHELITE_VERSION="2.17.1"
+BAHELITE_VERSION="2.18"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -261,13 +261,17 @@ BAHELITE_VERSION="2.17.1"
 
 CMDLINE="$0 $@"
 ARGS=("$@")
-if [ -v COLUMNS  -a  -v LINES ]; then
+if [ -v TERM_COLS  -a  -v TERM_LINES ]; then
+	declare -x TERM_COLS
+	declare -x TERM_LINES
+elif [ -v COLUMNS  -a  -v LINES ]; then
 	declare -nx TERM_COLS=COLUMNS
 	declare -nx TERM_LINES=LINES
 else
 	declare -x TERM_COLS=80
 	declare -x TERM_LINES=25
 fi
+
 
 
  # The directory for temporary files
@@ -286,14 +290,10 @@ fi
 #    file clutter.
 #
 [ -v TMPDIR ] && {
-	if [ -d "${TMPDIR:-}" ]; then
-		#  If custom TMPDIR is provided and BAHELITE_STARTUP_ID is set, pre-
-		#  serve it after exit: this is one main script chainloading another.
-		[ -v BAHELITE_STARTUP_ID ] && BAHELITE_DONT_CLEAR_TMPDIR=t
-	else
+	[ -d "${TMPDIR:-}" ] || {
 		echo "Bahelite warning: no such directory: “$TMPDIR”, will use /tmp." >&2
 		unset TMPDIR
-	fi
+	}
 }
 TMPDIR=$(mktemp --tmpdir=${TMPDIR:-/tmp/}  -d ${MYNAME%*.sh}.XXXXXXXXXX  )
 #  bahelite_on_exit trap shouldn’t remove TMPDIR, if the exit occurs
@@ -306,10 +306,10 @@ declare -rx  MYNAME  MYNAME_AS_IN_DOLLARZERO  MYPATH  MYDIR  MY_DISPLAY_NAME  \
 
 
  # By default Bahelite turns off xtrace for its internal functions.
-#  Call “unset BAHELITE_HIDE_FROM_XTRACE” after sourcing bahelite.sh
+#  set BAHELITE_SHOW_UP_IN_XTRACE after sourcing bahelite.sh
 #  to view full xtrace output.
 #
-export BAHELITE_HIDE_FROM_XTRACE=t
+# BAHELITE_SHOW_UP_IN_XTRACE=t
 
 
  # Lists of utilities, the lack of which must trigger an error.
@@ -463,19 +463,6 @@ export -f check_required_utils
 }
 unset  key  invalid_code
 
- # The sign, that bahelite.sh successfully finished loading.
-#  This variable is used in the check for chainload above, so that the chain-
-#    loaded script wouldn’t accidentally wipe the TMPDIR of its main script,
-#    when it executes bahelite_on_exit (if both scripts use the same TMPDIR).
-#  The unique ID helps to differentiate Bahelite-specific files in a single
-#    TMPDIR between several chainloaded main scripts. Currently there is only
-#    one thing, that Bahelite uses tempfiles for: to handle exit from within
-#    a subshell. (Solving that another way – with custom exit codes – would
-#    place a requirement on the programemr to reserve exit codes in pairs,
-#    from the main shell and from a subshell, which would be unobvious and
-#    prone to errors.)
-#
-BAHELITE_STARTUP_ID=$(mktemp -u "XXXXXXXXXX")
 
  # Before the main script starts, gather variables. In case of an error
 #  this list would be compared to the other, created before exiting,

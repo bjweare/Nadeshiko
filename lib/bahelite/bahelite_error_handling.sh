@@ -20,7 +20,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.4'
+declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.5'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
 )
@@ -210,10 +210,21 @@ export -f  bahelite_on_each_command
 #    nation, and these four signals are successfully handled with bash traps.
 #
 bahelite_on_exit() {
-#   builtin set +x
+	builtin set +x
+	declare -g __bahelite_onexit_entrance_counter
+	let ++__bahelite_onexit_entrance_counter
+	local in_subshell
+	(( BASH_SUBSHELL > 0 )) \
+		&& in_subshell="while in ${__bri}subshell${__s}"  \
+		|| in_subshell="while in the ${__bri}main shell${__s}"
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+		&& info "Entering bahelite_${__bri}on_exit${__s} $in_subshell for the ${__bri}$__bahelite_onerr_entrance_counter time${__s}."
+
+	trap '' DEBUG
 	local command="$1"  retval="$2"  stored_lnos="$3"  signal="$4"  \
-	      current_varlist  varname
+	      current_varlist  varname  varval  new_variables  vardump
 	mildrop
+# builtin set -x
 	#  Normally, when a subshell exits, trap on EXIT is called is the main
 	#    shell. However, if called explicitly, e.g. from another trap – on ERR
 	#    for example (Bahelite doesn’t do that) it may be called in the sub-
@@ -222,19 +233,27 @@ bahelite_on_exit() {
 	#    in case.
 	#  Disabled for it prevents catching signals like INT.
 	#
-	# (( BASH_SUBSHELL > 0 )) && {
-	# 	trap '' EXIT TERM INT HUP PIPE  ERR  RETURN  DEBUG
-	# 	exit $?
-	# }
+	(( BASH_SUBSHELL > 0 )) && {
+		trap '' EXIT TERM INT HUP PIPE  ERR  RETURN
+		exit $?
+	}
 
 	#  Like with BAHELITE_ERROR_PROCESSED and bahelite_show_error, there is
 	#  a situation, when the same trap may be called twice, though it is
 	#  unnecessary. The reason here is that after SIGINT bash calls SIGEXIT,
 	#  and as both signals are processed by this same function, there is
 	#  no need to process what already was processed.
-	[ -v BAHELITE_EXIT_PROCESSED ]  \
-		&& return 0  \
-		|| declare -gx BAHELITE_EXIT_PROCESSED=t
+	if [ -v BAHELITE_EXIT_PROCESSED ]; then
+		#  Gracefully closing all logging subshells.
+		exec  >&-  2>&-  <&-
+		#  Stop logging, if started
+		[ "$(type -t stop_logging)" = 'function' ] && stop_logging
+		return 0
+	else
+		declare -gx BAHELITE_EXIT_PROCESSED=t
+	fi
+
+	trap '' EXIT TERM INT HUP PIPE  ERR  RETURN
 
 	#  Catching internal bash errors, like “unbound variable”
 	#    when using nounset option (set -u). These errors
@@ -270,7 +289,7 @@ bahelite_on_exit() {
 			bahelite_print_call_stack
 			bahelite_noglob_off
 			if	[ -v BAHELITE_STIPULATED_ERROR ] \
-				|| [ -r "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL."* ]
+				|| [ -r "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL" ]
 			then
 				[ "$(type -t on_error)" = 'function' ] && on_error
 			fi
@@ -280,29 +299,34 @@ bahelite_on_exit() {
 				&& bahelite_on_error "$command"  \
 				                     "$retval"  \
 				                     "from_on_exit"  \
-				                     "${stored_lnos##* }"
+				                     "${stored_lnos%% *}"
+				                     # "${stored_lnos##* }"
 			#  ^ user’s on_error() will be launched from within
 			#    bahelite_on_error()
 		fi
 	}
+
 	#  Run user’s on_exit(). Keep in mind, that at this point
 	#  $? is already frozen.
 	[ "$(type -t on_exit)" = 'function' ] && on_exit
-	#  Stop logging, if started
-	[ "$(type -t stop_logging)" = 'function' ] && stop_logging
+
 	[ -v BAHELITE_DUMP_VARIABLES ] && {
 		current_varlist=$(
 			compgen -A variable  \
 				| grep -vE 'BAHELITE_VARLIST_(BEFORE|AFTER)_STARTUP'
 		)
-		for varname in \
-			$(
-				echo "$BAHELITE_VARLIST_AFTER_STARTUP"$'\n'"$current_varlist" \
-					| sort | uniq -u | sort
-			)
-		do
-			declare -p "$varname"  &>>"${LOGDIR:-$TMPDIR}/variables"
+		#  BAHELITE_BRING_BACK_* variables may be unset and cause an error
+		#  when trying to retrieve their values here. (As they are internal,
+		#  we’re grabbing them in the middle of their work.)
+		new_variables=$(
+			echo "$BAHELITE_VARLIST_AFTER_STARTUP"$'\n'"$current_varlist" \
+				| grep -v BAHELITE_BRING_BACK_ | sort | uniq -u | sort
+		)
+		for varname in $new_variables; do
+			declare -n varval="$varname"
+			vardump+="${varval@A}"$'\n'
 		done
+		echo "$vardump"  >"${LOGDIR:-$TMPDIR}/variables"
 	}
 	if	[ -d "$TMPDIR" ] && ! mountpoint --quiet "$TMPDIR" \
 		&& [ ! -v BAHELITE_DONT_CLEAR_TMPDIR ]
@@ -311,6 +335,12 @@ bahelite_on_exit() {
 		rm -rf "$TMPDIR"
 	fi
 	[ "$signal" != 'EXIT' ] && err "Caught SIG$signal."
+
+	#  Gracefully closing all logging subshells.
+	exec  >&-  2>&-  <&-
+	#  Stop logging, if started
+	[ "$(type -t stop_logging)" = 'function' ] && stop_logging
+
 	return 0
 }
 #  No export: runs only on the top level, using it inside of subshell is not
@@ -318,19 +348,25 @@ bahelite_on_exit() {
 #  harm, if would run twice.
 
 
+ # Prints the stack of the function calls.
+#
 bahelite_print_call_stack() {
+	#  Every output from this function must go to stderr,
+	#  because *err*() may as well be called from a subshell
+	#
 	#  Skip only 3 levels (this very function, __msg and err*/abort), when
 	#  printing the call stack.
 	local  levels_to_skip
 	local  from_on_exit="${1:-}" real_line_number="${2:-}"   \
-	       line_number_to_print  f  i term_cols=$TERM_COLS
-	[[ "$-" =~ .*i.* ]] || term_cols=80
-	[ -v BAHELITE_HIDE_FROM_XTRACE ] \
-		&& levels_to_skip=3  \
-		|| levels_to_skip=0
-	echo -en "${__bright:-}--- Call stack " >&2
-	for ((i=0; i<term_cols-15; i++)); do  echo -n '-';  done
-	echo -e "${__stop:-}" >&2
+	       line_number_to_print  f  i
+	if [ -v BAHELITE_STIPULATED_ERROR ]; then
+		[ -v BAHELITE_SHOW_UP_IN_XTRACE ] \
+			&& levels_to_skip=0  \
+			|| levels_to_skip=3
+	else
+		levels_to_skip=0
+	fi
+	divider_message 'Call stack'  '-'  "$__bright" >&2
 	for ((f=${#FUNCNAME[@]}-1; f>levels_to_skip; f--)); do
 		#  Hide on_exit and on_error, as the error only bypasses through
 		#  there. We don’t show THIS function in the call stack, right?
@@ -379,10 +415,21 @@ bahelite_on_error() {
 	#  and because of that, the call to err() did only make the subshell
 	#  exit(), and not the main script, the must not treat it as an unhandled
 	#  error.
+
+	declare -g __bahelite_onerr_entrance_counter
+	let ++__bahelite_onerr_entrance_counter
+	local in_subshell
+	(( BASH_SUBSHELL > 0 )) \
+		&& in_subshell="while in ${__bri}subshell${__s}"  \
+		|| in_subshell="while in the ${__bri}main shell${__s}"
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+		&& info "Entering bahelite_${__bri}on_error${__s} $in_subshell for the ${__bri}$__bahelite_onerr_entrance_counter time${__s}."
+
+# builtin set -x
 	if	(( failed_command_code >= 5 )) \
-		&& [ -r "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL.$BAHELITE_STARTUP_ID" ]
+		&& [ -r "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL" ]
 	then
-		return 0
+		return 0   #  return code >0 would break bahelite_on_exit procedures!
 	fi
 
 	bahelite_print_call_stack "${from_on_exit:-}" "${real_line_number:-}"
@@ -392,7 +439,7 @@ bahelite_on_error() {
 		echo -en  "${__r:-}${__bri:-}(exit code: $failed_command_code)${__s:-}."
 		)	| fold -w $((term_cols-9)) -s \
 			| sed -r '1 !s/^/         /g' >&2
-	echo
+	echo >&2
 	#  SIGERR is triggered, when the last executed command has $? ≠ 0.
 	#  However, bash will also issue SIGEXIT afterwards (as it always does
 	#  except for after SIGQUIT, as that belongs to the group of “core dump”
@@ -404,6 +451,7 @@ bahelite_on_error() {
 	#  BAHELITE_ERROR_PROCESSED to indicate, that there is no need to call
 	#  this function twice.
 	BAHELITE_ERROR_PROCESSED=t
+# builtin set -x
 	if [ -v BAHELITE_LOGGING_STARTED ]; then
 		which xclip &>/dev/null && {
 			echo -n "$LOGPATH" | xclip
@@ -412,13 +460,15 @@ bahelite_on_error() {
 		[ "$(type -t bahelite_notify_send)" = 'function' ]  \
 			&& bahelite_notify_send "Bash error. See the log.${log_path_copied_to_clipboard:-}"   \
 			                         error
-		print_logpath
+		print_logpath >&2
 	else
 		[ "$(type -t bahelite_notify_send)" = 'function' ]  \
 			&& bahelite_notify_send "Bash error. See console." error
-		warn "Logging wasn’t enabled in $MYNAME.
-		      Call start_logging() someplace after sourcing bahelite.sh to enable logging.
-		      If prepare_cachedir() is used too, it should be called before start_logging()."
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
+			warn "Logging wasn’t enabled in $MYNAME.
+			      Call start_logging() someplace after sourcing bahelite.sh to enable logging.
+			      If prepare_cachedir() is used too, it should be called before start_logging()."
+		}
 	fi
 	return 0
 }
@@ -464,6 +514,9 @@ bahelite_toggle_onerror_trap() {
 #  No export: must not be used in subshell context.
 
 
+
+__bahelite_onexit_entrance_counter=0
+__bahelite_onerr_entrance_counter=0
 
 trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" EXIT' EXIT
 trap 'bahelite_on_exit "$BASH_COMMAND" "$?" "${BAHELITE_STORED_LNOS[*]}" TERM' TERM

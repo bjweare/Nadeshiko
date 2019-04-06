@@ -15,7 +15,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_SET_OVERRIDES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_SET_OVERRIDES_VER='1.1'
+declare -grx BAHELITE_MODULE_SET_OVERRIDES_VER='1.1.3'
 
 
 
@@ -162,39 +162,39 @@ export -f  bahelite_functrace_off  \
 #    the expression. The trap returns the state of xtrace to the original
 #    state, when the execution leaves internal function and return to the
 #    code of the main script.
-#  To show Bahelite code anyway, add “unset BAHELITE_HIDE_FROM_XTRACE” in the
+#  To show Bahelite code anyway, add  BAHELITE_SHOW_UP_IN_XTRACE=t  in the
 #    main script someplace after sourcing bahelite.sh.
 #
 bahelite_xtrace_off() {
 	#  If this function was already called on a higher level,
 	#    there’s no need to run it twice.
 	#  The return code 1 prevents the run of bahelite_xtrace_on().
-	[ -v BAHELITE_BRING_XTRACE_BACK ] && return 1
+	[ -v BAHELITE_BRING_BACK_XTRACE ] && return 1
 
 	#  If xtrace is not enabled, there’s no need to continue.
 	[ -o xtrace ] || return 1
 
-	if [ -v BAHELITE_HIDE_FROM_XTRACE ]; then
-		#  Won’t that lead to unexpected behaviour because of the regular
-		#  xtrace_off()?
-		builtin set +x
-		declare -gx BAHELITE_BRING_XTRACE_BACK=${#FUNCNAME[*]}
-	else
+	if [ -v BAHELITE_SHOW_UP_IN_XTRACE ]; then
 		#  When set -x enables trace, the commands are prepended with ‘+’.
 		#  To differentiate between main script commands and Bahelite,
 		#  we temporarily change the plus ‘+’ from PS4 to a middle dot ‘⋅’.
 		#  (The mnemonic is “objects further in the distance look smaller”.)
 		declare -gx OLD_PS4="$PS4"  &&  declare -gx PS4='⋅'
+	else
+		#  Won’t that lead to unexpected behaviour because of the regular
+		#  xtrace_off()?
+		builtin set +x
+		declare -gx BAHELITE_BRING_BACK_XTRACE=${#FUNCNAME[*]}
 	fi
 # declare -gx PS4="$__bri$__y$PS4"
 	return 0
 }
 bahelite_xtrace_on() {
 	#  If this function runs not on the level, where its counterpart
-	#  has set BAHELITE_BRING_XTRACE_BACK, quit.
-	(( ${BAHELITE_BRING_XTRACE_BACK:- -1} != ${#FUNCNAME[*]} ))  &&  return 0
+	#  has set BAHELITE_BRING_BACK_XTRACE, quit.
+	(( ${BAHELITE_BRING_BACK_XTRACE:- -1} != ${#FUNCNAME[*]} ))  &&  return 0
 
-	unset BAHELITE_BRING_XTRACE_BACK
+	unset BAHELITE_BRING_BACK_XTRACE
 	#  Salty experience of learning how traps on RETURN work resulted
 	#  in the following:
 	#  - a trap on RETURN defined in a function persists after that func-
@@ -210,12 +210,12 @@ bahelite_xtrace_on() {
 	#    in pairs – as needed for hiding xtrace diving into bahelite func-
 	#    tions;
 	#  - in order to be sure, that the return trap is executed and unset
-	#    only the level, when it was set, BAHELITE_BRING_XTRACE_BACK
+	#    only the level, when it was set, BAHELITE_BRING_BACK_XTRACE
 	#    contains the current function nesting level.
 	trap '' RETURN
 
 	# #  Restoring the original PS4.
-	# [ -v BAHELITE_HIDE_FROM_XTRACE ] || {
+	# [ -v BAHELITE_SHOW_UP_IN_XTRACE ] && {
 	# 	# declare -gx PS4='+'
 	# 	declare -gx PS4="$OLD_PS4"
 	# }
@@ -364,10 +364,21 @@ env() {
 			echo "$BAHELITE_VARLIST_BEFORE_STARTUP"$'\n'"$current_varlist" \
 				| sort | uniq -u | sort
 		)
-		${!BAHELITE_*} ${!MSG_*} LOGPATH LOGDIR TMPDIR
+		${!BAHELITE_*}  ${!MSG_*}  LOGPATH  LOGDIR  TMPDIR
 	)
+			#  Other variables for removal, that could be set before Bahelite
+		#  startup procedure, hence may not appear in the VARLIST_BEFORE_STARTUP
+		#  variable, that actually collects variables at the time of startup.
+		#
 	bahelite_functrace_off
-	command env $(sed -r 's/\S+/-u &/g' <<<"${new_vars[*]}") "$@"
+	command env $(sed -r 's/\S+/-u &/g' <<<"${new_vars[*]}")  \
+	            TERM_COLS=${TERM_COLS:-80}  \
+	            TERM_LINES=${TERM_LINES:-25}  \
+	            STDIN_ORIG_FD_PATH="$STDIN_ORIG_FD_PATH"  \
+	            STDOUT_ORIG_FD_PATH="$STDOUT_ORIG_FD_PATH"  \
+	            STDERR_ORIG_FD_PATH="$STDERR_ORIG_FD_PATH"  \
+	            MSG_INDENTATION_LEVEL="$MSG_INDENTATION_LEVEL"  \
+	            "$@"
 	retval=$?
 	bahelite_functrace_on
 	return $retval

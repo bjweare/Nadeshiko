@@ -15,7 +15,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_COLOURS_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_COLOURS_VER='1.1.2'
+declare -grx BAHELITE_MODULE_COLOURS_VER='1.2'
 
 
 
@@ -70,6 +70,7 @@ declare -grx __clearline='\r\e[K'
 #  Useful for when the message should go somewhere where terminal control
 #  sequences wouldn’t be recognised.
 #
+strip_colors()  { strip_colours "$@"; }
 strip_colours() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local c str="$1"  c_val
