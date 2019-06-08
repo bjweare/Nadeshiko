@@ -15,7 +15,7 @@
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_LOGGING_VER='1.7'
+declare -grx BAHELITE_MODULE_LOGGING_VER='1.7.1'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date   #  (coreutils) to add date to $LOGPATH file name and to the log itself.
 #	ls     #  (coreutils)
@@ -417,17 +417,49 @@ stop_logging() {
 		(( ${#tee_parents_pids[*]} == ${#tee_pids[*]} )) && {
 
 			[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-				echo
+				echo 'Sleeping for 10 seconds…'
 				sleep 10
 				info 'Killing tees by sending HUP to their shells:'
 			}
 
-			#  It caused a segmentation fault before. Read the comment
+			 # When the subprocesses, that hold logging tee processes, are
+			#  killed, bash prints their PIDs to console. This cannot be
+			#  avoided with a simple stream redirection like
+			#      exec {TEMP_STDERR_FD}>&2
+			#      kill -TERM "${tee_parents_pids[@]}"
+			#      exec 2>&${TEMP_STDERR_FD}
+			#  as once the remembered FD for stderr is restored, it prints
+			#  the accumulated contents. And no, neither read, nor readarray,
+			#  nor even read inside while with the descriptor passed via the
+			#  -u switch can flush the contents. The only way is to shut down
+			#  stderr and stdout completely.
+			#
+			#  Thankfully, stop_logging is called at the very end of the trap
+			#  on EXIT, i.e. bahelite_on_exit and is literaly the last executed
+			#  command. There is nothing past this function, traps on signals
+			#  are already unset at this point. So it’s comparatively safe
+			#  to close stdout and stderr.
+			#
+			#  As a measure to ease the debugging, stdout and stderr are closed
+			#  only when the verbosity stays on the default, user-friendly
+			#  level (i.e. not higher than 3 for console or the log file).
+			#  Once the verbosity level is raised, stdout and stderr will remain
+			#  intact and let out the PIDs show in the console, along with
+			#  the messages that may come after this. (Though in regular use
+			#  no messages should be shown).
+			#
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ] || {
+				exec 2>/dev/null
+				exec >/dev/null
+			}
+
+			 # “kill” caused a segmentation fault before. Read the comment
 			#  above the initial declarations in start_logging().
-			kill -HUP "${tee_parents_pids[@]}"
+			#
+			kill -TERM "${tee_parents_pids[@]}"
 
 			[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-				echo
+				echo 'Sleeping for 10 seconds…'
 				sleep 10
 				info 'Testing if the processes still hang there:'
 			}
@@ -439,7 +471,7 @@ stop_logging() {
 
 
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-			echo -en '\n\n'
+			echo -en '\n\nSleeping 10 seconds…'
 			sleep 10
 			warn 'Something went wrong: killing mother shells did not succeed,
 			      and we’re going to kill tees directly.'

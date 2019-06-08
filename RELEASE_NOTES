@@ -1,3 +1,12 @@
+——— v 2.8.1 ——————————————————————————————————————————————————————————————————
+
+Fixed a bug when Nadeshiko-mpv quit and caused some mother program quit too –
+and that mother program might happen to be the one that holds user session
+within a DE, – leading to an X crash.
+
+
+
+
 ——— v 2.8 ————————————————————————————————————————————————————————————————————
                                                              Nadeshiko-mpv 2.4
                                                   Nadeshiko-do-postponed 2.3.2
@@ -13,7 +22,7 @@ user’s configuration files – each file remains a standalone preset.
 
  
 
-### Reworked the audio subsystem:
+### Reworked the audio subsystem
 
 - Each audio codec now has **its own set of profiles.** So each of the
   bitrate-resolution profiles now links to a particular audio profile

@@ -1173,8 +1173,8 @@ bahelite_xtrace_on
 
  # Stream control
 #
-#  Remembering the original FD paths. They are needed to handle messages
-#  in subshells properly.
+#  Remembering the original FD paths. They are needed to send info, warn etc.
+#  messages from subshells properly.
 #
 if (( BASH_SUBSHELL == 0 )); then
 	declare -gx STDIN_ORIG_FD_PATH="/proc/$$/fd/0"
