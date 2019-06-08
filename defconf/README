@@ -21,4 +21,4 @@ custom configs?
 — The format is <SCRIPTNAME>[EXTRA].rc.sh, where <SCRIPTNAME> is the obliga-
 tory name of the main script, e.g. “nadeshiko” or “nadeshiko-mpv”, and [EXTRA]
 can be any combination of symbols, that are alphanumeric or belong to this set:
-.,:;-. Thoroughly described on the wiki: https://git.io/fhNWa
+.,:;-. Thoroughly described on the wiki: https://git.io/fjz6l

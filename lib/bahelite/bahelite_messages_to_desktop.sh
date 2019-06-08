@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1.2'
+declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1.3'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	notify-send   # (libnotify or libtinynotify)
@@ -60,13 +60,15 @@ bahelite_notify_send() {
 				&& return 0
 			;;
 	esac
-	local msg="$1" type="$2" duration urgency icon
+	local msg="$1" type="${2:-info}" duration urgency icon
 	msg=${msg##+([[:space:]])}
 	msg=${msg%%+([[:space:]])}
+	#
 	#  Support all the possible variations, that may come to mind to the
 	#  author of the main script: bahelite function names and notify-send
 	#  icons (along with the inconsistency in the icon names, that is
 	#  with or without “dialog-” prefix).
+	#
 	case "$type" in
 		err|error|dialog-error)
 			icon='dialog-error'
@@ -84,6 +86,7 @@ bahelite_notify_send() {
 			duration=3000
 			;;
 	esac
+
 	[ -v MSG_NOTIFYSEND_USE_ICON ] || unset icon
 	#  The hint is for the message to not pile in the stack – it is limited.
 	notify-send --hint int:transient:1  \

@@ -1,3 +1,13 @@
+——— v 2.8.2 ——————————————————————————————————————————————————————————————————
+                                                           Nadeshiko-mpv 2.4.1
+
+1. Fixed a bug in Nadeshiko-mpv: custom RC file was sourced, but the arguments
+   weren’t updated after set_rcfile_from_args().
+2. Fixed a small bug in desktop notifications and a recursion fault in __msg().
+
+
+
+
 ——— v 2.8.1 ——————————————————————————————————————————————————————————————————
 
 Fixed a bug when Nadeshiko-mpv quit and caused some mother program quit too –

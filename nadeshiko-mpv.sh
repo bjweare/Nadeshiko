@@ -46,7 +46,7 @@ set_defconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_examplerc 'nadeshiko-mpv.10_main.rc.sh'
 
-declare -r version="2.4"
+declare -r version="2.4.1"
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
 declare -r datadir="$CACHEDIR/nadeshiko-mpv_data"
@@ -201,6 +201,7 @@ REQUIRED_UTILS+=(
 check_required_utils
 declare -r xml='xmlstarlet'  # for lib/xml_and_python_functions.sh
 
+builtin set -- "${NEW_ARGS[@]}"
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && show_help && exit 0
 [[ "${1:-}" =~ ^(-v|--version)$ ]] && show_version && exit 0
 [ "${1:-}"  -a  "${1:-}" = postpone ] && postpone=yes  # sic!

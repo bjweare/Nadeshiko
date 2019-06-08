@@ -18,7 +18,7 @@
 	bahelite_load_module 'colours' || return $?
 }
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_VER='2.8'
+declare -grx BAHELITE_MODULE_MESSAGES_VER='2.8.1'
 
 
 
@@ -874,7 +874,7 @@ __msg() {
 	local role  message_array  colour  whole_message_in_colour  asterisk  \
 	      desktop_message  desktop_message_type  stay_on_line  output  \
 	      internal  exit_code  \
-	      f  f_count=0  \
+	      f  f_count=0  already_printing_call_stack  \
 	      message=''  message_key  message_key_exists  \
 	      _message=''  message_nocolours  \
 	      term_cols=$TERM_COLS  console_or_log
@@ -889,8 +889,15 @@ __msg() {
 	done
 	(( f_count >= 3 )) && {
 		echo "Bahelite error: call to ${FUNCNAME[0]} went into recursion." >&2
-		[ "$(type -t bahelite_print_call_stack)" = 'function' ]  \
-			&& bahelite_print_call_stack
+		[ "$(type -t bahelite_print_call_stack)" = 'function' ]  && {
+			#  Print call stack, unless already in the middle of doing it
+			for f in "${FUNCNAME[@]}"; do
+				[ "$f" = "bahelite_print_call_stack" ]  \
+					&& already_printing_call_stack=t
+			done
+			[ -v already_printing_call_stack ] \
+				|| bahelite_print_call_stack
+		}
 		#  Unsetting the traps, or the recursion may happen again.
 		trap '' EXIT TERM INT HUP PIPE   ERR   DEBUG   RETURN
 		#  Now the script will exit guaranteely.
