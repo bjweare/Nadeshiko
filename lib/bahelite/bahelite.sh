@@ -244,19 +244,26 @@ unset  sed_version  grep_version  getopt_version  yes_version
 
                         #  Initial settings  #
 
-BAHELITE_VERSION="2.18"
+BAHELITE_VERSION="2.19"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
+	MYNAME_NOEXT=${MYNAME%.*}
 	#  Sourced scripts cannot operate on the main script’s $0,
 	#  as it is changed for them to “bash”.
 	MYNAME_AS_IN_DOLLARZERO="$0"
 	MYPATH=$(realpath --logical "$0")
 	MYDIR=${MYPATH%/*}
-	#  Used for desktop notifications in bahelite_messages.sh
+	#  Used for desktop notifications in bahelite_messages_to_desktop.sh
 	#  and in the title for dialog windows in bahelite_dialog.sh
-	: ${MY_DISPLAY_NAME:=${MYNAME%.*}}
+	[ -v MY_DISPLAY_NAME ] || {
+		#  Not forcing lowercase, as there may be intended
+		#  caps, like in abbreviations.
+		MY_DISPLAY_NAME="${MYNAME_NOEXT^}"
+	}
 	BAHELITE_DIR=${BASH_SOURCE[0]%/*}  # The directory of this file.
+	ORIG_BASHPID=$BASHPID
+	ORIG_PPID=$PPID
 }
 
 CMDLINE="$0 $@"
@@ -300,9 +307,9 @@ TMPDIR=$(mktemp --tmpdir=${TMPDIR:-/tmp/}  -d ${MYNAME%*.sh}.XXXXXXXXXX  )
 #  within a subshell
 (( BASH_SUBSHELL > 0 )) && BAHELITE_DONT_CLEAR_TMPDIR=t
 
-declare -rx  MYNAME  MYNAME_AS_IN_DOLLARZERO  MYPATH  MYDIR  MY_DISPLAY_NAME  \
-             BAHELITE_VERSION  BAHELITE_DIR  BAHELITE_LOCAL_TMPDIR  \
-             CMDLINE  ARGS  TMPDIR
+declare -rx  MYNAME  MYNAME_NOEXT  MYNAME_AS_IN_DOLLARZERO  MYPATH  MYDIR  \
+             MY_DISPLAY_NAME  BAHELITE_VERSION  BAHELITE_DIR  CMDLINE  ARGS  \
+             TMPDIR  BAHELITE_LOCAL_TMPDIR  ORIG_BASHPID  ORIG_PPID
 
 
  # By default Bahelite turns off xtrace for its internal functions.

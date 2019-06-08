@@ -14,7 +14,7 @@ MERGE_TYPE="binary"
 KEYWORDS="~*"
 
 
-IUSE="+hardsub +mpv +x264 +fdk-aac +vp9 +opus vorbis +update-check time-stat"
+IUSE="+hardsub +crop +mpv +x264 +fdk-aac +vp9 +opus vorbis +update-check time-stat"
 
 RDEPEND="
 	>=app-shells/bash-4.4
@@ -27,10 +27,14 @@ RDEPEND="
 	media-video/mediainfo
 	dev-perl/File-MimeInfo
 	sys-devel/bc
+	app-text/xmlstarlet
 
 	hardsub? (
 		>=media-video/ffmpeg-4.0[iconv,libass,truetype]
-		media-video/mkvtoolnix
+	)
+
+	crop? (
+		sys-fs/inotify-tools
 	)
 
 	mpv? (
@@ -40,7 +44,6 @@ RDEPEND="
 		>=dev-lang/python-3.0
 		>=dev-python/pygobject-3.20
 		>=x11-libs/gtk+-3.20
-		app-text/xmlstarlet
 		sys-apps/findutils
 		sys-process/lsof
 		app-misc/jq

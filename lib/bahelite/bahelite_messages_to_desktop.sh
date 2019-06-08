@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1.1'
+declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1.2'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	notify-send   # (libnotify or libtinynotify)
@@ -89,7 +89,7 @@ bahelite_notify_send() {
 	notify-send --hint int:transient:1  \
 	            --urgency "$urgency"  \
 	            -t $duration  \
-	            "${MY_DISPLAY_NAME^}"  "$msg"  \
+	            "$MY_DISPLAY_NAME"  "$msg"  \
 	            ${icon:+--icon=$icon}
 	return 0
 }

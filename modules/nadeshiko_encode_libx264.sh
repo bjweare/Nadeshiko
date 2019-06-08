@@ -6,16 +6,17 @@
 #
 #  For licence see nadeshiko.sh
 
- # Modules in Nadeshiko wiki:
+#  Modules in Nadeshiko wiki:
 #  https://github.com/deterenkelt/Nadeshiko/wiki/Writing-custom-modules
+
 
 
 encode-libx264() {
 
 	pass() {
 		local pass=$1
-		local pass1_params=( -pass 1 -sn -an  -f mp4  /dev/null )
-		local pass2_params=( -pass 2 -sn $audio_opts
+		local pass1_params=( -pass 1 -sn -an  -f $ffmpeg_muxer  /dev/null )
+		local pass2_params=( -pass 2 -sn ${audio_opts[@]}
 		                     -movflags +faststart  "$new_file_name" )
 		declare -n ffmpeg_command_end=pass${pass}_params
 		declare -n extra_options=libx264_pass${pass}_extra_options
@@ -25,15 +26,15 @@ encode-libx264() {
 				"${ffmpeg_input_options[@]}"  \
 		            -ss "${start[ts]}"  \
 		            -to "${stop[ts]}"  \
-		        -i "$video"  \
+		        "${ffmpeg_input_files[@]}"  \
 		        "${ffmpeg_color_primaries[@]}"  \
 		        "${ffmpeg_color_trc[@]}"  \
 		        "${ffmpeg_colorspace[@]}"  \
+		        "${map_string[@]}"  \
 		        "${vf_string[@]}"  \
-		        $map_string  \
-		        -c:v $ffmpeg_vcodec -pix_fmt $ffmpeg_pix_fmt  \
+		        -c:v $ffmpeg_vcodec -pix_fmt $libx264_pix_fmt  \
 		            -g $libx264_keyint  \
-		            -b:v $vbitrate_bits  \
+		            -b:v $vbitrate  \
 		            ${libx264_qcomp:+-qcomp $libx264_qcomp}  \
 		        -preset:v $libx264_preset -tune:v $libx264_tune  \
 		        -profile:v $libx264_profile -level $libx264_level  \

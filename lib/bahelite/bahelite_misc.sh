@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MISC_VER='1.10'
+declare -grx BAHELITE_MODULE_MISC_VER='1.11'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # (procps) Single process check.
@@ -252,6 +252,44 @@ plur_sing() {
 	return 0
 }
 export -f  plur_sing
+
+
+nth() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	local number="$1"
+	[[ "$number" =~ ^[0-9]+$ ]]  \
+		|| err "The argument must be a number, but “$number” was given."
+	echo -n "$number"
+	case $number in
+		1) echo -n 'st';;
+		2) echo -n 'nd';;
+		3) echo -n 'rd';;
+		*) echo -n 'th';;
+	esac
+	return 0
+}
+export -f nth
+
+
+ # Determine bash variable type
+#  Returns: “string”, “regular array”, “assoc. array”
+#  $1 – variable name.
+#
+vartype() {
+	local varname="${1:-}" varval vartype_letter
+	[ -v "$varname" ] || {
+		bahelite_print_call_stack
+		err "misc: $FUNCNAME: “$1” must be a variable name!"
+	}
+	declare -n varval=$varname
+	vartype_letter=${varval@a}
+	case "${vartype_letter:0:1}" in
+		a)	echo 'regular array';;
+		A)  echo 'assoc. array';;
+		*)  echo 'string';;
+	esac
+	return 0
+}
 
 
 

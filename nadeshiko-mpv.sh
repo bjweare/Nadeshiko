@@ -40,23 +40,15 @@ for module in "$MODULESDIR"/nadeshiko-mpv_*.sh ; do
 	. "$module" || err "Couldn’t source module $module."
 done
 noglob_on
-set_exampleconfdir 'nadeshiko'
-prepare_confdir 'nadeshiko'
-place_rc_and_examplerc
-place_rc_and_examplerc 'nadeshiko'
 
-declare -r version="2.3.19"
-info "Nadeshiko-mpv v$version"
-declare -r rcfile_minver='2.3'
-RCFILE_BOOLEAN_VARS=(
-	show_preview
-	show_encoded_file
-	predictor
-)
-#  Defining it here, so that the definition in RC would be shorter
-#  and didn’t confuse users with “declare -gA …”.
-declare -A mpv_sockets
-declare -A nadeshiko_presets
+set_metaconfdir 'nadeshiko'
+set_defconfdir 'nadeshiko'
+prepare_confdir 'nadeshiko'
+place_examplerc 'nadeshiko-mpv.10_main.rc.sh'
+
+declare -r version="2.4"
+declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
+
 declare -r datadir="$CACHEDIR/nadeshiko-mpv_data"
 #  Old, this file is deprecated.
 declare -r postponed_commands="$CACHEDIR/postponed_commands"
@@ -65,21 +57,11 @@ declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 
 single_process_check
 
-[ -d "$datadir" ] || mkdir "$datadir"
-cd "$datadir"
-if [ -e wipe_me ]; then
-	noglob_off
-	rm -rf ./*
-	noglob_on
-else
-	# Delete files older than one hour.
-	find -type f -mmin +60  -delete
-fi
 
 
 on_error() {
-	local func \
-	      pyfile="$TMPDIR/nadeshiko-mpv_dialogues_gtk.py" \
+	local func  \
+	      pyfile="$TMPDIR/nadeshiko-mpv_dialogues_gtk.py"  \
 	      gladefile="$TMPDIR/nadeshiko-mpv_dialogues_gtk.glade"
 	#  Wipe the data directory, so that after a stop caused by an error
 	#  we wouldn’t read the old data, but tried to create new ones.
@@ -138,16 +120,35 @@ show_version() {
 
 
 post_read_rcfile() {
-	local preset_name  preset_exists
-	(( ${#nadeshiko_presets[*]} == 0 )) \
-		&& nadeshiko_presets=( [default]='nadeshiko.rc.sh' )
-	(( ${#nadeshiko_presets[*]} > 1 )) && {
-		for preset_name in "${!nadeshiko_presets[@]}"; do
-			[ "$gui_default_preset" = "$preset_name" ] && preset_exists=t
-		done
-		[ -v preset_exists ] \
-			|| err "GUI default preset with name “$gui_default_preset” doesn’t exist."
-	}
+	local preset_name  gui_default_preset_exists
+	if [ -v quick_run ]; then
+		[ "${quick_run_preset:-}" ] && {
+			if ! [     -r "$CONFDIR/$quick_run_preset" \
+			       -a  -f "$CONFDIR/$quick_run_preset" ]
+			then
+				err "Quick run preset “$quick_run_preset” is not a readable file."
+			fi
+		}
+		declare -gx postpone=t
+		[ -v predictor ] && unset predictor
+	else
+		#  Pure default, Nadeshiko config may not exist, but this is expected.
+		#  The presets in nadeshiko_presets must have file names only when
+		#  there are 2+ of them.
+		(( ${#nadeshiko_presets[*]} == 0 ))  \
+			&& nadeshiko_presets=( [default]='nadeshiko.rc.sh' )
+
+		if (( ${#nadeshiko_presets[*]} == 1 )); then
+			gui_default_preset="${!nadeshiko_presets[@]}"
+		else
+			for preset_name in "${!nadeshiko_presets[@]}"; do
+				[ "$gui_default_preset" = "$preset_name" ]  \
+					&& gui_default_preset_exists=t
+			done
+			[ -v gui_default_preset_exists ]  \
+				|| err "GUI default preset with name “$gui_default_preset” doesn’t exist."
+		fi
+	fi
 	return 0
 }
 
@@ -161,9 +162,10 @@ check_needed_vars() {
 		[arrange_times]='time1 time2'
 		[play_preview]='time1 time2 mute sub_visibility'
 		[choose_preset]=''
-		[encode]='time1 time2 mute sub_visibility max_size screenshot_directory working_directory'
+		[encode]='time1 time2 mute sub_visibility screenshot_directory working_directory'
 		[play_encoded_file]='screenshot_directory working_directory'
 	)
+	[ -v quick_run ] || vars_needed[encode]+=' max_size'
 	for var in ${vars_needed[${FUNCNAME[1]}]}; do
 		[ -v $var ] \
 			|| err "Variable “$var” is not set."
@@ -173,7 +175,20 @@ check_needed_vars() {
 
 
 
-read_rcfile "$rcfile_minver"
+[ -d "$datadir" ] || mkdir "$datadir"
+cd "$datadir"
+
+if [ -e wipe_me ]; then
+	noglob_off
+	rm -rf ./*
+	noglob_on
+else
+	# Delete files older than one hour.
+	find -type f -mmin +60  -delete
+fi
+
+set_rcfile_from_args "$@"
+read_rcfile
 post_read_rcfile
 REQUIRED_UTILS+=(
 	python3      #  Dialogue windows.
@@ -184,15 +199,16 @@ REQUIRED_UTILS+=(
 	socat        #  To talk to mpv via UNIX socket.
 )
 check_required_utils
-declare -r xml=$(which xmlstarlet)   # for lib/xml_and_python_functions.sh
+declare -r xml='xmlstarlet'  # for lib/xml_and_python_functions.sh
 
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && show_help && exit 0
 [[ "${1:-}" =~ ^(-v|--version)$ ]] && show_version && exit 0
-[ "${1:-}"  -a  "${1:-}" = postpone ] && postpone=t
-[ "$*" -a ! -v postpone ] && {
+[ "${1:-}"  -a  "${1:-}" = postpone ] && postpone=yes  # sic!
+[ "$*" -a  "${1:-}" != 'postpone' ] && {
 	show_help
 	err 'The only parameter may be “postpone”!'
 }
+info "Nadeshiko-mpv v$version"
 
  # Test, that all the entries from our properties array
 #  can be retrieved.
@@ -216,7 +232,7 @@ declare -r xml=$(which xmlstarlet)   # for lib/xml_and_python_functions.sh
 #    run preview. The second window would  be as it is now, unchanged.
 #
 get_props mpv-version filename
-data_file=$(grep -rlF "filename='$filename'" |& head -n1)
+data_file=$(grep -rlF "${filename@A}" |& head -n1)
 if [ -e "$data_file" ]; then
 	# Read properties.
 	. "$data_file"
@@ -248,7 +264,15 @@ put_time && [ -v time2 ] && {
 	arrange_times
 	choose_crop_settings
 	play_preview
-	choose_preset
+	if [ -v quick_run ]; then
+		[ "$quick_run_preset" ] && nadeshiko_preset=$quick_run_preset
+	else
+		choose_preset
+	fi
+	#  Prepares the encoding
+	#  - if “postpone” is enabled, saves the job and calls exit
+	#  - if “postpone” is disabled, runs encoder, then returns
+	#    to play encoded file.
 	encode
 	#  Show the encoded file.
 	play_encoded_file

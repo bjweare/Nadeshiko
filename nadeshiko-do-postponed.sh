@@ -26,16 +26,28 @@ prepare_cachedir 'nadeshiko'
 start_logging
 set_libdir 'nadeshiko'
 set_modulesdir 'nadeshiko'
-set_exampleconfdir 'nadeshiko'
+set_metaconfdir 'nadeshiko'
+set_defconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
-place_rc_and_examplerc
+place_examplerc 'nadeshiko-do-postponed.10_main.rc.sh'
 
-declare -r version="2.3.1"
-info "Nadeshiko-do-postponed v$version" >>"$LOGPATH"
-declare -r rcfile_minver='2.0'
+declare -r version="2.3.2"
+declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
+
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 declare -r failed_jobs_dir="$postponed_commands_dir/failed"
 
+
+
+show_version() {
+	cat <<-EOF
+	nadeshiko-do-postponed.sh $version
+	© deterenkelt 2018–2019.
+	Licence: GNU GPL ver. 3  <http://gnu.org/licenses/gpl.html>
+	This is free software: you are free to change and redistribute it.
+	There is no warranty, to the extent permitted by law.
+	EOF
+}
 
 
 on_exit() {
@@ -118,23 +130,23 @@ process_dir() {
 				${nice_cmd:-} ${taskset_cmd:-} "$jobfile"
 
 		then
-			let '++completed_jobs || 1'
+			let '++completed_jobs,  1'
 			echo -e "${__g}${__bri}Complete${__s} "
 			rm -rf "$jobfile" "$job_logdir"
 
 		else
 			echo -e "${__r}${__bri}Fail.${__s}"
 			move_job_to_failed "$jobfile" "$job_logdir"
-			let ++failed_jobs
+			let '++failed_jobs,  1'
 			#  Stop running if the shell is in interactive mode.
 			#  (doesn’t work: $- may be unset even in an actually interactive
 			#   shell, and checking the output of “tty” command will depend
 			#   on the terminal in question.
 			# [[ "$-" =~ .*i.* ]] && err ''
 		fi
-		let '++processed_jobs || 1'
+		let '++processed_jobs,  1'
 
-	done < <( find "$postponed_commands_dir" -maxdepth 1 -type f -print0 )
+	done < <( find "$postponed_commands_dir"  -maxdepth 1  -type f  -print0 )
 	(( processed_jobs > 0 ))  &&  info-ns 'All jobs processed.'
 	info "Encoded: $completed_jobs
 	      Failed:  $failed_jobs
@@ -156,7 +168,7 @@ collect_jobs() {
 	if [ -d "$postponed_commands_dir" ]; then
 		if [ "$(ls -A "$postponed_commands_dir")" ]; then
 			while IFS='' read -r -d ''; do
-				let ++jobs_in_dir
+				let '++jobs_in_dir,  1'
 			done < <( find "$postponed_commands_dir" -maxdepth 1 \
 			               -type f -print0 )
 		fi
@@ -165,7 +177,7 @@ collect_jobs() {
 	if [ -d "$failed_jobs_dir" ]; then
 		if [ "$(ls -A "$failed_jobs_dir")" ]; then
 			while IFS='' read -r -d ''; do
-				let ++failed_jobs
+				let '++failed_jobs,  1'
 			done < <( find "$failed_jobs_dir" -maxdepth 1 -iname "*.sh"  \
 			               -type f -print0 )
 		fi
@@ -181,12 +193,23 @@ collect_jobs() {
 }
 
 
+set_rcfile_from_args "$@"
+builtin set -- "${NEW_ARGS[@]}"
+if (( $# == 0 )); then
+	: "All is OK, proceeding to execution."
+elif (( $# == 1 )) && [[ "$1" =~ ^(-v|--version)$ ]]; then
+	show_version
+	exit 0
+else
+	err "Wrong arguments: $@"
+fi
 
 cd "$TMPDIR"
-read_rcfile "$rcfile_minver"
+read_rcfile
 post_read_rcfile
 check_required_utils
-declare -r xml=$(which xmlstarlet)   # for lib/xml_and_python_functions.sh
+declare -r xml='xmlstarlet'   # for lib/xml_and_python_functions.sh
+info "Nadeshiko-do-postponed v$version"
 single_process_check
 pgrep -u $USER -af "bash.*nadeshiko.sh" &>/dev/null  \
 	&& err 'Cannot run at the same time with Nadeshiko.'

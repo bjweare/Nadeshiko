@@ -1,15 +1,25 @@
-# nadeshiko-do-postponed.rc.sh v2.3
+#  nadeshiko-do-postponed.rc.sh
+#
+#  RC file uses bash syntax:
+#    key=value
+#  Quotes can be omitted, if the value is a string without spaces.
+#  The equals sign should stick to both key and value – no spaces around “=”.
+#
+#  Nadeshiko wiki may answer a question before you ask it!
+#  https://github.com/deterenkelt/Nadeshiko/wiki
 
 
- # Limit the number of CPU cores, on which the encoding process may run.
+
+ # Limits the number of CPU cores, on which the encoding process may run.
 #  The value is a string, as for taskset --cpu-list: “0”, “1,3”, “1-2,5”.
+#  Not used in the default configuration.
 #
 #taskset_cpulist='1-2'
 
 
- # Process priority. −20…19, the lower the higher, default is 0.
-#  The value is a number, as for nice -n: “-5”, “-20”, “19”.
-#  Negative values require superuser privilegies.
+ # OS process priority. −20…19, the lowest is the *higher* priority,
+#    default OS priority is 0. Negative values require superuser privilegies.
+#  Not used in the default configuration.
 #
 #niceness_level='-20'
 

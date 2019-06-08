@@ -194,7 +194,7 @@ but will, if you replace nested GtkBox with GtkButtonBox.
 
 15. Setting default focus has its own quirks. In gtkbox_crop_and_predictor
 it’s possible to just set can_focus and has_focus to True for cb_crop –
-and it will work. For gtbox_choose_socket, which has GtkButtonBox with
+and it will work. For gtkbox_choose_socket, which has GtkButtonBox with
 radiobuttons as its first element, this *isn’t enough*. The focus will
 not be placed so that first press on Tab would focus the first radiobox.
 The solution is to call grab_focus() for but_choose_socket and then

@@ -11,8 +11,10 @@
 
 prepare_preset_info() {
 	local preset_info=''
+	local -n vcodec_pix_fmt=${ffmpeg_vcodec//-/_}_pix_fmt
+	local -n minimal_bitrate_pct=${ffmpeg_vcodec//-/_}_minimal_bitrate_pct
 	#  Line 1
-	preset_info+="$ffmpeg_vcodec ($ffmpeg_pix_fmt) "
+	preset_info+="$ffmpeg_vcodec ($vcodec_pix_fmt) "
 	preset_info+="+ $ffmpeg_acodec → $container;"
 	preset_info+='  '
 	[ "$subs" = yes ] \
@@ -25,7 +27,8 @@ prepare_preset_info() {
 	preset_info+='\n'
 	#  Line 2
 	preset_info+='Container own space: '
-	preset_info+="<span weight=\"bold\">${container_own_size_pct%\%}%</span>"
+	# preset_info+="<span weight=\"bold\">${container_own_size_pct%\%}%</span>"
+	preset_info+='unavailable atm'  # probably for removal.
 	preset_info+='\n'
 	#  Line 3
 	preset_info+='Minimal bitrate perc.: '
@@ -42,7 +45,7 @@ prepare_preset_info() {
  # Reads config values for max_size_normal etc, converts [kMG]
 #    suffixes to kB, MB or KiB, MiB, determines, which option
 #    is set to default
-#  $1 – size code, tiny, normal etc.
+#  $1 – size code: tiny, normal etc.
 prepare_size_radiobox_label() {
 	local size="$1"
 	declare -n size_val="max_size_$size"
@@ -103,24 +106,10 @@ prepare_preset_options() {
 	      native_profile  preset_fitmark  preset_fitdesc  i  \
 	      running_preset_mpv_msg
 	[ "${3:-}" ] && scene_complexity="$3"
-	declare -A codec_names_as_formats
-	declare -a known_sub_codecs
-	declare -a can_be_used_together
-	declare -A bitres_profile_360p \
-	           bitres_profile_480p \
-	           bitres_profile_576p \
-	           bitres_profile_720p \
-	           bitres_profile_1080p \
-	           bitres_profile_1440p \
-	           bitres_profile_2160p
-	declare -A ffmpeg_subtitle_fallback_style
 
 	info "Preset: $nadeshiko_preset"
 	milinc
-	. "$EXAMPLECONFDIR/example.nadeshiko.rc.sh" \
-		|| err "Cannot read example.nadeshiko.rc.sh"
-	. "$CONFDIR/$nadeshiko_preset" \
-		|| err "$nadeshiko_preset doesn’t exist or is not readable."
+	read_rcfile 'nadeshiko'
 
 	 # Preset options for the dialogue window
 	#
@@ -209,10 +198,18 @@ prepare_preset_options() {
 		#  Expecting exit codes either 0 or 5  (fits or doesn’t fit)
 		errexit_off
 
+
+		#  The existence of the default preset is not obligatory.
+		if     [ "$nadeshiko_preset" = 'nadeshiko.rc.sh' ]  \
+		    && [ ! -r "$CONFDIR/nadeshiko.rc.sh" ]
+	    then
+		    unset nadeshiko_preset
+		fi
+
 		env  \
 			LOGDIR="$TMPDIR"     \
 			VERBOSITY_LEVEL=300  \
-			"$MYDIR/nadeshiko.sh" "$nadeshiko_preset"            \
+			"$MYDIR/nadeshiko.sh" "${nadeshiko_preset[@]}"       \
 			                      "${time1[ts]}" "${time2[ts]}"  \
 			                      "$size" "$path"                \
 			                      ${crop:+crop=$crop}            \
@@ -252,7 +249,7 @@ prepare_preset_options() {
 			[ -v scene_complexity ] || {   #  Once.
 				info 'Reading scene complexity from the log.'
 				scene_complexity=$(
-					sed -rn 's/\s*\*\s*Scene complexity:\s(static|dynamic).*/\1/p' \
+					sed -rn 's/\s*Scene complexity:\s(static|dynamic).*/\1/p' \
 						<<<"$LASTLOG_TEXT"
 				)
 				if [[ "$scene_complexity" =~ ^(static|dynamic)$ ]]; then
@@ -281,7 +278,7 @@ prepare_preset_options() {
 			info "Container to be used: $container"
 
 			native_profile=$(
-				sed -rn 's/\s*\* Starting bitres profile: ([0-9]{3,4}p)\./\1/p' \
+				sed -rn 's/\s*\* Starting with ([0-9]{3,4}p) bitrate-resolution profile\./\1/p' \
 					<<<"$LASTLOG_TEXT"
 			)
 		fi
@@ -298,11 +295,11 @@ prepare_preset_options() {
 			}
 		done
 
-		if [[ "$lastline_in_lastlog" =~ Encoding\ with.*\ ([0-9]+p|Native|Cropped).* ]]; then
+		if [[ "$lastline_in_lastlog" =~ Encoding\ with.*\ ([0-9]+p|at\ native|at\ cropped).* ]]; then
 			encoding_res_code="${BASH_REMATCH[1]}"
-			if [[ "$encoding_res_code" =~ ^(Native|Cropped)$ ]]; then
+			if [[ "$encoding_res_code" =~ ^at\ (native|cropped)$ ]]; then
 				preset_fitmark='='
-				preset_fitdesc="$native_profile"
+				preset_fitdesc="${native_profile^}"
 			else
 				preset_fitmark='v'
 				preset_fitdesc="$encoding_res_code"
@@ -359,19 +356,19 @@ prepare_preset_options() {
 
 
 choose_preset() {
-	declare -g  mpv_pid  nadeshiko_presets  scene_complexity
+	declare -g  mpv_pid  nadeshiko_presets  nadeshiko_preset  scene_complexity
 	local  i  param_list  preset_idx  gui_default_preset_idx  \
 	       ordered_preset_list  temp  \
 	       resp_nadeshiko_preset  preset  preset_exists  \
 	       resp_max_size  \
 	       resp_fname_pfx  \
 	       resp_postpone
+
 	check_needed_vars
 
 	#  We’re going to print long-lasting messages on mpv screen, so in case
 	#  the program would quit on this stage, make sure to leave screen clean.
 	export WIPE_MPV_SCREEN_ON_EXIT=t
-
 	preset_idx=0
 	for nadeshiko_preset_name in "${!nadeshiko_presets[@]}"; do
 		#  To put the default preset first later.
@@ -393,7 +390,7 @@ choose_preset() {
 		info "Options for preset $nadeshiko_preset:"
 		declare -p param_list
 		readarray -d $'\n'  -t  current_preset_option_array  <<<"$param_list"
-		let ++preset_idx
+		let '++preset_idx,  1'
 	done
 
 	#  No long-lasting messages are to be printed now, so unset the variable.
@@ -413,7 +410,6 @@ choose_preset() {
 	declare -p ${!preset_option_array_*}
 	send_command  show-text 'Building GUI' '3000'
 	show_dialogue_choose_preset "${ordered_preset_list[@]}"
-
 	IFS=$'\n' read -r -d ''  resp_nadeshiko_preset  \
 	                         resp_max_size          \
 	                         resp_fname_pfx         \

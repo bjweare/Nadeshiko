@@ -1,3 +1,248 @@
+——— v 2.8 ————————————————————————————————————————————————————————————————————
+                                                             Nadeshiko-mpv 2.4
+                                                  Nadeshiko-do-postponed 2.3.2
+
+<h2 align="center">Summary of changes</h2>
+
+### Configuration files
+
+Program now have proper configuration directories: `metaconf` and `defconf`.
+All configuration options are now **split** there on per-codec basis. The old
+`exampleconf` directory is obsolete and removed. Splitting didn’t affect
+user’s configuration files – each file remains a standalone preset.
+
+ 
+
+### Reworked the audio subsystem:
+
+- Each audio codec now has **its own set of profiles.** So each of the
+  bitrate-resolution profiles now links to a particular audio profile
+  for every audio codec.
+- Audio codecs have **tables of measured overhead** to prevent it.
+- Nadeshiko **will try to fit better audio bitrate,** to reach
+  [audio transparency](http://wiki.hydrogenaud.io/index.php?title=Transparency), if the source will be of high enough quality and
+  there will be enough space in the file.
+- Long clips may have better video quality when encoded with Opus,
+  thanks to the lowered bitrate restrictions.
+
+ 
+
+### New features
+
+- Nadeshiko-mpv has new configuration options:
+  - `quick_run` allows to skip GUI phase, which speeds up taking webms
+     one after another. Recommended to use with `predictor=off` and `postpone`
+     option enabled either in the config file or via a command line parameter.
+  - `quick_run_preset` defines, which Nadeshiko preset should be used in the
+    quick_run mode. May be empty, then defaults to `nadeshiko.rc.sh`. Doesn’t
+    depend on `nadeshiko_presets` list.
+  - `postpone` is now available as a configuration file option.
+
+ 
+
+### Optimisations
+
+- Reworked gathering of properties from the source video has increased speed,
+  solved one bug and allowed to recreate the entire handling of audio streams.
+  `xmlstarlet` became a dependency for all Nadeshiko scripts.
+- Console messages are now more thorough and clear.
+- Reworked handling of subtitles:
+  - moved font extraction to the filter composition stage (after the calcula-
+    tion of space and before the encode). In case when the video could not be
+    encoded with any profile, this should save some time.
+  - SubRip (.srt) and WebVTT (.vtt) subtitles do not require conversion
+    any more.
+- Built-in SubRip and WebVTT are encoded without extracting them.
+  (The trick doesn’t work for ASS/SSA subtitles, because the “ass” filter
+  cannot be given stream index – the shame!)
+- Overshooting of the file size is now predicted and calculated based on a new
+  unit of space: an equivalent of one second of playback (ESP). Basically a sum
+  of audio and video bitrates.
+- libvpx-vp9 codec is attuned for libvpx version 1.8.0. `--tune-content` option
+  now uses value `2`, which stands for “film”. This is a measure for the exces-
+  sive blurriness and the undershooting that appeared in the latest version.
+
+ 
+
+### Bugs fixed
+
+- Vorbis codec is stabilised and shouldn’t blow files any more.
+- Logging `tee` processes will not hang any more.
+- Fixed a bash segfault in Nadeshiko, that caused Nadeshiko-mpv to silently
+  quit after encoding and made it neither show a notification nor play the
+  encoded file.
+- External audio tracks are now allowed.
+- Font extraction now works for everything, that FFmpeg can read,
+  not only for matroska. Removed dependency on mkvtoolnix.
+- Fixed a crash during an audio property retrieving with ffprobe.
+- Reduced excessive verbosity of several ffmpeg commands during initial checks.
+- Fixed the text of some error messages to be more clear.
+- libvpx-vp9 level now uses 4.1 instead of non-existing 4.2.
+
+ 
+
+### New and updated wiki articles
+
+[Configuration files](https://git.io/fjz6l)
+Under the hood:
+- [Sound](https://git.io/fjz64)
+- [Overhead prediction](https://git.io/fjENw)
+Tests:
+- [Muxing overhead](https://git.io/fjEEW) – The aim is to determine a proper
+  algorithm, that would be able to predict muxing overhead and would help to
+  avoid occasional overshooting or at least reduce the times, when a re-encode
+  is needed.
+- [Audio codecs. Encoding to size](https://git.io/fjz6B) – With introduction
+  of the audio codec bitrate profiles it became reasonable to check, how pre-
+  cise the codecs are at distributing the bitrate. `Audio_transcode.sh` was
+  written specifically to measure that precision.
+
+ 
+
+<h2 align="center">Details</h2>
+
+<details>
+<summary>About metaconf and defconf</summary>
+<pre>
+  `Metaconf`: what has become metaconf directory was either parts of the
+     main scripts, the encoding modules or their configuration files.
+  The purpose of this directory is to hold developer’s configuration set-
+    tings and hints, that are required for the operation of Nadeshiko, but
+    do not comprise an object of interest for the regular users. Now user
+    config files became significantly shorter.
+  Separating meta configuration into a separate space has made it transpa-
+    rent for Nadeshiko-mpv to load Nadeshiko presets. (Before that the
+    code in Nadeshiko-mpv had to a certain extent duplicate Nadeshiko’s.)
+  
+  `Defconf`: formerly known as example.*.rc.sh files. The differences between
+  the old configuration and the new are few:
+    - codec-specific configuration parts were taken into their respective
+      configuration files, what made the main config file shrink a lot;
+    - now only the main configuration file (the one with common options
+      like the ffmpeg_vcodec, max_size_*, subs, audio…) is copied as the
+      example.nadeshiko.rc.sh. Nadeshiko-mpv and Nadeshiko-do-postponed
+      have main configuration files too, and examples are too copied
+      to user’s CONFDIR.
+</pre> 
+See also [Configuration files](https://git.io/fjz6l) on the wiki.
+</details>
+
+<details>
+<summary>Audio subsystem</summary>
+<pre>
+Reworked Audio encoding subsystem
+  libopus, libvorbis, libfdk_aac, aac, libmp3lame, eac3 (new!), ac3 (new!)
+  
+  How it worked before
+  
+  All audio codecs used the same bitrates, which were specified one per
+    bitrate-resolution profile: one for 1080p, one for 720p and so on. The de-
+    fault bitrates were aligned close to the level of libvorbis. Working with
+    audio was pretty generic and not taking effort to find idiosyncrasy with
+    each audio codec.
+  
+  What this update changed
+  
+  - now each audio codec has its own configuration file, in it – own list
+    of profiles, that determine a set of usable bitrates.
+        | A set, because unlike with video codecs, the bitrate often cannot
+        | be specified simply as a random value between X and Y, but *has* to
+        | be chosen from a set of predefined values.
+    In each set these is a “optimal” bitrate, “lowest usable” bitrate
+    and “reaching audio transparency”. Between those points there are gradual
+    steps (depending on the codec), and Nadeshiko will choose appropriate
+    audio profile based on the situation.
+  
+    In the human language: it is a long 360p video? Bitrate will be reduced
+    to the lowest possible; it is a 1080p that would use only 15 MiB of 20 MiB
+    allowed? Then the bitrates higher than default should be tried.
+ 
+    - The source audio track must be of a higher quality than the one Nade-
+      shiko is going to encode the file. If your sources are lossless (e.g.
+      FLAC) then the attempt to encode with a higher audio bitrate is guaran-
+      teed. If your sources are lossy (AC3 or AAC for example), then the
+      track bitrate must be higher than what Nadeshiko would attempt to do
+      encoding with.
+      - mind, that the reported bitrate for the source file may specify the
+        audio track bitrate for all the channels – often 6 – while Nadeshiko
+        always re-encodes for 2 channels and to compare bitrates converts
+        multichannel bitrate to 2-channel by the formula on FFmpeg wiki:
+           
+          stereo bitrate = X channels bitrate ÷ ( X channels / 2 channels).
+  
+  - Longer videos will have better quality with Opus.
+    Explanation: on longer videos the resolution gows down, so the video track
+    occupies less space and becomes comparable to audio track in the space
+    that it needs. Hence reducing audio – within sensible bounds – frees a sig-
+    nificant amount of space and lets the video codec to use it for the video
+    track, what improves the quality of the picture.
+  
+    Medium efficiency range codecs like Vorbis and AAC won’t provide this
+    extra like Opus.
+  
+    Low efficiency range codecs (libmp3lame, eac3, ac3) now have higher requi-
+    rements to allocation space for the audio track. But they are merely backup
+    choices.
+</pre>
+See also [Sound](https://git.io/fjz64) on the wiki.
+</details>
+
+<details>
+<summary>Transition of the old configuration options to new</summary>
+<pre>
+ 
+In nadeshiko.rc.sh
+——————————————————
+   
+    libvpx_*  →  libvpx_vp9_*
+  
+    ffmpeg_pix_fmt → libx264_pix_fmt,
+                     libvpx_vp9_pix_fmt.
+  
+    container_own_size_pct → webm_space_reserved_frames_to_esp,
+                             mp4_space_reserved_frames_to_esp
+  
+    minimal_bitrate_pct → libx264_minimal_bitrate_pct,
+                          libvpx_vp9_minimal_bitrate_pct.
+  
+    bitres_profile_NNNNp[audio_desired_bitrate]
+        →  bitres_profile_NNNNp[libopus_profile] + libopus_profiles
+           bitres_profile_NNNNp[libvorbis_profile] + libvorbis_profiles
+           bitres_profile_NNNNp[libfdk_aac_profile] + libfdk_aac_profiles
+           bitres_profile_NNNNp[aac_profile] + aac_profiles
+           bitres_profile_NNNNp[libmp3lame_profile] + libmp3lame_profiles
+           bitres_profile_NNNNp[eac3_profile] + eac3_profiles
+           bitres_profile_NNNNp[ac3_profile] + ac3_profiles
+  
+    codec_names_as_formats
+        → vcodec_name_as_formats_libx264
+          vcodec_name_as_formats_libvpx_vp9
+          acodec_name_as_formats_libopus
+          acodec_name_as_formats_libvorbis
+          acodec_name_as_formats_libfdk_aac
+          acodec_name_as_formats_aac
+          acodec_name_as_formats_libmp3lame
+          acodec_name_as_formats_eac3
+          acodec_name_as_formats_ac3
+  
+    can_be_used_together → libx264_muxing_sets
+                           libvpx_vp9_muxing_sets
+                           ffmpeg_muxers
+  
+  
+  
+In nadeshiko-mpv.rc.sh
+——————————————————————
+  
+    nadeshiko_presets[default]='nadeshiko.rc.sh'
+        → removed (may be set, but not obligatory any more)
+
+</pre>
+</details>
+
+
+
+
 ——— v 2.7 ————————————————————————————————————————————————————————————————————
                                                           Nadeshiko-mpv 2.3.19
                                                   Nadeshiko-do-postponed 2.3.1

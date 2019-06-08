@@ -47,14 +47,15 @@ for module in "$MODULESDIR"/nadeshiko_*.sh ; do
 	. "$module" || err "Couldn’t source module $module."
 done
 noglob_on
-set_exampleconfdir
-prepare_confdir
-place_rc_and_examplerc
 
-declare -r version='2.7'
-info "Nadeshiko v$version"
+set_metaconfdir
+set_defconfdir
+prepare_confdir
+place_examplerc 'nadeshiko.10_main.rc.sh'
+declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
+
+declare -r version='2.8'
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
-declare -r rcfile_minver='2.2.4'
 
  # Minimal libav libraries versions
 #  1) row-mt appeared after ffmpeg-3.4.2
@@ -63,31 +64,6 @@ declare -r rcfile_minver='2.2.4'
 declare -r libavutil_minver='56'
 declare -r libavcodec_minver='58'
 declare -r libavformat_minver='58'
-
-#  Defining them here, so that the definition in the RC file would be shorter
-#  and didn’t confuse users with “declare -gA …”.
-declare -A codec_names_as_formats
-declare -a known_sub_codecs
-declare -a can_be_used_together
-declare -A bitres_profile_360p   \
-           bitres_profile_480p   \
-           bitres_profile_576p   \
-           bitres_profile_720p   \
-           bitres_profile_1080p  \
-           bitres_profile_1440p  \
-           bitres_profile_2160p
-declare -A ffmpeg_subtitle_fallback_style
-RCFILE_BOOLEAN_VARS+=(
-	desktop_notifications
-	check_for_updates
-	subs
-	audio
-	scale
-	pedantic
-	time_stat
-	crop_uses_profile_vbitrate
-	create_windows_friendly_filenames
-)
 
 
 
@@ -154,7 +130,7 @@ show_version() {
 
 
 on_exit() {
-	[ -r ffmpeg2pass-0.log ] && rm ffmpeg2pass-0.log
+	rm -f  ffmpeg2pass-0.log  ffmpeg2pass-0.log.mbtree
 	return 0
 }
 
@@ -162,10 +138,11 @@ on_exit() {
 
 #  Stage 1
 set_rcfile_from_args "$@"
-read_rcfile "$rcfile_minver"
+read_rcfile
 post_read_rcfile
 
 #  Stage 2
+info "Nadeshiko v$version"
 parse_args "${NEW_ARGS[@]}"
 check_util_support  video  ${audio:+audio}  ${subs:+subs} \
                     ${time_stat:+time_stat} \
@@ -178,9 +155,9 @@ until [ -v size_fits ]; do
 	fit_bitrate_to_filesize
 	#  Stage 4
 	encode
-	new_file_size_in_bytes=$(stat --printf %s "$new_file_name")
-	[ $new_file_size_in_bytes -le $max_size_in_bytes ] \
-	    && size_fits=t \
+	new_file_size_B=$(stat --printf %s "$new_file_name")
+	(( new_file_size_B <= max_size_B ))  \
+	    && size_fits=t  \
 	    || on_size_overshoot
 done
 info-ns "Encoded successfully."
@@ -188,9 +165,7 @@ new_file_name=${new_file_name//\$/\\\$}
 info "${new_file_name##*/}"
 [ -v time_stat ] && print_stats
 which xclip &>/dev/null && {
-	# trapondebug unset
 	echo -n "$new_file_name" | xclip
-	# trapondebug set
 	info 'Copied path to clipboard.'
 }
 # [ -v pedantic ] && comme_il_faut_check "$new_file_name"  # needs update

@@ -31,6 +31,7 @@ Wrapper to be used with mpv player.
   * One run – one clip. No more encoding by trial and error.
 * Keeps the quality good or refuses to encode.
   * Optimal bitrate ranges are determined by the codec type, resolution and scene complexity.
+  * Quality is proven by numerous test runs (See [this test](https://github.com/deterenkelt/Nadeshiko/wiki/Tests.-VP9:-encoding-to-size,-part%C2%A01) for example.)
   * No need to learn FFmpeg!
   * Resolution may be lowered as necessary to save quality.
   * Built-in predictor: <br><a href="https://github.com/deterenkelt/Nadeshiko/wiki/Nadeshiko%E2%80%91mpv.-Predictor">

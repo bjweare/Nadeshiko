@@ -15,7 +15,7 @@
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_LOGGING_VER='1.6.2'
+declare -grx BAHELITE_MODULE_LOGGING_VER='1.7'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date   #  (coreutils) to add date to $LOGPATH file name and to the log itself.
 #	ls     #  (coreutils)
@@ -46,13 +46,24 @@ fi
 bahelite_extglob_on
 start_logging() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	declare -gx  LOGPATH  LOGDIR  LOGNAME  \
-	             BAHELITE_LOGGING_STARTED  BAHELITE_LOGGING_USES_TEE  \
-	             BAHELITE_SHOW_UP_IN_XTRACE
+	#
+	#  In this order!
+	#  Do not do “declare -gx BAHELITE_LOGGING_USES_TEE” if start_logging
+	#  should quit! Exporting it will make the variable visible for [ -v … ]
+	#  and this will cause a segmentation fault in stop_logging(), because
+	#  “kill” command will attempt to kill something, that it shouldn’t.
+	#
+	declare -gx LOGPATH  LOGDIR
 	[ "$(get_bahelite_verbosity  log)" == '0' ] && {
 		LOGDIR="$TMPDIR"
+		LOGPATH='/dev/null'
 		return 0
 	}
+	#  In this order!
+	declare -gx LOGNAME  BAHELITE_LOGGING_STARTED  BAHELITE_SHOW_UP_IN_XTRACE
+	#  These are used only in the sameshell context.
+	declare -g BAHELITE_LOGGING_USES_TEE  BAHELITE_LOGGING_TEE_CMD
+
 	local arg  overwrite_logpath=t
 	#  Priority of directories to be used as LOGDIR
 	#  LOGPATH set from the environment.              LOGPATH = LOGPATH
@@ -75,12 +86,12 @@ start_logging() {
 		}
 		LOGDIR=${LOGPATH%/*}
 		LOGNAME=${LOGPATH##*/}
-		bahelite_check_directory "$LOGDIR"  'Logging'
+		__check_directory "$LOGDIR"  'Logging'
 		unset overwrite_logpath
 
 	elif [ -v LOGDIR ]; then
 		#  If LOGDIR is not a writeable directory, triggers an error.
-		bahelite_check_directory "$LOGDIR"  'Logging'
+		__check_directory "$LOGDIR"  'Logging'
 
 	else
 		LOGDIR="${CACHEDIR:-$MYDIR}/logs"
@@ -96,6 +107,9 @@ start_logging() {
 		LOGNAME="${MYNAME%.*}_$(date +%Y-%m-%d_%H:%M:%S).log"
 		LOGPATH="$LOGDIR/$LOGNAME"
 	}
+	#  Must be set at one place, because it will be used in another
+	#  function, that stops logging.
+	BAHELITE_LOGGING_TEE_CMD=(tee -ia "$LOGPATH")
 	#  Removing old logs, keeping maximum of $LOGGING_MAX_LOGFILES
 	#  of recent logs.
 	pushd "$LOGDIR" >/dev/null
@@ -124,6 +138,7 @@ start_logging() {
 	#  Toggling ondebug trap, as (((under certain circumstances))) it happens
 	#  to block ^C sent from the terminal.
 	bahelite_functrace_off
+
 	#  When we will be exiting (even successfully), we will need to send
 	#  SIGPIPE to that tee, so it would quit nicely, without terminating
 	#  and triggering an error. It will, however, quit with a code >0,
@@ -152,7 +167,9 @@ start_logging() {
 				#    cess with tee.
 				exec 2>>"$LOGPATH"
 			else
-				exec 2> >(tee -ia "$LOGPATH" >&2  || kill 0  || true)
+				#  || true is needed only for non-nice, emergency and direct
+				#  killing of the logging tee (Ctrl+F “Way II”).
+				exec 2> >( "${BAHELITE_LOGGING_TEE_CMD[@]}" >&2 || true)
 				BAHELITE_LOGGING_USES_TEE=t
 			fi
 			;;
@@ -176,7 +193,9 @@ start_logging() {
 				#  Console doesn’t need this FD, but the log does.
 				exec >>"$LOGPATH"
 			else
-				exec > >(tee -ia "$LOGPATH"  || kill 0  || true)
+				#  || true is needed only for non-nice, emergency and direct
+				#  killing of the logging tee (Ctrl+F “Way II”).
+				exec > >( ${BAHELITE_LOGGING_TEE_CMD[@]} || true)
 				BAHELITE_LOGGING_USES_TEE=t
 			fi
 
@@ -188,9 +207,20 @@ start_logging() {
 				#  Console doesn’t need this FD, but the log does.
 				exec 2>>"$LOGPATH"
 			else
-				exec 2> >(tee -ia "$LOGPATH" >&2  || kill 0  || true)
+				#  || true is needed only for non-nice, emergency and direct
+				#  killing of the logging tee (Ctrl+F “Way II”).
+				exec 2> >( "${BAHELITE_LOGGING_TEE_CMD[@]}" >&2 || true)
 				BAHELITE_LOGGING_USES_TEE=t
 			fi
+			;;&
+
+		4|5|6|7|8|9)
+			BAHELITE_XTRACE_ALLOWED=t
+			;;&
+
+		5|6|7|8|9)
+			BAHELITE_MODULES_ARE_VERBOSE=t
+			BAHELITE_DONT_CLEAR_TMPDIR=t
 			;;&
 
 		6|7|8|9)
@@ -234,9 +264,7 @@ set_lastlog_path() {
 	local logname="${1:-}" lastlog_name
 	[ "$logname" ] || logname=${MYNAME%.*}
 	pushd "$LOGDIR" >/dev/null
-	bahelite_noglob_off
-	lastlog_name=$(ls -tr ${logname}_*.log | tail -n1)
-	bahelite_noglob_on
+	lastlog_name=$(set +f;  ls -tr ${logname}_*.log | tail -n1)
 	[ -f "$lastlog_name" ] || return 1
 	popd >/dev/null
 	LASTLOG_PATH="$LOGDIR/$lastlog_name"
@@ -319,6 +347,7 @@ export -f read_lastlog
 
 
 stop_logging() {
+	local  tee_pids=()  tee_parents_pids=()
 	[ -v BAHELITE_LOGGING_STARTED  -a  -v BAHELITE_LOGGING_USES_TEE ] && {
 		#  Without this the script would seemingly quit, but the bash
 		#    process will keep hanging to support the logging tee.
@@ -330,11 +359,111 @@ stop_logging() {
 		#    need to kill it, as the main process catches all the signals,
 		#    and tee now receives SIGPIPE (or SIGHUP) in a natural way.
 		#  Is this still needed?
-		pkill -PIPE  --session 0  -f "tee -ia $LOGPATH" || true
-		sleep 2
-		pgrep --session 0  -f "tee -ia $LOGPATH" && {
-			pkill -KILL  --session 0  -f "tee -ia $LOGPATH" || true
+
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
+			echo
+			declare -p ORIG_BASHPID  BASHPID  ORIG_PPID  PPID
+			ps -o session,pgid,ppid,pid,s,args --forest -s $ORIG_PPID  || {
+				warn "Our own PPID didn’t start the process session we’re in.
+				      Are we running from another script?"
+				ps -o session,pgid,ppid,pid,s,args  \
+				   --forest  \
+				   -s /proc/$ORIG_PPID/sessionid
+			}
+			echo
 		}
+
+		 # There are several ways to stop logging. The nicest one is preferred.
+		#
+		#  Way I. Finding the parent shells of the logging tee processes
+		#         and closing them.
+		#  − Somewhat slower than doing it not nicely (but not noticeably slow
+		#    for the user).
+		#  + No ugly messages to console.
+		#  + Clean exit. All shells and processes quit with zero code, so
+		#    there can be no false errors. If an error happens, this means,
+		#    that it is a real error and something went wrong.
+		#
+		#
+		 # Finding PIDs of the logging tee processes themselves
+		#  “--session 0” is pgrep syntax for process’s own session id.
+		#    It works fine for both standalone main scripts and for main
+		#    scripts that run from within another main script.
+		#  $ORIG_PPID may be used instead of it ONLY if the main script
+		#    is standalone (not running from within another main script, that
+		#    itself uses bahelite – then session id will belong to the higher
+		#    main script’s PPID, and ALL underlying processes including the
+		#    internal main script and its subprocesses, in which tee is run-
+		#    ning, they all will have that as session id)
+		#
+		tee_pids=(
+			$(pgrep --session 0  -f "${BAHELITE_LOGGING_TEE_CMD[*]}" || true)
+		)
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+			&& info "TEE PIDS: ${tee_pids[*]} (${#tee_pids[*]} in total)."
+
+		#  Something has killed logging tees before us. If they somehow hanged,
+		#  the user might have pkill’ed them by hand or something. Anyway,
+		#  this function should close logging, and there is already nothing
+		#  to close, so we’re quitting.
+		(( ${#tee_pids[*]} == 0 )) && return 0
+
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && echo  && sleep 10
+
+		tee_parents_pids=( $(ps h -o ppid "${tee_pids[@]}" || true) )
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+			&& info "TEE PARENTS PIDS: ${tee_parents_pids[*]} (${#tee_parents_pids[*]} in total)."
+
+		(( ${#tee_parents_pids[*]} == ${#tee_pids[*]} )) && {
+
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
+				echo
+				sleep 10
+				info 'Killing tees by sending HUP to their shells:'
+			}
+
+			#  It caused a segmentation fault before. Read the comment
+			#  above the initial declarations in start_logging().
+			kill -HUP "${tee_parents_pids[@]}"
+
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
+				echo
+				sleep 10
+				info 'Testing if the processes still hang there:'
+			}
+			#  No processes = BAD from pgrep, GOOD for us – they are closed,
+			#  as they should be. So “… || return 0”. All done.
+			pgrep --session 0  -f "${BAHELITE_LOGGING_TEE_CMD[*]}"  \
+				|| return 0
+		}
+
+
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
+			echo -en '\n\n'
+			sleep 10
+			warn 'Something went wrong: killing mother shells did not succeed,
+			      and we’re going to kill tees directly.'
+		}
+
+
+		 # Way II. Sending pkill -PIPE to tee processes
+		#  + Fast.
+		#  + Doesn’t leave any ugly messages to console.
+		#  − It doesn’t make a clean exit.
+		#    As this essentially abruptly kills the tee processes, they
+		#    will quit with a negative result, what will trigger additional
+		#    errors. To avoid that, “|| true” must be added inside the sub-
+		#    shell call >( … ) with exec in start_logging() above.
+		#
+		pkill -PIPE  --session 0  -f "${BAHELITE_LOGGING_TEE_CMD[*]}" || true
+
+
+		 # Way III. Sending pkill -KILL to tee processes.
+		#  + Fast.
+		#  − Leaves ugly messages to console.
+		#  − It doesn’t make a clean exit (see way II).
+		#
+		# pkill -KILL  --session 0  -f "tee -ia $LOGPATH" || true
 	}
 	return 0
 }

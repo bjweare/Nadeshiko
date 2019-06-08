@@ -12,7 +12,7 @@
 #  $xml should point to xmlstarlet binary.
 
 
- # Cuts a part of XML from one variable and assigns to another.
+ # Cuts a part of XML from the value of one variable and assignes to another.
 #  $1 – name of the variable with XML source.
 #  $2 – xpath to extract.
 #  $3 – name of the variable, to which the chunk of XML should be assigned.

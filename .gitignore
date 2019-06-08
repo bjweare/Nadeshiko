@@ -1,5 +1,7 @@
 *.mp4
 *.webm
+*.m2ts
+*.mkv
 *.jpg
 *.jpeg
 *.png

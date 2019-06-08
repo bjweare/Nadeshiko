@@ -1,0 +1,22 @@
+
+
+
+                      Nadeshiko metaconfig directory
+
+— What are the files here?
+— These pieces of configuration contain declarations, that tell *how* the
+rest of the configuration options should be read. This includes:
+
+1. All “declare” statements. They lift the burden of specifying them from the
+   end users of the application.
+2. Generic post-processing like specifying which variables belong to the
+   pseudo-boolean type. This allows to keep them as yes/no (on/off, true/false,
+   enabled/disabled etc…) in the config, while using simpler notation in the
+   main script “[ -v varname ] && …”
+
+— I am a user. Should I be concerned with the config files here?
+— No, they are only for the developers.
+
+— I am a developer. Does this folder use the same numbering as in defconf,
+or is it separate?
+— It’s separate. All metaconf files are loaded before defconf.

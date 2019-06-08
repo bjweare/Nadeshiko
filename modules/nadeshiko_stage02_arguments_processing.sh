@@ -14,13 +14,14 @@
 #  $@ – see show_help()
 #
 parse_args() {
-	declare -g  subs  subs_explicitly_requested  subs_external_file  \
-	            subs_track_id  \
-	            audio  audio_explicitly_requested  audio_track_id  \
-	            kilo  scale  crop  video  where_to_place_new_file="$PWD"  \
+	declare -gA src  src_c  src_v  src_a  src_s
+	declare -g  subs  subs_explicitly_requested  \
+	            audio  audio_explicitly_requested  \
+	            kilo  scale  crop  where_to_place_new_file="$PWD"  \
 	            new_filename_user_prefix  max_size  vbitrate  abitrate \
 	            scene_complexity  dryrun
 	local args=("$@") arg pid
+
 	for arg in "${args[@]}"; do
 		if [[ "$arg" = @(-h|--help) ]]; then
 			show_help
@@ -53,40 +54,56 @@ parse_args() {
 					#  - “subs((=|:)(.+)|)” were set explicitly. In this case
 					#    the lack of subtitles to render is an error.
 					subs_explicitly_requested=t
-					[ "${BASH_REMATCH[3]}" = '=' ] && {
-						subs_external_file="${BASH_REMATCH[4]}"
-						[ -r "$subs_external_file" ] || {
-							redmsg "No such file:
-							        $subs_external_file"
-							err "Externals subtitles not found."
-						}
-					}
-					[ "${BASH_REMATCH[3]}" = ':' ] && {
-						subs_track_id="${BASH_REMATCH[4]}"
-						[[ "$subs_track_id" =~ ^[0-9]+$ ]] || {
-							redmsg "Subtitle track ID must be a number,
-							        but it is set to “$subs_track_id”."
-							err "Wrong subtitle track ID."
-						}
-					}
+					case "${BASH_REMATCH[3]}" in
+						'=')
+							src_s[external_file]="${BASH_REMATCH[4]}"
+							[ -r "${src_s[external_file]}" ] || {
+								redmsg "No such file:
+								        ${src_s[external_file]}"
+								err "External subtitles not found."
+							}
+							;;
+						':')
+							src_s[track_id]="${BASH_REMATCH[4]}"
+							#  A more thorough check is done after gathering
+							#  information about the source file.
+							[[ "${src_s[track_id]}" =~ ^[0-9]+$ ]] || {
+								redmsg "Subtitle track ID must be a number,
+								        but it is set to “${src_s[track_id]}”."
+								err "Wrong subtitle track ID."
+							}
+							;;
+					esac
 					;;
 			esac
 
-		elif [[ "$arg" =~ ^(no|)audio(:(.+)|)$ ]]; then
+		elif [[ "$arg" =~ ^(no|)audio((=|:)(.+)|)$ ]]; then
 			case "${BASH_REMATCH[1]}" in
 				no) unset audio ;;
 				'')
 					audio=t
 					#  Remembering it for the same reason as with “subs”.
 					audio_explicitly_requested=t
-					[ "${BASH_REMATCH[2]}" ] && {
-						audio_track_id="${BASH_REMATCH[3]}"
-						[[ "$audio_track_id" =~ ^[0-9]+$ ]] || {
-							redmsg "Audio track ID must be a number,
-							        but it is set to “$audio_track_id”."
-							err "Wrong audio track ID."
-						}
-					}
+					case "${BASH_REMATCH[3]}" in
+						'=')
+							src_a[external_file]="${BASH_REMATCH[4]}"
+							[ -r "${src_a[external_file]}" ] || {
+								redmsg "No such file:
+								        ${src_a[external_file]}"
+								err "External audio file not found."
+							}
+							;;
+						':')
+							src_a[track_id]="${BASH_REMATCH[4]}"
+							#  A more thorough check is done after gathering
+							#  information about the source file.
+							[[ "${src_a[track_id]}" =~ ^[0-9]+$ ]] || {
+								redmsg "Audio track ID must be a number,
+								        but it is set to “${src_a[track_id]}”."
+								err "Wrong audio track ID."
+							}
+							;;
+					esac
 					;;
 			esac
 
@@ -115,7 +132,7 @@ parse_args() {
 
 		elif [ -f "$arg" ]; then
 			if [[ "$(mimetype -L -b "$arg")" =~ ^video/ ]]; then
-				video="$arg"
+				src[path]="$arg"
 			else
 				redmsg "Not a video file:
 				        ${arg##*/}"
@@ -152,7 +169,7 @@ parse_args() {
 		fi
 	done
 
-	[ -v video ] || err "Source video is not specified."
+	[  -v src[path]  ] || err "Source video is not specified."
 	return 0
 }
 
@@ -164,35 +181,33 @@ check_util_support() {
 	#  Encoding modules may need to know versions of ffmpeg or its libraries.
 	declare -g  ffmpeg_version_output  ffmpeg_ver  \
 	            libavutil_ver  libavcodec_ver  libavformat_ver
-	local  encoder_info  missing_encoders  arg  ffmpeg_is_too_old
+	local  encoder_info  missing_encoders  arg  ffmpeg_is_too_old  \
+	       ffmpeg="$ffmpeg -hide_banner"
 	for arg in "$@"; do
 		case "$arg" in
 			video)
 				REQUIRED_UTILS+=(
 					#  For encoding. 3.4.2+ recommended.
 					ffmpeg
+
 					#  For retrieving data from the source video
 					#  and verifying resulting video.
 					ffprobe
+
 					#  For the parts not retrievable with ffprobe
 					#  and as a fallback option for when ffprobe fails.
 					mediainfo
+
+					#  To parse mediainfo output.
+					xmlstarlet
+
 					#  To determine, that the file is really a video.
 					#  “file” command is not sufficient.
 					mimetype
+
 					#  For the floating point calculations, that are necessary
 					#  e.g. in determining scene_complexity.
 					bc
-				)
-				;;
-			subs)
-				REQUIRED_UTILS+=(
-					#  To get the list of attachments in the source video.
-					mkvmerge
-					#  To extract subtitles and fonts from the source video.
-					#  (subtitles are needed for hardsubbing, and the hardsub
-					#  will be poor without built-in fonts).
-					mkvextract
 				)
 				;;
 			time_stat)
@@ -214,18 +229,14 @@ check_util_support() {
 		[mimetype]='mimetype is a part of File-MimeInfo.
 		https://metacpan.org/pod/File::MimeInfo'
 
-		[mkvmerge]='mkvmerge is a part of MKVToolNix.
-		https://mkvtoolnix.download/'
-
-		[mkvextract]='mkvextract is a part of MKVToolNix.
-		https://mkvtoolnix.download/'
-
 		[time]='time is found in the package of the same name.
 		https://www.gnu.org/directory/time.html'
 	)
 	check_required_utils
 	#  Checking ffmpeg version
 	ffmpeg_version_output=$($ffmpeg -version)
+	# (( $(get_user_verbosity log user) > 0 ))  \
+	# 	&& echo "$ffmpeg_version_output" > "$LOGDIR/ffmpeg_version"
 	ffmpeg_ver=$(
 		sed -rn '1 s/ffmpeg version (\S+) .*/\1/p' <<<"$ffmpeg_version_output"
 	)
@@ -257,7 +268,7 @@ check_util_support() {
 	      libavutil   $libavutil_ver
 	      libavcodec  $libavcodec_ver
 	      libavformat $libavformat_ver"
-	if     compare_versions "$libavutil_ver" '<' "$libavutil_minver"  \
+	if	   compare_versions "$libavutil_ver" '<' "$libavutil_minver"  \
 		|| compare_versions "$libavcodec_ver" '<' "$libavcodec_minver"  \
 		|| compare_versions "$libavformat_ver" '<' "$libavformat_minver"
 	then
@@ -273,16 +284,16 @@ check_util_support() {
 	for arg in "$@"; do
 		case "$arg" in
 			video)
-				encoder_info=$($ffmpeg -h encoder="$ffmpeg_vcodec")
-				[[ "$encoder_info" =~ ^Encoder\ $ffmpeg_vcodec\  ]] || {
-					warn "FFmpeg doesn’t support $ffmpeg_vcodec encoder."
+				encoder_info=$($ffmpeg -h encoder="$ffmpeg_vcodec" | head -n1)
+				[[ "${encoder_info:-}" =~ ^Encoder\ $ffmpeg_vcodec\  ]] || {
+					redmsg "FFmpeg doesn’t support $ffmpeg_vcodec encoder."
 					missing_encoders=t
 				}
 				;;
 			audio)
-				encoder_info=$($ffmpeg -h encoder="$ffmpeg_acodec")
+				encoder_info=$($ffmpeg -h encoder="$ffmpeg_acodec" | head -n1)
 				[[ "$encoder_info" =~ ^Encoder\ $ffmpeg_acodec\  ]] || {
-					warn "FFmpeg doesn’t support $ffmpeg_acodec encoder."
+					redmsg "FFmpeg doesn’t support $ffmpeg_acodec encoder."
 					missing_encoders=t
 				}
 				;;
@@ -292,9 +303,9 @@ check_util_support() {
 				#    in SSA format;
 				#  - OpenType font features can be enabled only with
 				#    “ass” filter, not available with “subtitles” filter.
-				encoder_info=$($ffmpeg -h encoder=ass)
+				encoder_info=$($ffmpeg -hide_banner -h encoder=ass | head -n1)
 				[[ "$encoder_info" =~ ^Encoder\ ass\  ]] || {
-					warn "FFmpeg doesn’t support encoding ASS/SSA subtitles."
+					redmsg "FFmpeg doesn’t support encoding ASS/SSA subtitles."
 					missing_encoders=t
 				}
 				#  Also check fontconfig support?
@@ -307,23 +318,40 @@ check_util_support() {
 }
 
 
-check_container_and_codec_set() {
-	local i  combination  combination_passes
+check_muxing_set() {
+	declare -g ffmpeg_muxer container
+	local i  combination  combination_passes  muxer_info  \
+	      ffmpeg="$ffmpeg -hide_banner"
+
 	[ "$container" = auto ] && {
-		for combination in "${can_be_used_together[@]}"; do
-		[[ "$combination" =~ ^([^[:space:]]+)[[:space:]]+$ffmpeg_vcodec[[:space:]]+$ffmpeg_acodec$ ]] \
-			&& container="${BASH_REMATCH[1]}"
+		for combination in "${muxing_sets[@]}"; do
+			[[ "$combination" =~ ^([^[:space:]]+)[[:space:]]+$ffmpeg_acodec$ ]]  \
+				&& container="${BASH_REMATCH[1]}"  \
+				&& break
 		done
 	}
-	for combination in "${can_be_used_together[@]}"; do
-		[[ "$combination" =~ ^$container[[:space:]]+$ffmpeg_vcodec[[:space:]]+$ffmpeg_acodec$ ]] \
-			&& combination_passes=t && break
+	for combination in "${muxing_sets[@]}"; do
+		[[ "$combination" =~ ^$container[[:space:]]+$ffmpeg_acodec$ ]]  \
+			&& combination_passes=t  \
+			&& break
 	done
+	#  Muxer is the FFmpeg name of the chosen container.
+	#  It may or may not correspond to the common name (file extension).
+	[[ "$container" =~ ^[A-Za-Z0-9_-]+$ ]]  \
+		|| err "Invalid container: “$container”."
+
+	ffmpeg_muxer=${ffmpeg_muxers[$container]}
+	muxer_info=$($ffmpeg -h muxer="$ffmpeg_muxer" | head -n1)
+	[[ "$muxer_info" =~ ^Muxer\ $ffmpeg_muxer\  ]]  \
+		|| err "FFmpeg doesn’t support muxing into “$container” container."
 	[ -v combination_passes ] || {
 		redmsg "“$container”, “$ffmpeg_vcodec” and “$ffmpeg_acodec” cannot be used together.
-		        Possible combinations:
-		        $(for ((i=0; i<${#can_be_used_together[@]}; i++)); do
-		              echo "  $((i+1)). ${can_be_used_together[i]//[[:space:]]/ \+ }"
+		        Possible combinations are:
+		        $(for ((i=0; i<${#muxing_sets[@]}; i++)); do
+		              vcodec=$ffmpeg_vcodec
+		              acodec=${muxing_sets[i]##* }
+		              container=${muxing_sets[i]%% *}
+		              echo "  $((i+1)). $vcodec + $acodec → $container"
 		          done)"
 		err 'Incompatible set of container format and A/V codecs.'
 	}
@@ -332,9 +360,9 @@ check_container_and_codec_set() {
 
 
 check_mutually_exclusive_options() {
-	[ -v abitrate  -a  ! -v audio ] \
+	[ -v abitrate  -a  ! -v audio ]  \
 		&& err "“noaudio” cannot be used with forced audio bitrate."
-	[ -v crop  -a  -v scale ] \
+	[ -v crop  -a  -v scale ]  \
 		&& err "“crop” and “scale” cannot be used at the same time."
 	return 0
 }
@@ -344,7 +372,7 @@ check_times() {
 	#  Getting video duration to compare with the requested.
 	#  If we couldn’t retrieve it, it’s not critical.
 	new_time_array  mediainfo_source_duration  \
-	                "$(get_mediainfo_attribute "$video" g 'Duration')" \
+	                "${src_v[duration_total_s_ms]}"  \
 		|| true
 
 	[ ! -v time1  -a  ! -v time2 ] && {
@@ -354,10 +382,10 @@ check_times() {
 		new_time_array  time2  "${mediainfo_source_duration[ts]}"  \
 			|| err "Couldn’t set Time2 to ${mediainfo_source_duration[ts]}"
 	}
-	[ ${time2[total_ms]} -gt ${time1[total_ms]} ]  \
-		&& declare -gn start='time1'  stop='time2' \
+	(( ${time2[total_ms]} > ${time1[total_ms]} ))  \
+		&& declare -gn start='time1'  stop='time2'  \
 		|| declare -gn start='time2'  stop='time1'
-	[ ${time1[total_ms]} -eq ${time2[total_ms]} ] \
+	(( ${time1[total_ms]} == ${time2[total_ms]} ))  \
 		&& err 'Time1 and Time2 are the same.'
 
 	new_time_array   duration  \
@@ -366,9 +394,9 @@ check_times() {
 	if [ -v mediainfo_source_duration ]; then
 		if [[ "${mediainfo_source_duration[total_s]}" =~ ^[0-9]+$ ]]; then
 			#  Trying to prevent negative space_for_video_track.
-			[ ${start[total_s]} -gt ${mediainfo_source_duration[total_s]} ] \
+			(( ${start[total_s]} > ${mediainfo_source_duration[total_s]} ))  \
 				&& err "Start time ${start[ts]#00:} is behind the end."
-			[ ${stop[total_s]}  -gt ${mediainfo_source_duration[total_s]} ] \
+			(( ${stop[total_s]} > ${mediainfo_source_duration[total_s]} ))  \
 				&& err "Stop time ${stop[ts]#00:} is behind the end."
 		else
 			unset mediainfo_source_duration
@@ -384,219 +412,87 @@ check_times() {
 
 check_subtitles() {
 	declare -g subs_need_extraction  subs_need_conversion  prepped_ext_subs
-	local  codec_name  such  known_sub_codecs_list  ext_subtitle_type
+	local  codec_name  known_sub_codecs_list  ext_subtitle_type
 
-	if  [ -v subs_external_file ]; then
-		#  If “subs” is set, and the subtitles are in the external file,
-		#  let’s verify, that it’s in the ASS/SSA format, or a format
-		#  conversible to it.
-		ext_subtitle_type="$(mimetype -L -b -d "$subs_external_file")"
-		case "$ext_subtitle_type" in
-			'SSA subtitles')
-				;&
-			'ASS subtitles')
-				#  Nothing to do, but to rename – on the last stage.
-				subs_source_format='ASS/SSA'
-				prepped_ext_subs="$TMPDIR/subs.ass"
-				cp "$subs_external_file" "$prepped_ext_subs"
-				;;
-			'WebVTT subtitles')
-				subs_source_format='SubRip/WebVTT'
-				prepped_ext_subs="$TMPDIR/subs.vtt"
-				cp "$subs_external_file" "$prepped_ext_subs"
-				#  WebVTT and SRT need to be converted before use.
-				#  Proceeding to prepare_subtitles().
-				subs_need_conversion=t
-				;;
-			'SubRip subtitles')
-				subs_source_format='SubRip/WebVTT'
-				prepped_ext_subs="$TMPDIR/subs.srt"
-				cp "$subs_external_file" "$prepped_ext_subs"
-				#  WebVTT and SRT need to be converted before use.
-				#  Proceeding to prepare_subtitles().
-				subs_need_conversion=t
-				;;
-			#'“bitmap subtitles”')
-				#  Bitmap subtitles technically can be rendered, but:
-				#  - VobSub subtitles extracted are two files –
-				#    .idx. and .sub. It is unclear, how to include
-				#    and manipulate them both with -map;
-				#  - there are no examples of how it should be done.
-				#  Thus, unless there’s a precedent, VobSub as external
-				#  files won’t be supported, a workaround may be building
-				#  them into a mkv (a simply stream copy would do, and
-				#  it would be fast), then Nadeshiko can overlay them,
-				#  when they are included as a stream.
-				#;;
-			*)
-				#  External subs can only be requested,
-				#  so it’s always an error, when they can’t be rendered.
-				redmsg "External subtitles are in “$ext_subtitle_type” format,
-				        that is not supported yet. Try turning off subtitles
-				        or setting “nosub” option to encode without these subtitles?"
-				err "Cannot hardsub $ext_subtitle_type subtitles. Try “nosub”?"
-				;;
-		esac
-	else
-		#  Now if “subs” is set, and we use an internal track,
-		#  verify, that it’s the type, that we can hardsub.
-		codec_name=$(
-			get_ffmpeg_attribute "$video" \
-			                     "s:${subs_track_id:-0?}" \
-			                     codec_name
-		)
-		[ -v subtitle_track_id ] \
-			&& such="${subtitle_track_id}th" \
-			|| such='default'
-
-		[ -z "$codec_name" ] && {
-			if  [ -v subs_explicitly_requested ];  then
-				redmsg "Burning $such subtitle stream into video was requested, but the source video
-				        has no such stream. Try different number or setting “nosub”?"
-				err "Cannot hardsub: no $such subtitle stream. Try “nosub”?"
-			else
-				#  It was just RC default setting,
-				#  it isn’t an error, that a video had no subs at all.
-				info "No subtitles to add. Disabling hardsub."
-				unset subs
-				#  Stopping subs processing.
-				return 1
-			fi
+	if [ -v src_s[external_file]  ]; then
+		[[ "${src_s[codec]}" =~ ^(ass|ssa|subrip|srt|webvtt|vtt)$ ]] || {
+			#  External subs can only be requested,
+			#    so it’s always an error, when they can’t be rendered.
+			#  This error may be triggered, if mpv or a wrapper like
+			#    smplayer load every text file in the directory, thinking
+			#    it’s subtitles. The option is called “fuzzy matching”.
+			err "Cannot use external subtitles – “${src_s[mimetype]}” type is not supported."
 		}
+
+	else
+		#  FFmpeg counts streams of specific type (video, audio, subs) from 0.
+		[  -v src_s[track_id]  ] && {
+			local track_id=$(( ${src_s[track_id]} +1 ))
+			(( track_id > ${src_c[subtitle_streams_count]} )) && {
+				if (( ${src_c[subtitle_streams_count]} == 0 )); then
+					err "Cannot use $(nth "$track_id") subtitle track – the video has none."
+				else
+					err "Cannot use $(nth "$track_id") subtitle track – the video has only ${src_c[subtitle_streams_count]}."
+				fi
+			}
+		}
+
+		#  Subtitle stream was requested (probably by default), but the source
+		#  file has no built-in subtitles. This happens, it is not an error.
+		if (( ${src_c[subtitle_streams_count]:-0} == 0 )); then
+			info "No subtitle track to add. Disabling hardsub."
+			unset subs
+			return 0
+		else
+			: ${src_s[track_id]:=0}
+		fi
+		#  Now the stage04_encoding.sh module can refer to streams
+		#  as s:${src_s[track_id]} with confidence, no need in …:-0?}
 
 		known_sub_codecs_list=$(IFS='|'; echo "${known_sub_codecs[*]}")
 		#  Unlike with a video that simply has no subtitle stream,
-		#  having one, that we cannot encode is always an error.
-		[[ "$codec_name" =~ ^($known_sub_codecs_list)$ ]]  \
-			|| err "Cannot hardsub: “$codec_name” is not supported. Add “nosub”?"
-		if [[ "$codec_name" =~ ^(ass|ssa)$ ]]; then
-			subs_source_format='ASS/SSA'
-			prepped_ext_subs="$TMPDIR/subs.ass"
-			#  For now extract every type of subtitles, even ASS.
-			subs_need_extraction=t
-		elif [[ "$codec_name" =~ ^(subrip|srt)$ ]]; then
-			subs_source_format='SubRip/WebVTT'
-			prepped_ext_subs="$TMPDIR/ext.srt"
-			subs_need_extraction=t
-			subs_need_conversion=t
-			subs_need_style_from_rc=t
-		elif [[ "$codec_name" =~ ^(vtt|webvtt)$ ]]; then
-			subs_source_format='SubRip/WebVTT'
-			#  FFmpeg differentiates between srt and vtt formats.
-			prepped_ext_subs="$TMPDIR/ext.vtt"
-			subs_need_extraction=t
-			subs_need_conversion=t
-			subs_need_style_from_rc=t
-		elif [[ "$codec_name" =~ ^(dvd_subtitle)$ ]]; then
-			subs_source_format='VobSub'
-			subs_need_overlay=t
-		elif [[ "$codec_name" =~ ^(hdmv_pgs_subtitle)$ ]]; then
-			subs_source_format='PGS'
-			subs_need_overlay=t
-		fi
-		#  Before this function we didn’t know, if there’s a default
-		#  track, and which we should use. We must have differentiated
-		#  between a concrete track number passed via command line and
-		#  the default “0:s:0?” track. Now at this point we don’t need
-		#  to keep this difference any more, and we know for sure, that
-		#  there is a default track № 0.
-		: ${subs_track_id:=0}
+		#  having one that we cannot encode is always an error.
+		[[ "${src_s[codec]}" =~ ^($known_sub_codecs_list)$ ]]  \
+			|| err "Cannot use built-in subtitles – “${src_s[codec]}” type is not supported. Try “nosubs”?"
+
 	fi
 
 	return 0
 }
 
 
-prepare_subtitles() {
-	[ -v dryrun ] && {
-		info 'Dry run: skipping subtitle preparation.'
-		return 0
-	}
-	local  mkvmerge_output  id  font_name
-	[ -v subs_need_extraction ] && {
-		info "Extracting subs and fonts."
-		# NB: -map uses 0:s:<subtitle_track_id> syntax here.
-		#   It’s the number among SUBTITLE tracks, not overall!
-		# “?” in 0:s:0? is to ignore the lack of subtitle track.
-		#   If the default setting is to add subs, it shouldn’t lead
-		#   to an error, if the source simply doesn’t have subs:
-		#   specifying “nosub” for them shouldn’t be a requirement.
-		# NB: -map uses 0:s:<subtitle_track_id> syntax here.
-		#   It’s the number among SUBTITLE tracks, not overall!
+check_audio() {
+	[ ! -v src_a[external_file]  ]  && {
 
-		FFREPORT=file=$LOGDIR/ffmpeg-subs-extraction.log:level=32 \
-		$ffmpeg -y -hide_banner  -v error  -nostdin  \
-		        -i "$video" \
-		        -map 0:s:$subs_track_id \
-		        "$prepped_ext_subs" \
-			|| err "Cannot extract subtitle stream $subs_track_id: ffmpeg error."
-
-		#  Extracting built-in fonts for built-in subs
-		#  MKV may be reported as \n\n\n\nMatroska video,
-		#  so we don’t match for a literal string ^Mastroska\ video$
-		if [[ "$source_video_container" =~ 'Matroska video' ]]; then  # sic!
-			mkvmerge_output=$(mkvmerge -i "$video") \
-				|| err "Cannot get the list of attachments: mkvmerge error."
-			while read -r ; do
-				id=${REPLY%$'\t'*}
-				font_name=${REPLY#*$'\t'}
-				mkvextract attachments \
-				           "$video" $id:"$TMPDIR/fonts/$font_name" \
-				           &>"$LOGDIR/mkvextract.log" \
-					|| err "Cannot extract attachment font $id “$font_name”: mkvextract error."
-			done < <(
-				echo "$mkvmerge_output" \
-					| sed -rn "s/Attachment ID ([0-9]+):.*\s+'(.*)(ttf|TTF|otf|OTF)'$/\1\t\2\3/p"
-			)
-		else
-			warn-ns "Font extraction from “$source_video_container” is not implemented yet."
-		fi
-	}
-	[ -v subs_need_conversion ] && {
-		#  If external file was in ASS/SSA format, it was already placed
-		#  in $TMPDIR as subs.ass.
-		FFREPORT=file=$LOGDIR/ffmpeg-subs-conversion.log:level=32 \
-		$ffmpeg -hide_banner -v error  -nostdin  \
-		        -i "$prepped_ext_subs"  "$TMPDIR/subs.ass" \
-			|| err "Cannot convert subtitles to ASS: ffmpeg error."
-	}
-	return 0
-}
-
-
- # When external audio tracks will be supported, parts of this code
-#  should be uncommented.
-check_audio_track() {
-	local  codec_name  such
-	# if  [ -v audio_external_file ]; then
-	# 	: "Currently, external audio tracks are not supported."
-	# else
-		codec_name=$(
-			get_ffmpeg_attribute "$video" \
-			                     "a:${audio_track_id:-0?}" \
-			                     codec_name
-		)
-		[ -v audio_track_id ] \
-			&& such="${audio_track_id}th" \
-			|| such='default'
-
-		[ -z "$codec_name" ] && {
-			if  [ -v audio_explicitly_requested ];  then
-				redmsg "Adding an audio track was requested, but the source video
-				        has no $such audio stream. Try setting “noaudio”?"
-				err "Cannot add sound: no $such audio stream. Try “noaudio”?"
-			else
-				#  It was just RC default setting,
-				#  it isn’t an error, that a video had no audio track at all.
-				info "No audio track to add. Disabling sound."
-				unset audio
-				return 1
-			fi
+		[ -v src_a[track_id] ] && {
+			#  FFmpeg counts streams of specific type (video, audio, subs) from 0.
+			local track_id=$(( ${src_a[track_id]} +1 ))
+			(( track_id > ${src_c[audio_streams_count]} )) && {
+				if (( ${src_c[audio_streams_count]} == 0 )); then
+					err "Cannot use $(nth "$track_id") audio track – the video has none. Try “noaudio”?"
+				else
+					err "Cannot use $(nth "$track_id") audio track – the video has only ${src_c[audio_streams_count]}.  Try “noaudio”?"
+				fi
+			}
 		}
-	# fi
+
+		#  If audio stream was requested (e.g. by default), but the source
+		#  file has no audio track. This happens, it is not an error.
+		if (( ${src_c[audio_streams_count]} == 0 )); then
+			info "No audio track to add. Disabling sound."
+			unset audio
+			return 0
+		else
+			: ${src_a[track_id]:=0}
+		fi
+		#  Now the stage04_encoding.sh module can refer to streams
+		#  as a:${src_a[track_id]} with confidence, no need in …:-0?}
+
+	}
 	return 0
 }
-prepare_audio_track() { : "dummy"; return 0; }
+
+
 
 
  # Determines how fast the scenes in the video change.
@@ -624,15 +520,15 @@ determine_scene_complexity() {
 	declare -g  scene_complexity  scene_complexity_assumed
 	local video="$1" start_time="$2" stop_time="$3" \
 	      duration_total_s="$4" total_scenes is_dynamic
-	info 'Determining video complexity.
-	      It takes 2–20 seconds depending on video.'
+
 	total_scenes=$(
 		FFREPORT=file=$LOGDIR/ffmpeg-scene-complexity.log:level=32 \
 		$ffmpeg  -hide_banner  -v error  -nostdin  \
-		         -ss "$start_time"  -to "$stop_time"  -i "$video" \
+		         -ss "$start_time"  -to "$stop_time"  -i "${src[path]}" \
 		         -vf "select='gte(scene,0.3)',metadata=print:file=-" \
 		         -an -sn -f null -
 	) || err "Couldn’t determine scene complexity: ffmpeg error."
+
 	total_scenes=$(
 		grep -cE '^lavfi\.scene_score=0\.[0-9]{6}$' <<<"$total_scenes" || true
 		# When ffmpeg finds no scene changes – and there may be none, if the
@@ -640,13 +536,16 @@ determine_scene_complexity() {
 		# as “0” to stdout, but will quit with return code 1 as no matches
 		# were found. || : is to prevent quitting here.
 	)
+
 	[[ "$total_scenes" =~ ^[0-9]+$ ]] && {
 		((total_scenes++, 1))  # add the initial scene
-		sps_ratio=$(echo "scale=2; $duration_total_s / $total_scenes" | bc) \
-			||:
+		sps_ratio=$(
+			echo "scale=2; $duration_total_s / $total_scenes" | bc
+		) || true
 		#                      dynamic < $video_sps_threshold < static
-		is_dynamic=$( echo "$sps_ratio < $video_sps_threshold" | bc ) \
-			||:
+		is_dynamic=$(
+			echo "$sps_ratio < $video_sps_threshold" | bc
+		) || true
 		[[ "$is_dynamic" =~ ^[01]$ ]] && {
 			case "$is_dynamic" in
 				0) # 0 = negative in bc
@@ -658,6 +557,7 @@ determine_scene_complexity() {
 			esac
 		}
 	}
+
 	#  If the type is undeterminable, allow the use
 	#  of bitrate–resolution ranges.
 	[ -v scene_complexity ] || {
@@ -665,6 +565,8 @@ determine_scene_complexity() {
 		scene_complexity='static'
 		scene_complexity_assumed=t
 	}
+
+
 	return 0
 }
 
@@ -675,132 +577,105 @@ determine_scene_complexity() {
 #    later by display_settings().
 #
 set_vars() {
-	local  i  is_16_9
-	declare -g source_video_container=$(mimetype -L -b -d "$video")
+	declare -g orig_vcodec_format  orig_acodec_format  \
+	           # source_video_container=$(mimetype -L -b -d "${src[path]}")
+	local i
 
-	check_container_and_codec_set
+	check_muxing_set
+
+	#  “||…” because [ -v ${container}_space_reserved_frames_to_esp ]
+	#  is impossible.
+	declare -gn container_space_reserved_frames_to_esp=${container}_space_reserved_frames_to_esp  || {
+		warn "No predicted overhead table is specified for the $container container.
+		      If the video exceeds maximum file size, re-encode will be inevitable."
+		declare -g container_space_reserved_frames_to_esp=( [0]=0 )
+	}
+
 	[ -v max_size ] || declare -g max_size=$max_size_default
 	check_mutually_exclusive_options
+	gather_info 'before-encode' 'src'
 	check_times
+	#  Frame count is used as primary indicator of the expected muxing overhead.
+	frame_count=$(echo "scale=3;  fc =    ${duration[total_s_ms]}  \
+	                                    * ${src_v[frame_rate]};
+	                    scale=0;  fc/1"  | bc                    )
 
-	# Getting the original video and audio bitrate.
-	orig_video_bitrate=$(get_mediainfo_attribute "$video" v 'Nominal bit rate')
-	[ "$orig_video_bitrate" ] \
-		|| orig_video_bitrate=$(get_mediainfo_attribute "$video" v 'Bit rate')
-	if [ "$orig_video_bitrate" != "${orig_video_bitrate%kb/s}" ]; then
-		orig_video_bitrate=${orig_video_bitrate%kb/s}
-		orig_video_bitrate=${orig_video_bitrate%.*}
-	elif [ "$orig_video_bitrate" != "${orig_video_bitrate%Mb/s}" ]; then
-		orig_video_bitrate=${orig_video_bitrate%Mb/s}
-		orig_video_bitrate=${orig_video_bitrate%.*}
-		orig_video_bitrate=$((orig_video_bitrate*1000))
-	fi
-	if [[ "$orig_video_bitrate" =~ ^[0-9]+$ ]]; then
-		orig_video_bitrate_bits=$((orig_video_bitrate*1000))
-	else
-		#  Unlike with the resolution, original bitrate
-		#  is of less importance, as the source will most likely
-		#  have bigger bit rate, and no bad things will happen
-		#  from wasting (limited) space on quality.
-		no_orig_video_bitrate=t
-	fi
+	 # There are three sources for subtitles:
+	#  - default subtitle track (if any present at all), ffmpeg’s -map 0:s:0?;
+	#  - an external file, specified in the “subs” parameter
+	#    in the command line as subs=/path/to/external/file;
+	#  - an internal subtitle track, but not the default one: it’s specified
+	#    through the command line as well, as subs:5 for example.
+	#
+	[ -v subs ] && check_subtitles
+	[ -v audio ] && check_audio
 
-	# There are three sources for subtitles:
-	# - default subtitle track (if any present at all), ffmpeg’s -map 0:s:0?;
-	# - an external file, specified in the “subs” parameter
-	#   in the command line as subs=/path/to/external/file;
-	# - an internal subtitle track, but not the default one: it’s specified
-	#   through the command line as well, as subs:5 for example.
-	[ -v subs ] && check_subtitles && prepare_subtitles
-
-	[ -v audio ] && check_audio_track && prepare_audio_track
+	 # Original resolution is a prerequisite for the intelligent mode.
+	#    Dumb mode with some hardcoded default bitrates bears
+	#    little usefulness, so it was decided to flex it out.
+	#    Intelligent and forced modes (that overrides things in the former)
+	#    are the two modes now.
+	#  Getting native video resolution is of utmost importance
+	#    to not do accidental upscale. It is also needed for knowing,
+	#    with which resolution to start scaling down, if needed.
+	#
+	[  -v src_v[resolution]  ] || err "Couldn’t determine source video resolution."
 
 
-	# Original resolution is a prerequisite for the intelligent mode.
-	#   Dumb mode with some hardcoded default bitrates bears
-	#   little usefulness, so it was decided to flex it out.
-	#   Intelligent and forced modes (that overrides things in the former)
-	#   are the two modes now.
-	# Getting native video resolution is of utmost importance
-	#   to not do accidental upscale. It is also needed for knowing,
-	#   with which resolution to start scaling down, if needed.
-	orig_width=$(get_ffmpeg_attribute "$video" v width)
-	orig_height=$(get_ffmpeg_attribute "$video" v height)
-	if [[ "$orig_width" =~ ^[0-9]+$ && "$orig_height" =~ ^[0-9]+$ ]]; then
-		have_orig_res=t
-	else
-		#  Files in which native resolution could not be obtained,
-		#  haven’t been met in the wild, but let’s try a different
-		#  way of obtaining it.
-		orig_width=$(get_mediainfo_attribute "$video" v Width)
-		orig_width="${orig_width%pixels}"
-		orig_height=$(get_mediainfo_attribute "$video" v Height)
-		orig_height="${orig_height%pixels}"
-		[[ "$orig_width" =~ ^[0-9]+$ && "$orig_height" =~ ^[0-9]+$ ]] \
-			&& have_orig_res=t
-	fi
-	[ -v have_orig_res ] || err "Cannot determine source video resolution."
-
-	[ -v have_orig_res ] && orig_res_total_px=$(( orig_width * orig_height ))
 	#  Since the values in our bitrate–resolution profiles are given
 	#  for 16:9 aspect ratio, 4:3 video and special ones like 1920×820
-	#  would require less  bitrate, as there’s less pixels.
-	orig_ar=$(get_mediainfo_attribute "$video" v 'Display aspect ratio')
-	[[ "$orig_ar" =~ ^[0-9\.]+:[0-9\.]+$ ]] || {
-		#  Calculating it by orig_res
-		if [ -v have_orig_res ]; then
-			if  is_16_9=$(
-					echo "scale=5; (16/9) == ($orig_width/$orig_height)" | bc
-				)
-			then
-				case "$is_16_9" in
-					0)  orig_ar='not 16:9'
-						;;
-					1)  orig_ar='16:9'
-						;;
-				esac
-			else
-				warn "Couldn’t calculate source video aspect ratio.
-				      Will assume 16:9 bitrate standards."
-				unset orig_ar
-			fi
-		else
-			#  Let the original aspect ratio be undefined.
-			unset orig_ar
-		fi
-	}
-	[ -v orig_ar ] && [ "$orig_ar" != '16:9' ] \
-		&& needs_bitrate_correction_by_origres=t
+	#  would require less bitrate, as there’s less pixels.
 
-	[ -v have_orig_res ] && {
+	if     [ -v src_v[aspect_ratio]  ]  \
+		&& [ -v src_v[is_16to9]  ]  \
+		&& [ "${src_v[is_16to9]}" = 'no' ]
+	then
+		needs_bitrate_correction_by_origres=t
+	fi
+
+	[  -v src_v[resolution]  ] && {
 		#  Videos with nonstandard resolutions must be associated
 		#    with a higher profile.
 		#  [ -v doesn’t work here, somehow O_o
-		declare -p bitres_profile_${orig_height}p  &>/dev/null  || {
+		declare -p bitres_profile_${src_v[height]}p  &>/dev/null  || {
 			for ((i=${#known_res_list[@]}-1; i>0; i--)); do
-				[ $orig_height -gt ${known_res_list[i]} ] && continue || break
+				(( src_v[height] > known_res_list[i] ))  \
+					&& continue  \
+					|| break
 			done
-			[ $i -eq -1 ] && ((i++, 1))  # sic!
+			(( i == -1 )) && ((i++, 1))  # sic!
 			closest_res=${known_res_list[i]}
 			needs_bitrate_correction_by_origres=t
 		}
 	}
 
-	[ -v crop  -a  ! -v crop_uses_profile_vbitrate ] \
+
+	[ -v crop  -a  ! -v crop_uses_profile_vbitrate ]  \
 		&& needs_bitrate_correction_by_cropres=t
 
-	[ -v scale ] && [ $scale -eq $orig_height ] && {
+	[ -v scale ] && (( scale == src_v[height] )) && {
 		warn "Disabling scale to ${scale}p – it is the native resolution."
 		unset scale
 	}
-	[ -v scale ] && [ $scale -gt $orig_height ] && {
+	[ -v scale ] && (( scale > src_v[height] )) && {
 		warn "Disabling scale to ${scale}p – would be an upscale."
 		unset scale
 	}
 
-	orig_format=$(get_mediainfo_attribute "$video" v 'Format')
-	codec_format=${codec_names_as_formats[$ffmpeg_vcodec]}
-	[ "$orig_format" = "$codec_format" ] && orig_codec_same_as_enc=t
+
+	shopt -s nocasematch
+	for codec_format in ${vcodec_name_as_formats[@]}; do
+		[[ "$codec_format" = "${src_v[format]}" ]]  \
+			&& orig_vcodec_same_as_enc=t  \
+			&& break
+	done
+
+	for codec_format in ${acodec_name_as_formats[@]}; do
+		[[ "$codec_format" = "${src_a[format]}" ]]  \
+			&& orig_acodec_same_as_enc=t  \
+			&& break
+	done
+	shopt -u nocasematch
 
 	closest_lowres_index=0
 	for ((i=0; i<${#known_res_list[@]}; i++ )); do
@@ -811,9 +686,9 @@ set_vars() {
 		#   resolution if higher than the table resolution,
 		#   again, it should be skipped.
 		(
-			[ -v orig_height ] && [ ${known_res_list[i]} -ge $orig_height ]
+			[  -v src_v[height]  ] && (( known_res_list[i] >= src_v[height] ))
 		)||(
-			[ -v scale ] && [ ${known_res_list[i]} -gt $scale ]
+			[ -v scale ] && (( known_res_list[i] > scale ))
 		) \
 		&& ((closest_lowres_index++, 1))
 	done
@@ -822,15 +697,27 @@ set_vars() {
 	#  they force (fixate) corresponding settings.
 	[ -v vbitrate ] && forced_vbitrate=t
 	[ -v abitrate ] && forced_abitrate=t
-	# scale is special, it can be set in RC file.
+	#  scale is special, it can be set in RC file.
 	[ -v scale  -a  ! -v rc_default_scale ] && forced_scale=t
 
-	[ -v scene_complexity ] \
-		|| determine_scene_complexity "$video" \
-		                              "${start[ts]}" \
-		                              "${stop[ts]}" \
-		                              "${duration[total_s]}"
-	[ "$scene_complexity" = dynamic ] && bitrates_locked_on_desired=t
+
+	if [ -v scene_complexity ]; then
+		info "Scene complexity is requested as ${__bri}${__w}$scene_complexity${__s}."
+		milinc
+	else
+		info 'Determining scene complexity.
+		      It takes 2–20 seconds depending on video.'
+		milinc
+		determine_scene_complexity "${src[path]}"         \
+		                           "${start[ts]}"         \
+		                           "${stop[ts]}"          \
+		                           "${duration[total_s]}"
+	fi
+	[ "$scene_complexity" = dynamic ] && {
+		info "Locking video bitrates on desired values."
+		vbitrate_locked_on_desired=t
+	}
+	mildec
 
 	return 0
 }
@@ -842,7 +729,8 @@ set_vars() {
 #  has been made yet.
 #
 display_settings() {
-	local sub_hl  audio_hl  crop_string  sub_hl  audio_hl
+	local sub_hl  audio_hl  crop_string  sub_hl  audio_hl  \
+	      src_var  src_varval  key
 	# The colours for all the output should be:
 	# - default colour for default/computed/retrieved data;
 	# - bright white colour indicates command line overrides;
@@ -879,35 +767,53 @@ display_settings() {
 	info "Slice duration: ${duration[ts_short_no_ms]} (exactly ${duration[total_s_ms]})."
 
 	mildec
-	info 'Source video:'
+	info 'Source video properties:'
 	milinc
 
-	[ -v have_orig_res ] \
-		&& info "Resolution: $orig_width×$orig_height." \
-		|| warn "Resolution: ${__y}–${__s}."
-	case "${orig_ar:-}" in
-		'')  warn "Aspect ratio: ${__y}${__bri}undefined${__s}";;
-		'16:9')  info "Aspect ratio: 16:9.";;
-		*)  info "Aspect ratio: ${__y}not 16:9${__s}.";;
-	esac
-	[ -v no_orig_video_bitrate ] \
-		&& warn "Bit rate: ${__y}unknown${__s}." \
-		|| info "Bit rate: $orig_video_bitrate kbps."
+	for src_var in  src_c  src_v  src_a  src_s; do
+		[ "$src_var" = src_a ] && [ ! -v audio ] && continue
+		[ "$src_var" = src_s ] && [ ! -v subs  ] && continue
+		local -n src_varval=$src_var
+		case $src_var in
+			src_c)
+				msg 'Container'
+				;;
+			src_v)
+				msg 'Video'
+				;;
+			src_a)
+				msg 'Audio'
+				;;
+			src_s)
+				msg 'Subtitles'
+				;;
+		esac
+		milinc
+		for key in ${!src_varval[*]}; do
+			msg "$key: ${src_varval[$key]}"
+		done
+		mildec
+	done
+	mildec
+
+	info 'Clip properties:'
+	milinc
 	if [ -v scene_complexity_assumed ]; then
 		warn "Scene complexity: assumed to be $scene_complexity."
 	else
-		[ -v forced_scene_complexity ] \
-			&& info "Scene complexity: ${__bri}$scene_complexity${__s}." \
-			|| info "Scene complexity: $scene_complexity."
+		if [ -v forced_scene_complexity ]; then
+			msg "Scene complexity: ${__bri}$scene_complexity${__s}."
+		else
+			msg "Seconds per scene: ${sps_ratio:-scene complexity is forced}."
+			msg "Scene complexity: $scene_complexity."
+		fi
 	fi
-	milinc
-	[ "$scene_complexity" = dynamic ] \
-		&& info "Locking video bitrates on desired values."
-	#  Not set if scene_complexity is forced.
-	[ -v sps_ratio ] && info "SPS ratio: $sps_ratio."
-	mildec 2
-	[ "$ffmpeg_pix_fmt" != "yuv420p" ] \
-		&& info "Encoding to pixel format “${__bri}$ffmpeg_pix_fmt${__s}”."
+	msg "Frame count: $frame_count"
+	mildec
+
+	local -n vcodec_pix_fmt=${ffmpeg_vcodec//-/_}_pix_fmt
+	[ "$vcodec_pix_fmt" != "yuv420p" ] \
+		&& info "Encoding to pixel format “${__bri}$vcodec_pix_fmt${__s}”."
 	[ -v ffmpeg_colorspace ] \
 		&& info "Converting to colourspace “${__bri}$ffmpeg_colorspace${__s}”."
 	[    -v needs_bitrate_correction_by_origres \
@@ -919,6 +825,10 @@ display_settings() {
 			&& echo -en "by ${__y}${__bri}crop_res${__s} "
 		echo
 	}
+
+	#  Separating the prinout of the initial properties
+	#  from the calculations that will follow.
+	echo
 	return 0
 }
 

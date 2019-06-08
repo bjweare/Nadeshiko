@@ -18,7 +18,7 @@
 	bahelite_load_module 'colours' || return $?
 }
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_VER='2.7'
+declare -grx BAHELITE_MODULE_MESSAGES_VER='2.8'
 
 
 
@@ -287,7 +287,7 @@ milinc() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local count=${1:-1}  z
 	for ((z=0; z<count; z++)); do
-		let '++MSG_INDENTATION_LEVEL || 1'
+		let '++MSG_INDENTATION_LEVEL,  1'
 	done
 	mi_assemble || return $?
 }
@@ -305,7 +305,7 @@ mildec() {
 		warn "No need to decrease indentation, it’s on the minimum."
 	else
 		for ((z=0; z<count; z++)); do
-			let '--MSG_INDENTATION_LEVEL || 1'
+			let '--MSG_INDENTATION_LEVEL,  1'
 		done
 		mi_assemble || return $?
 	fi
@@ -618,6 +618,64 @@ redmsg() {
 export -f  redmsg
 
 
+ # A forbidding info message. Close to warn, but unlike that it tells about
+#  something expected: important, but not worrisome. Consider this as a road-
+#  block or a guard on some slave route, that is not accessible in the cur-
+#  rent situation. A road block sign or a barrier should be visible, distinc-
+#  tive, as well as a guard would make distinctive hand moves, showing that
+#  there’s no passing and probably whistling – hence the cross and the red
+#  colour.
+#
+denied() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='info'
+		[message_array]='INFO_MESSAGES'
+		[colour]='ERR_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="× ${MSG_ASTERISK_WITH_MSGTYPE:+DENIED: }"
+		[desktop_message]='no'
+		[desktop_message_type]=''
+		[stay_on_line]='no'
+		[output]='stdout'
+		[internal]='no'
+		[exit_code]=''
+	)
+	__msg "$@"
+	return 0
+}
+export -f  denied
+
+
+ # Shows a hint for the previous message
+#  There are times, when you run some program, that may print weird messages.
+#  They are numerous and you cannot do anything about them, because the verbo-
+#  sity of that program is already turned off to minimum. (ffmpeg is one exam-
+#  ple.) For such programs, it is handy to print a hint – in which cases the
+#  messages should be worried about, and in which they are just unavoidable
+#  clutter, that the user may safely ignore.
+#
+sub-msg() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	declare -A __msg_properties=(
+		[role]='info'
+		[message_array]='INFO_MESSAGES'
+		[colour]='PLAIN_MESSAGE_COLOUR'
+		[whole_message_in_colour]='no'
+		[asterisk]="^ ${MSG_ASTERISK_WITH_MSGTYPE:+INFO: }"
+		[desktop_message]='no'
+		[desktop_message_type]=''
+		[stay_on_line]='no'
+		[output]='stdout'
+		[internal]='no'
+		[exit_code]=''
+	)
+	__msg "$@"
+	return 0
+}
+export -f  sub-msg
+
+
  # Same as err(), but prints the whole line in red.
 #
 errw() {
@@ -670,6 +728,20 @@ export -f  abort
 #  These functions use BAHELITE_*_MESSAGES and should be preferred
 #  for use within Bahelite.
 #
+ #  1. Needs iinfo and iwarn to show only when BAHELITE_MODULES_ARE_VERBOSE
+#      is set.
+#   2. iinfo and iwarn must print which module (file) and which function
+#      they are called from (as they don’t stop the program, there’d be no
+#      call trace).
+#   3. Internal info and warning messages should have different colours:
+#      light cyan would suit for info and purple for warnings.
+#
+#iinfo () {
+#
+#}
+#
+#
+#
 iwarn() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -A __msg_properties=(
@@ -689,6 +761,44 @@ iwarn() {
 	return 0
 }
 export -f  iwarn
+
+
+ # CHANGE IERR
+#  it must show call stack, as a failure in a library function should
+#    probably be serious and hard to find without it.
+#
+#
+ # Characteristics of “err”:
+#    - the source of error is self-evident and unique, one of a kind.
+#    - the error is always clear to the user.
+#    - the error does not need a stack trace.
+#  Typical use: wrong arguments to the program, lack of some dependency,
+#    encountering unsupported formats in the middle of execution, user forci-
+#    bly interrupts execution (from the inside) or kills the program (from the
+#    outside), other knows and understandable to user reasons, why the program
+#    may stop without success.
+#
+#
+ # Characteristics of “ierr”:
+#    - the source of error is entangled in the code, the function is probably
+#      not on the surface, but rather at some level of depth, quite possibly
+#      an universal helper, that can be called from multiple places in the
+#      code.
+#    - the error says nothing, that user can fix or even understand.
+#    - the error requires a stack trace to make sure, where it happens.
+#  Typical use: a function didn’t receive a required argument (or the argument
+#    is wrong), a protocol error.
+#
+#
+ # (The unforseen errors that happen due to language syntax errors or because
+#  a command fails are currently printed with err(), but maybe they should
+#  use ierr() instead)
+#
+ # Things that need to be changed:
+#  1. err and ierr must recognise both predefined messages and messages as is.
+#     Maybe use some prefix for the rpedefined one? like start them with
+#      a semicolon?  > err ':wahaha' "$some_var_for_substitution"
+
 
 
 ierr() {
@@ -719,6 +829,7 @@ export -f  ierr
 #  It can, however, be use in the main script for a message lower in level
 #    than info, that still maintains the indentation.
 #
+msg() { plainmsg "$@"; }
 plainmsg() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -A __msg_properties=(
@@ -737,7 +848,7 @@ plainmsg() {
 	__msg "$@"
 	return 0
 }
-export -f  plainmsg
+export -f  msg  plainmsg
 
 
  # Shows an info, a warning or an error message
@@ -769,11 +880,12 @@ __msg() {
 	      term_cols=$TERM_COLS  console_or_log
 
 	[[ "$-" =~ .*i.* ]] || term_cols=80
+
 	#  As a precaution against internal bugs, check how many times __msg()
 	#  is called in the call stack. If the number will be more than 3,
 	#  this hints at a recursive error.
 	for f in "${FUNCNAME[@]}"; do
-		[ "$f" = "${FUNCNAME[0]}" ] && let '++f_count || 1'
+		[ "$f" = "${FUNCNAME[0]}" ] && let '++f_count,  1'
 	done
 	(( f_count >= 3 )) && {
 		echo "Bahelite error: call to ${FUNCNAME[0]} went into recursion." >&2
@@ -907,6 +1019,8 @@ __msg() {
 	[ -v MSG_DISABLE_COLOURS ]  \
 		&& message_nocolours="$message"  \
 		|| message_nocolours="$(strip_colours "$message")"
+	#  Removing any colour alternating rules, that may be in effect.
+	_message+="${__s}"
 	_message+="${colour:-}"
 	_message+="$asterisk"
 	_message+="${whole_message_in_colour:-${__stop:-}}"  # colour stop
@@ -1092,6 +1206,7 @@ case "$(get_bahelite_verbosity  'console')" in
 
 	5|6|7|8|9)
 		BAHELITE_MODULES_ARE_VERBOSE=t
+		BAHELITE_DONT_CLEAR_TMPDIR=t
 		;;
 esac
 

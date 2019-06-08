@@ -79,7 +79,7 @@ prepare_dotglade_for_launch_jobs() {
 check_pyfile_exit_code() {
 	declare -g data_file
 	local pyfile_retval="$1"
-	if [ $pyfile_retval -eq 0 ]; then
+	if (( pyfile_retval == 0 )); then
 		return 0
 	else
 		#  Remove $data_file for functions, that passed

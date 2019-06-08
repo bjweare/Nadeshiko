@@ -20,7 +20,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.5'
+declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.6'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
 )
@@ -44,6 +44,50 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #     These are the most nasty ones: you get an error, but the code continues
 #     to run! No way to catch, if they happened. Arithmetic errors, such as
 #     division by (a variable, that has a) zero is one example of this type.
+#  3.a (should actually be №3, and the current №3 should go by №4) subshell
+#     in a string. The thing is, that if a variable is assigned the result
+#     of a subshell, the assignment as an operation *bears the return code
+#     of the subshell return code*. I.e.
+#         var=$(command1 arg1 arg2)
+#     is possible to catch. (Not sure if the trap on DEBUG is necessary to
+#     catch it, but Bahelite catches this type of errors just fine.)
+#     However, when a subshell is placed within a string, the return code
+#     is overlapped by the *string assignment* operation. I.e.
+#         var="some string $(command1 arg1 arg2) string continues"
+#     will not stop the script. Though the SIGERR is triggered, and if set -eE
+#     is used, then the trap will be triggered within the subshell. The error
+#     will remain only in the scope of subshell, so if you assign a string
+#     in a cycle, like that
+#         for i in "${soma_array[@]}"; do
+#             var="some string $(command1 arg1 arg2) string continues"
+#             …
+#             …
+#         done
+#     then you will see a bunch of errors, but the script won’t stop.
+#
+#     One way to avoid this is to not put subshell calls in quotes. Ever.
+#     It places a huge handicap on their usefulness.
+#
+#     The other way is to somehow leave a mark for the main shell, when SIGERR
+#     is encountered within a subshell. But this means, that the trap on DEBUG
+#     must do a check for that mark *after every command* which will probably
+#     slow down things a lot. For this reason simply putting a file in TMPDIR
+#     is a bad option (though a working one). A better way would be to change
+#     some internal variable in the main shell, like the current working direc-
+#     tory or create a specifically named background job. But changing the
+#     directory stack or PWD in the subshell affects only the child process,
+#     and creating a background job is problematic too. Simply forking
+#     a sleep with 99999 seconds doesn’t work, because sleep still runs within
+#     a subshell and the main shell wait for the entire group to finish. (Sleep
+#     is forked! Disowning it will probably detach it from the group list,
+#     so it couldn’t be checked easy with “jobs” in the trap on DEBUG, disown-
+#     ing it makes no sense in spawning it. If we’ll have to use a costly call
+#     to pgrep on each command, this isn’t much better, than testing a file
+#     in TMPDIR for existence.) Ideally, the job should spawn in a sleeping
+#     state, like if C-z was sent to it, and the process should have a clear
+#     name like “: encountered an error and must quit” (the colon is an opera-
+#     tor) – so that the job could be easily found by “%:\ encountered an error”
+#     job specificator.
 #
 #  The only way to catch the errors of type 2 is to pass the exit code
 #     of the last command to the trap on EXIT, and if it’s >0, call
@@ -122,18 +166,66 @@ bahelite_on_each_command() {
 	for ((i=${#BAHELITE_STORED_LNOS[@]}; i>0; i--)); do
 		BAHELITE_STORED_LNOS[i]=${BAHELITE_STORED_LNOS[i-1]}
 	done
-	[ ${#BAHELITE_STORED_LNOS[@]} -eq $((lnos_limit+1)) ] \
+	(( ${#BAHELITE_STORED_LNOS[@]} == (lnos_limit+1) ))  \
 		&& unset BAHELITE_STORED_LNOS[$lnos_limit]
 	BAHELITE_STORED_LNOS[0]=$line_number
-	# Call user’s on_debug(), if defined.
-	[ "$(type -t on_debug)" = 'function' ] && on_debug
-	#  Output to stdout during DEBUG trap may produce unwanted output
+
+	 # Call user’s on_debug(), if defined.
+	#  Causes pipes like “echo | cat” to hang (still in bash 4.4).
+	#
+	#  To check if this affects you, add “set -T” before the command (assuming
+	#    that the trap on DEBUG is already set). If it can cause your script
+	#    hang, this problem is affecting you.
+	#        set -T
+	#        echo "something" | cat
+	#  It also can make the main script miss signals like SIGINT and even
+	#    SIGQUIT, if you do a call like exec in start_logging()
+	#    in bahelite_logging.sh, without temporarily switching off functrace
+	#    and disabling the trap on DEBUG. However, this occurs only under
+	#    uncertain circumstances and may depend on the host. A thorough compa-
+	#    rison between two hosts, one on which the issue is observed and the
+	#    other, where it isn’t, has shown NO DIFFERENCES between:
+	#    - shell options in $- variable
+	#    - shell options in set -o
+	#    - shell options in shopt -p
+	#    - TERM variable
+	#    - stty output
+	#    - I/O file descriptors, used in the main shell and subshell (except
+	#      for the pipe:XXXXXXXXX numbers)
+	#    - traps being set in the main script and within >( … )
+	#      (Running “trap '' DEBUG RETURN” within >( … ) also didn’t help.)
+	#    The comparison was indeed performed without temporary disabling
+	#    functrace and unsetting the trap on DEBUG.
+	#  So, if you decide to uncommend the line below to have the on_debug()
+	#    function from the main script being called from here, make sure
+	#    to temporarily turn off the trap on DEBUG and the functrace shell
+	#    option whenever you echo something to a pipe, or where process
+	#    substitution is involved, otherwise you’ll get reports, that
+	#    your script hangs.
+	#        functrace_off
+	#        <your code>
+	#        functrace_on
+	#    This will control both the functrace shell option and set/unset
+	#    the trap on DEBUG, as needed.
+	#  Mind, that some tools may cause additional troubles, e.g. xclip may
+	#    go into waiting mode without -verbose, until you close stdout or
+	#    redirect it. See https://github.com/asweigart/pyperclip/issues/116
+	#  List of things that do not help:
+	#    - set +T
+	#    - builtin set +T
+	#    - bahelite_functrace_off
+	#    - “$(trap '' RETURN; type -t on_debug)”
+	#
+	# [ "$(type -t on_debug)" = 'function' ] && on_debug
+
+	 # Output to stdout during DEBUG trap may produce unwanted output
 	#    into $(subshell calls), so you better NEVER output anything
 	#    in traps on DEBUG, or at least always use >&2 and make sure
 	#    you never add stderr to stdout in $(subshell calls) like $(… 2>&1).
 	#  Xdialog has --stdout option to produce output in stdout instead
 	#    of stderr.
 	# echo "${BAHELITE_STORED_LNOS[*]}" >&2
+
 	return 0
 }
 export -f  bahelite_on_each_command
@@ -144,37 +236,6 @@ export -f  bahelite_on_each_command
 #  Trap on DEBUG is temporarily disabled for the time xtrace shell option
 #    is enabled in the mother script. This is handled in the set builtin
 #    wrapper in bahelite.sh.
-#  Trap on DEBUG may cause the script hang on pipes (still in bash 4.4) –
-#    to check, if -T can cause your script hang, try adding to the main script
-#    the following code:
-#        set -T
-#        echo "something" | xclip
-#    It can also may make the main script miss signals like SIGINT and even
-#    SIGQUIT, if you do a call like exec in start_logging() in bahelite_logging.sh,
-#    without temporarily switching off functrace and disabling the trap
-#    on DEBUG. However, this occurs only under uncertain circumstances and may
-#    depend on the host. A thorough comparison between two hosts, one on which
-#    the issue is observed and the other, where it isn’t, has shown NO DIFFE-
-#    RENCES between:
-#      - shell options in $- variable
-#      - shell options in set -o
-#      - shell options in shopt -p
-#      - TERM variable
-#      - stty output
-#      - I/O file descriptors, used in the main shell and subshell (except
-#        for the pipe:XXXXXXXXX numbers)
-#      - traps being set in the main script and within >( … )
-#        (Running “trap '' DEBUG RETURN” within >( … ) also didn’t help.)
-#    The comparison was indeed performed without temporary disabling functrace
-#    and unsetting the trap on DEBUG.
-#  So, if you want to catch errors better with this trap on DEBUG, but get
-#    reports, that at some places, where pipes or process substitution are
-#    involved, the recommended way to solve it is:
-#        set +T
-#        <your code>
-#        set -T
-#    This will control both the functrace shell option and set/unset the trap
-#    on DEBUG, as needed.
 #
 bahelite_toggle_ondebug_trap() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
@@ -212,7 +273,7 @@ export -f  bahelite_on_each_command
 bahelite_on_exit() {
 	builtin set +x
 	declare -g __bahelite_onexit_entrance_counter
-	let ++__bahelite_onexit_entrance_counter
+	let '++__bahelite_onexit_entrance_counter,  1'
 	local in_subshell
 	(( BASH_SUBSHELL > 0 )) \
 		&& in_subshell="while in ${__bri}subshell${__s}"  \
@@ -220,42 +281,32 @@ bahelite_on_exit() {
 	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
 		&& info "Entering bahelite_${__bri}on_exit${__s} $in_subshell for the ${__bri}$__bahelite_onerr_entrance_counter time${__s}."
 
-	trap '' DEBUG
+	trap ''  DEBUG  EXIT  TERM  INT  HUP  PIPE  ERR  RETURN
+
 	local command="$1"  retval="$2"  stored_lnos="$3"  signal="$4"  \
 	      current_varlist  varname  varval  new_variables  vardump
 	mildrop
-# builtin set -x
-	#  Normally, when a subshell exits, trap on EXIT is called is the main
-	#    shell. However, if called explicitly, e.g. from another trap – on ERR
-	#    for example (Bahelite doesn’t do that) it may be called in the sub-
-	#    shell context. Nesting subshells, as a rule, do not make the trap
-	#    on EXIT run in subshell context too. So this check here is just
-	#    in case.
-	#  Disabled for it prevents catching signals like INT.
-	#
-	(( BASH_SUBSHELL > 0 )) && {
-		trap '' EXIT TERM INT HUP PIPE  ERR  RETURN
-		exit $?
-	}
 
-	#  Like with BAHELITE_ERROR_PROCESSED and bahelite_show_error, there is
+	 # Normally, when a subshell exits, trap on EXIT is called is the main
+	#  shell. However, if called explicitly, e.g. from another trap – on ERR
+	#  for example (Bahelite doesn’t do that) it may be called in the sub-
+	#  shell context. Nesting subshells, as a rule, do not make the trap
+	#  on EXIT run in subshell context too. So this check here is just
+	#  in case.
+	#
+	(( BASH_SUBSHELL > 0 ))  && exit $retval
+
+	 # Like with BAHELITE_ERROR_PROCESSED and bahelite_show_error, there is
 	#  a situation, when the same trap may be called twice, though it is
 	#  unnecessary. The reason here is that after SIGINT bash calls SIGEXIT,
 	#  and as both signals are processed by this same function, there is
 	#  no need to process what already was processed.
-	if [ -v BAHELITE_EXIT_PROCESSED ]; then
-		#  Gracefully closing all logging subshells.
-		exec  >&-  2>&-  <&-
-		#  Stop logging, if started
-		[ "$(type -t stop_logging)" = 'function' ] && stop_logging
-		return 0
-	else
-		declare -gx BAHELITE_EXIT_PROCESSED=t
-	fi
+	#
+	[ -v BAHELITE_EXIT_PROCESSED ]  \
+		&& exit $retval  \
+		|| declare -gx BAHELITE_EXIT_PROCESSED=t
 
-	trap '' EXIT TERM INT HUP PIPE  ERR  RETURN
-
-	#  Catching internal bash errors, like “unbound variable”
+	 # Catching internal bash errors, like “unbound variable”
 	#    when using nounset option (set -u). These errors
 	#    do not trigger SIGERR, so they must be caught on exit.
 	#  If the main script runs in the background, the user
@@ -287,13 +338,11 @@ bahelite_on_exit() {
 			#  If it was exit that the author of the main script caught
 			#  with err() or errw()
 			bahelite_print_call_stack
-			bahelite_noglob_off
 			if	[ -v BAHELITE_STIPULATED_ERROR ] \
 				|| [ -r "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL" ]
 			then
 				[ "$(type -t on_error)" = 'function' ] && on_error
 			fi
-			bahelite_noglob_on
 		else
 			[ ! -v BAHELITE_ERROR_PROCESSED ]  \
 				&& bahelite_on_error "$command"  \
@@ -328,19 +377,23 @@ bahelite_on_exit() {
 		done
 		echo "$vardump"  >"${LOGDIR:-$TMPDIR}/variables"
 	}
-	if	[ -d "$TMPDIR" ] && ! mountpoint --quiet "$TMPDIR" \
-		&& [ ! -v BAHELITE_DONT_CLEAR_TMPDIR ]
+
+	if    [ -d "$TMPDIR" ]  \
+	   && ! mountpoint --quiet "$TMPDIR"  \
+	   && [ ! -v BAHELITE_DONT_CLEAR_TMPDIR ]
 	then
 		#  Remove TMPDIR only after logging is done.
 		rm -rf "$TMPDIR"
 	fi
-	[ "$signal" != 'EXIT' ] && err "Caught SIG$signal."
 
-	#  Gracefully closing all logging subshells.
-	exec  >&-  2>&-  <&-
+	[ "$signal" != 'EXIT' ] && redmsg "Caught SIG$signal."
+
 	#  Stop logging, if started
-	[ "$(type -t stop_logging)" = 'function' ] && stop_logging
+	[ "$(type -t stop_logging)" = 'function' ]  && stop_logging
 
+	 # ULTRAKILL. Don’t do that.
+	#
+	# kill -- -$ORIG_BASHPID
 	return 0
 }
 #  No export: runs only on the top level, using it inside of subshell is not
@@ -351,12 +404,19 @@ bahelite_on_exit() {
  # Prints the stack of the function calls.
 #
 bahelite_print_call_stack() {
+	echo  # in case call stack printed before a line ends.
+
+	[ -e "$TMPDIR/call_stack_printed" ] && {
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+			&& info "Not printing call stack: already printed."
+		return 0
+	}
 	#  Every output from this function must go to stderr,
 	#  because *err*() may as well be called from a subshell
 	#
 	#  Skip only 3 levels (this very function, __msg and err*/abort), when
 	#  printing the call stack.
-	local  levels_to_skip
+	local  levels_to_skip  with_subshell
 	local  from_on_exit="${1:-}" real_line_number="${2:-}"   \
 	       line_number_to_print  f  i
 	if [ -v BAHELITE_STIPULATED_ERROR ]; then
@@ -366,7 +426,8 @@ bahelite_print_call_stack() {
 	else
 		levels_to_skip=0
 	fi
-	divider_message 'Call stack'  '-'  "$__bright" >&2
+	(( BASH_SUBSHELL > 0 )) && with_subshell=' (with subshell)'
+	divider_message "Call stack${with_subshell:-}"  '-'  "$__bright" >&2
 	for ((f=${#FUNCNAME[@]}-1; f>levels_to_skip; f--)); do
 		#  Hide on_exit and on_error, as the error only bypasses through
 		#  there. We don’t show THIS function in the call stack, right?
@@ -386,12 +447,14 @@ bahelite_print_call_stack() {
 		echo -en "${__bri:-}${FUNCNAME[f]}${__s:-}, " >&2
 		echo -e  "line $line_number_to_print in ${BASH_SOURCE[f]}" >&2
 	done
+	touch "$TMPDIR/call_stack_printed"
 	return 0
 }
 export -f  bahelite_print_call_stack
 
 
 bahelite_on_error() {
+
 	#  Disabling xtrace, for even if the programmer has put set +x where
 	#  needed, but the program catches an error before that all, there will be
 	#  a lot of trace, that the programmer doesn’t need.
@@ -402,7 +465,7 @@ bahelite_on_error() {
 	            BAHELITE_ERROR_PROCESSED
 	local failed_command=$1  failed_command_code=$2  from_on_exit="${3:-}"  \
 	      real_line_number=${4:-}  log_path_copied_to_clipboard  varname  \
-	      current_varlist  term_cols=$TERM_COLS
+	      current_varlist  term_cols=$TERM_COLS  info_redir
 	[[ "$-" =~ .*i.* ]] || term_cols=80
 	BAHELITE_DUMP_VARIABLES=t   # This is for bahelite_on_exit().
 	[ -v LOGDIR ] || BAHELITE_DONT_CLEAR_TMPDIR=t   # This too.
@@ -415,17 +478,20 @@ bahelite_on_error() {
 	#  and because of that, the call to err() did only make the subshell
 	#  exit(), and not the main script, the must not treat it as an unhandled
 	#  error.
-
 	declare -g __bahelite_onerr_entrance_counter
-	let ++__bahelite_onerr_entrance_counter
+	let '++__bahelite_onerr_entrance_counter,  1'
 	local in_subshell
-	(( BASH_SUBSHELL > 0 )) \
-		&& in_subshell="while in ${__bri}subshell${__s}"  \
-		|| in_subshell="while in the ${__bri}main shell${__s}"
-	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
-		&& info "Entering bahelite_${__bri}on_error${__s} $in_subshell for the ${__bri}$__bahelite_onerr_entrance_counter time${__s}."
+	if (( BASH_SUBSHELL > 0 )); then
+		in_subshell="while in ${__bri}subshell${__s}"
+		#  Because in a subshell stdout is grabbed into some variable.
+		info_redir='>&2'
+	else
+		in_subshell="while in the ${__bri}main shell${__s}"
+	fi
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+		&& info "Entering bahelite_${__bri}on_error${__s} $in_subshell for the ${__bri}$(nth $__bahelite_onerr_entrance_counter) time${__s}." ${info_redir:-}
 
-# builtin set -x
+ # builtin set -x
 	if	(( failed_command_code >= 5 )) \
 		&& [ -r "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL" ]
 	then
@@ -435,11 +501,13 @@ bahelite_on_error() {
 	bahelite_print_call_stack "${from_on_exit:-}" "${real_line_number:-}"
 
 	echo -en "Command: " >&2
-	(	echo -en  "${__bri:-}$failed_command${__s:-} "
+	(
+		echo -en  "${__bri:-}$failed_command${__s:-} "
 		echo -en  "${__r:-}${__bri:-}(exit code: $failed_command_code)${__s:-}."
-		)	| fold -w $((term_cols-9)) -s \
+	)		| fold -w $((term_cols-9)) -s  \
 			| sed -r '1 !s/^/         /g' >&2
 	echo >&2
+
 	#  SIGERR is triggered, when the last executed command has $? ≠ 0.
 	#  However, bash will also issue SIGEXIT afterwards (as it always does
 	#  except for after SIGQUIT, as that belongs to the group of “core dump”
@@ -451,16 +519,24 @@ bahelite_on_error() {
 	#  BAHELITE_ERROR_PROCESSED to indicate, that there is no need to call
 	#  this function twice.
 	BAHELITE_ERROR_PROCESSED=t
-# builtin set -x
+
+	#  If in a subshell, do not go to print the path to a logfile –
+	#  the call to this function from the main shell will do it.
+	(( BASH_SUBSHELL > 0 )) && return 0
+
 	if [ -v BAHELITE_LOGGING_STARTED ]; then
 		which xclip &>/dev/null && {
-			echo -n "$LOGPATH" | xclip
+			[ -v DISPLAY ]  \
+				&& { echo -n "$LOGPATH" | xclip  >&- ; }
+				#  Bloody xclip hangs without it ^^^
+				#  You can remove it and see for yourself (add “-verbose”).
 			log_path_copied_to_clipboard='\n\n(Path to the log file is copied to clipboard.)'
 		}
 		[ "$(type -t bahelite_notify_send)" = 'function' ]  \
 			&& bahelite_notify_send "Bash error. See the log.${log_path_copied_to_clipboard:-}"   \
 			                         error
 		print_logpath >&2
+
 	else
 		[ "$(type -t bahelite_notify_send)" = 'function' ]  \
 			&& bahelite_notify_send "Bash error. See console." error
@@ -470,6 +546,7 @@ bahelite_on_error() {
 			      If prepare_cachedir() is used too, it should be called before start_logging()."
 		}
 	fi
+
 	return 0
 }
 #  No export: must not be used in subshell context (for the same reason as

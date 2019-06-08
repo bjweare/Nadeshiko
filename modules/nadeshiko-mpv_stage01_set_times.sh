@@ -94,7 +94,7 @@ populate_data_file() {
 		[ "$tr_is_selected" = true ] && {
 			#  ffmpeg_subs_tr_id  and  ffmpeg_audio_tr_id  are to become
 			#  “subs” and “audio” parameters for Nadeshiko, thus, they must be
-			#  set only subtitles are enabled and audio is on.
+			#  set only when subtitles are enabled and audio is on.
 			if [ "$tr_type" = sub  -a  -v sub_visibility_true ]; then
 				case "$tr_is_external" in
 					true)
@@ -108,20 +108,24 @@ populate_data_file() {
 						write_var_to_datafile ffmpeg_ext_subs "$ffmpeg_ext_subs"
 						;;
 					false)
-						# man mpv says:
-						# “Note that ff-index can be potentially wrong if a
-						#    demuxer other than libavformat (--demuxer=lavf)
-						#    is used. For mkv files, the index will usually
-						#    match even if the default (builtin) demuxer is
-						#    used, but there is no hard guarantee.”
-						# Note the difference between tr_id and ff_index:
-						#   - ‘ff_index’ is the number of a *stream* by order,
-						#     this includes all video, audio, subtitle streams
-						#     and also fonts. ffmpeg -map would use syntax
-						#     0:<stream_id> to refer to the stream.
-						#   - ‘tr_id’ is the number of this stream among
-						#     the other streams of *this same type*.
-						#     ffmpeg -map uses syntax 0:s:<subtitle_stream_id>
+						#  man mpv says:
+						#  “Note that ff-index can be potentially wrong if a
+						#     demuxer other than libavformat (--demuxer=lavf)
+						#     is used. For mkv files, the index will usually
+						#     match even if the default (builtin) demuxer is
+						#     used, but there is no hard guarantee.”
+						#  (There’s nothing to worry about, if you build mpv
+						#   on ffmpeg.)
+						#
+						 # Note the difference between the mpv options in
+						#   $tr_id and $ff_index:
+						#   - ‘ff_index’ is the number of a stream by order.
+						#     This includes all video, audio, subtitle streams,
+						#     also fonts. ffmpeg -map would use syntax like
+						#     0:<stream_id> to refer to the stream. (sic!)
+						#   - ‘tr_id’ is the number of this stream among the
+						#     other streams of *this same type*. ffmpeg -map
+						#     uses syntax like  0:s:<subtitle_stream_id> (sic!)
 						#     for these – that’s exactly what we need.
 						#     It’s necessary to decrement it by one, as mpv
 						#     counts them from 1 and ffmpeg – from 0.
@@ -134,7 +138,14 @@ populate_data_file() {
 			elif [ "$tr_type" = audio   -a  ! -v mute_true ]; then
 				case "$tr_is_external" in
 					true)
-						err 'Cannot add external audio track: not supported yet.'
+						if [ -f "$external_filename" ]; then
+							ffmpeg_ext_audio="$external_filename"
+						elif [ -f "$working_directory/$external_filename" ]; then
+							ffmpeg_ext_audio="$working_directory/$external_filename"
+						else
+							ffmpeg_ext_audio="$FUNCNAME: mpv’s “$external_filename” is not a valid path."
+						fi
+						write_var_to_datafile ffmpeg_ext_audio "$ffmpeg_ext_audio"
 						;;
 					false)
 						#  See the note at the similar place above.

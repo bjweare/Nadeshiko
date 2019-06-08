@@ -1,0 +1,24 @@
+
+
+
+            Nadeshiko default configuration files directory
+
+
+— What files are here?
+— The files, that hold the default parameters with which Nadeshiko scripts work.
+
+— Can I place my overrides here?
+— ~/.config/nadeshiko/ would be a better place to hold custom configs.
+
+— Does Nadeshiko always read the files from defconfig? Even if I have my
+custom configs?
+— Yes.
+
+— Can I just cherrypick the lines from these configs into mine (single) config?
+— Yes.
+
+— Are there any rules for naming my config file?
+— The format is <SCRIPTNAME>[EXTRA].rc.sh, where <SCRIPTNAME> is the obliga-
+tory name of the main script, e.g. “nadeshiko” or “nadeshiko-mpv”, and [EXTRA]
+can be any combination of symbols, that are alphanumeric or belong to this set:
+.,:;-. Thoroughly described on the wiki: https://git.io/fhNWa

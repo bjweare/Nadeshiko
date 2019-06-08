@@ -61,35 +61,42 @@ pause_and_leave_fullscreen() {
 
 play_preview() {
 	[ -v show_preview ] || return 0
-	local  temp_sock="$(mktemp -u)"  sub_file  sid  aid  vfcrop
+	local  temp_sock="$(mktemp -u)"  sub_file  sid  audio_file  aid  vfcrop
 	check_needed_vars  'sub-file'
 	pause_and_leave_fullscreen
 	#  --ff-sid and --ff-aid, that take track numbers in FFmpeg order,
 	#  i.e. starting from zero within their type, do not work with
 	#  certain files.
 	[ "$sub_visibility" = yes ] && {
-		[ -v ffmpeg_ext_subs ] \
+		[ -v ffmpeg_ext_subs ]  \
 			&& sub_file=(--sub-file "$ffmpeg_ext_subs")  # sic!
-		[ -v ffmpeg_subs_tr_id ] && sid="--sid=$(( ffmpeg_subs_tr_id +1 ))"
+		[ -v ffmpeg_subs_tr_id ]  \
+			&& sid="--sid=$(( ffmpeg_subs_tr_id +1 ))"
 	}
-	[ -v mute ] || aid="--aid=$(( ffmpeg_audio_tr_id +1 ))"
+	[ -v mute ] || {
+		[ -v ffmpeg_ext_audio ]  \
+			&& audio_file=(--audio-file "$ffmpeg_ext_audio")  # sic!
+		[ -v ffmpeg_audio_tr_id ]  \
+			&& aid="--aid=$(( ffmpeg_audio_tr_id +1 ))"
+	}
 	[ -v crop ] && vfcrop="--vf=crop=$crop"
 
 	info 'Playing preview of the clip to be cut.'
-	$mpv --x11-name mpv-nadeshiko-preview \
-	     --title "Preview – $MY_DISPLAY_NAME" \
-	     --input-ipc-server="$temp_sock" \
-	     --pause=no \
-	     --start="${time1[ts]}" \
-	     --ab-loop-a="${time1[ts]}" --ab-loop-b="${time2[ts]}" \
-	     --mute=$mute \
-	     --volume=$volume \
-	     --sub-visibility=$sub_visibility \
-	         "${sub_file[@]}" \
-	         ${sid:-} \
-	     ${aid:-} \
-	     ${vfcrop:-} \
-	     --osd-msg1="Preview" \
+	$mpv --x11-name mpv-nadeshiko-preview  \
+	     --title "Preview – $MY_DISPLAY_NAME"  \
+	     --input-ipc-server="$temp_sock"  \
+	     --pause=no  \
+	     --start="${time1[ts]}"  \
+	     --ab-loop-a="${time1[ts]}" --ab-loop-b="${time2[ts]}"  \
+	     --mute=$mute  \
+		     ${aid:-}  \
+		     ${audio_file:-}  \
+		     --volume=$volume  \
+	     --sub-visibility=$sub_visibility  \
+	         "${sub_file[@]}"  \
+	         ${sid:-}  \
+	     ${vfcrop:-}  \
+	     --osd-msg1="Preview"  \
 	     "$path"
 	rm "$temp_sock"
 	return 0

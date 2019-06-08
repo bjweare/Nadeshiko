@@ -15,7 +15,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_SET_OVERRIDES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_SET_OVERRIDES_VER='1.1.3'
+declare -grx BAHELITE_MODULE_SET_OVERRIDES_VER='1.1.4'
 
 
 
@@ -270,7 +270,27 @@ noglob_on()  { set -f; }
 set() {
 	#  Hiding the output of the function itself.
 	builtin set +x
-	local command=()
+	local command=()  param  retval
+
+	for param in "$@"; do
+		[ "$param" = '--' ] && {
+			redmsg "${__bri}Please put “builtin” before “set” to avoid using this override.
+
+			        Bahelite overrides the set builtin to ease the debugging,
+			          because it involves xtrace, functrace and errexit.
+			        However, it is technically impossible to make the use of over-
+			          ridden “set” fully transparent. Technically, because “set” is
+			          often used with “--” to assign positional arguments, and when
+			          this override calls “builtin set -- something”… yes, it sets
+			          arguments to the override function itself. So just avoid using
+			          this helper function and call “set” directly, for example
+
+			              builtin set -- your arguments here
+			          ${__s}"
+			err "${__bri}Use “builtin set” when setting arguments with double dash.${__s}"
+		}
+	done
+
 	case "$1" in
 		#  `set ±x` calls are overridden, because of a trap on DEBUG, that
 		#  dramatically – but in 99.99% cases unnecessarily – increases ver-
@@ -301,11 +321,9 @@ set() {
 			;;
 		'+T')
 			bahelite_functrace_off
-			command=(builtin set +T)
 			;;
 		'-T')
 			bahelite_functrace_on
-			command=(builtin set -T)
 			;;
 		'-e')
 			[ "$(type -t bahelite_toggle_onerror_trap)" = 'function' ]  \
@@ -327,11 +345,13 @@ set() {
 			command=(builtin set "$@")
 			;;
 	esac
+
 	#  May be empty, not an error.
 	"${command[@]}"
-	#  No “return”, to minimise the output from this hook. (If people called
-	#  “set -x”, they probably expect to see a trace of their code and not
-	#  the trace from this function and how it returns.
+
+	#  No return to be maximally transparent: a “return 0” showing up will be
+	#  unexpected for those who enabled xtrace and expect that the first line
+	#  will be a line of their code.
 }
 export -f  set  \
                errexit_off    \
@@ -371,6 +391,7 @@ env() {
 		#  variable, that actually collects variables at the time of startup.
 		#
 	bahelite_functrace_off
+
 	command env $(sed -r 's/\S+/-u &/g' <<<"${new_vars[*]}")  \
 	            TERM_COLS=${TERM_COLS:-80}  \
 	            TERM_LINES=${TERM_LINES:-25}  \
@@ -379,6 +400,7 @@ env() {
 	            STDERR_ORIG_FD_PATH="$STDERR_ORIG_FD_PATH"  \
 	            MSG_INDENTATION_LEVEL="$MSG_INDENTATION_LEVEL"  \
 	            "$@"
+
 	retval=$?
 	bahelite_functrace_on
 	return $retval

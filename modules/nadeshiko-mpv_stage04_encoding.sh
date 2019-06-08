@@ -13,15 +13,19 @@ encode() {
 	local  audio  subs  nadeshiko_retval  command  postponed_job_file  str  \
 	       first_line_in_postponed_command=t
 
-	[ -v ffmpeg_audio_tr_id ]  \
-		&& audio=audio:$ffmpeg_audio_tr_id  \
-		|| audio=noaudio
+	if [ -v ffmpeg_ext_audio ]; then
+		audio="audio=$ffmpeg_ext_audio"
+	elif [ -v ffmpeg_audio_tr_id ]; then
+		audio="audio:$ffmpeg_audio_tr_id"
+	else
+		audio=noaudio
+	fi
 
 	 # Never rely on “sub_visibility” property, as it is on by default:
 	#  even when there’s no subtitles at all.
-	if [ -v ffmpeg_ext_subs ];  then
+	if [ -v ffmpeg_ext_subs ]; then
 		subs="subs=$ffmpeg_ext_subs"
-	elif [ -v ffmpeg_subs_tr_id ];  then
+	elif [ -v ffmpeg_subs_tr_id ]; then
 		subs="subs:$ffmpeg_subs_tr_id"
 	else
 		subs='nosubs'
@@ -34,6 +38,13 @@ encode() {
 	fi
 
 
+	#  The existence of the default preset is not obligatory.
+	if     [ "${nadeshiko_preset:-}" = 'nadeshiko.rc.sh' ]  \
+	    && [ ! -r "$CONFDIR/nadeshiko.rc.sh" ]
+    then
+	    unset nadeshiko_preset
+	fi
+
 	 # “postpone” passed to nadeshiko-mpv.sh forks the process in a paused
 	#    state in the background. When nadeshiko.sh (not …-mpv.sh!) is called
 	#    with a single parameter “unpause”, it unfreezes the processes
@@ -41,15 +52,17 @@ encode() {
 	#  This allows to free the watching from humming/heating and probably,
 	#    even glitchy playback, if you attempt to continue watching after
 	#    firing up the encode, especially, if it’s the 2nd, the 3rd or the 15th.
+	#  $max_size is allowed to be empty for quick_run mode (max_size then
+	#    just sourced from the quick_run_preset or from the defconf settings).
 	#
 	nadeshiko_command=(
 		"$MYDIR/nadeshiko.sh"  "${time1[ts]}" "${time2[ts]}" "$path"
-		                       "$audio" "$subs" "$max_size"
+		                       "$audio" "$subs" ${max_size:-}
 		                       ${crop:+crop=$crop}
 		                       "${screenshot_directory:-$working_directory}"
 		                       ${fname_pfx:+"fname_pfx=$fname_pfx"}
 		                       ${scene_complexity:+force_scene_complexity=$scene_complexity}
-		                       "$nadeshiko_preset"
+		                       "${nadeshiko_preset[@]}"
 	)
 	if [ -v postpone ]; then
 		[ -d "$postponed_commands_dir" ] || mkdir "$postponed_commands_dir"
@@ -89,11 +102,12 @@ encode() {
 		errexit_off
 
 		env  \
-			VERBOSITY_LEVEL=330  \
+			VERBOSITY_LEVEL=050  \
 			"${nadeshiko_command[@]}"
-		nadeshiko_retval=$?
 
+		nadeshiko_retval=$?
 		errexit_on
+
 		footermsg 'End of Nadeshiko log'
 		rm "$data_file"
 		if [ -e "/proc/${mpv_pid:-not exists}" ]; then

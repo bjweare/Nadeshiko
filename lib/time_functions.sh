@@ -166,12 +166,12 @@ mediainfo_hms_to_total_s() {
 	m=${BASH_REMATCH[6]:-0}
 	s=${BASH_REMATCH[8]:-0}
 	ms=${BASH_REMATCH[10]:-0}
-	[ $ms -ne 0 ] && let s++
+	(( ms != 0 ))  && let '++s,  1'
 	total_s=$((    d * 60 * 60 * 24
 	             + h * 60 * 60
 	             + m * 60
 	             + s                 ))
-	[ $total_s -eq 0 ] && err 'Duration is zero.'
+	(( total_s == 0 ))  && err 'Duration is zero.'
 	echo "$total_s"
 	return 0
 }

@@ -29,12 +29,12 @@ choose_crop_settings() {
 			&& pick='on'  \
 			|| pick='off'
 
-		show_dialogue_crop_and_predictor pick="$pick"                    \
+		show_dialogue_crop_and_predictor pick="$pick"  \
 		                                 has_installer="$has_installer"  \
-		                                 predictor="$predictor"          \
-		                                 ${crop_width:-}                 \
-		                                 ${crop_height:-}                \
-		                                 ${crop_x:-}                     \
+		                                 predictor="$predictor"  \
+		                                 ${crop_width:-}  \
+		                                 ${crop_height:-}  \
+		                                 ${crop_x:-}  \
 		                                 ${crop_y:-}
 
 		IFS=$'\n' read -r -d ''  resp_crop       \

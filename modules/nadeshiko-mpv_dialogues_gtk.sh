@@ -7,6 +7,9 @@
 #  For licence see nadeshiko.sh
 
 
+
+ # See also developer notes in the beginning of the glade file.
+#
 glade_file="$MODULESDIR/nadeshiko-mpv_dialogues_gtk.glade"
 py_file="$MODULESDIR/nadeshiko-mpv_dialogues_gtk.py"
 
@@ -223,7 +226,8 @@ prepare_dotglade_and_dotpy_for_cropping() {
 #               $container, $ffmpeg_pix_fmt, $subs, $audio. May also have
 #               $container_own_size_pct, $minimal_bitrate_pct
 #            4. Source video info. Is used to pass “static” or “dynamic”.
-#            (next items come in groups of five)
+#
+#          Next items come in groups of five:
 #            5. maximum size to return to stdout, if this element is chosen,
 #               e.g. “tiny”, “small”, “normal”, “unlimited”.
 #            6. string to display in the radiobox label
@@ -234,6 +238,7 @@ prepare_dotglade_and_dotpy_for_cropping() {
 #            9. a string to be displayed along with the sign above:
 #               for “=” and “v” it’s a profile resolution (1080p, 720p…)
 #               and for “x” it’s “Won’t fit”.
+#
 #          Each preset has four sizes, so items 5–9 are repeated four times.
 #
 prepare_dotglade_and_dotpy_for_presets(){
@@ -621,7 +626,7 @@ prepare_dotglade_and_dotpy_for_presets(){
 check_pyfile_exit_code() {
 	declare -g data_file
 	local pyfile_retval="$1"
-	if [ $pyfile_retval -eq 0 ]; then
+	if (( pyfile_retval == 0 )); then
 		return 0
 	else
 		#  Remove $data_file for functions, that passed

@@ -1,4 +1,13 @@
-# nadeshiko-mpv.rc.sh v2.3
+#  nadeshiko-mpv.rc.sh
+#
+#  RC file uses bash syntax:
+#    key=value
+#  Quotes can be omitted, if the value is a string without spaces.
+#  The equals sign should stick to both key and value – no spaces around “=”.
+#
+#  Nadeshiko wiki may answer a question before you ask it!
+#  https://github.com/deterenkelt/Nadeshiko/wiki
+
 
 
  # The command to launch mpv.
@@ -21,6 +30,16 @@ mpv_sockets=(
 )
 
 
+ # Postponed encoding
+#  “yes”: When encoding is accepted, saves the command as a job file
+#           to be run later with Nadeshiko-do-postponed.
+#         Force-enables the “Encode later” checkbox in the GUI.
+#  “no”: When encoding is accepted, launches it immediately.
+#  Default value: no
+#
+postpone=no
+
+
  # Set to “no” to skip previewing the clip before encoding it.
 #  This plays the source file, as it will be clipped.
 #
@@ -39,21 +58,26 @@ show_encoded_file=yes
 #    Read about file naming rules on the wiki: https://git.io/fx3Qr.
 #    The order of presets in the GUI will correspond to the order here,
 #    and the topmost preset here will be the default tab opened in the GUI.
+#  May be empty, in this case an item named “default” is created and assigned
+#    “nadeshiko.rc.sh” as the value.
 #  Format: [name for display]='nadeshiko-custom.rc.sh'
 #
 nadeshiko_presets=(
-	[default]='nadeshiko.rc.sh'
+	# [default]='nadeshiko.rc.sh'
 	# [H.264]='nadeshiko-H.264.rc.sh'
 	# [VP9]='nadeshiko-VP9.rc.sh'
 )
 
 
  # Which preset tab the GUI should open by default
-#  The value must be a preset name, as defined in square brackets above.
-#  In case when there is only one preset in use, there will be no tabs,
-#  and hence this option would have no effect.
+#  If there are more than one nadeshiko preset defined, this opion defines
+#    which preset will be opened by default, when GUI spawns.
+#  The value must be a preset name, as defined in square brackets in the
+#    nadeshiko_presets array above. In case when there is only one preset
+#    in use, there will be no tabs, and hence this option will have no effect.
+#  Default value: 'default'
 #
-gui_default_preset='default'
+#gui_default_preset='default'
 
 
  # Calculate and show, how the video clip would fit in each of the known file
@@ -102,3 +126,22 @@ run_predictor_only_for_sizes=(
 	# small
 	# normal
 )
+
+
+ # Tells Nadeshiko-mpv to be quicker
+#  After asking for crop settings immediately stores a postponed job
+#  with the Nadeshiko preset specified in quick_run_preset. It also:
+#  - disables building GUI;
+#  - disables predictor;
+#  - enables “postpone”.
+#  Default value: off
+#
+quick_run=off
+
+
+ # Nadeshiko preset to use, when quick_run option is enabled.
+#  Must be either a preset file name in the config directory, or an empty
+#    string to let Nadeshiko use the default settings.
+#  Quick run ignores entries from nadeshiko_presets.
+#
+quick_run_preset=''

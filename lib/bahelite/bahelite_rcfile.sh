@@ -15,8 +15,9 @@
 [ -v BAHELITE_MODULE_RCFILE_VER ] && return 0
 bahelite_load_module 'versioning' || return $?
 bahelite_load_module 'directories' || return $?
+bahelite_load_module 'misc' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_RCFILE_VER='1.4.10'
+declare -grx BAHELITE_MODULE_RCFILE_VER='2.0'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -29,13 +30,70 @@ BAHELITE_ERROR_MESSAGES+=(
 
 
 
+ # Define the format for the default RC file name
+#
+#                          Simple (default)    With script name
+#
+#  default RC file name    rc.sh               $MYNAME_NOEXT.rc.sh
+#  custom RC file name     <anything>.rc.sh    $MYNAME_NOEXT<anything>.rc.sh
+#
+#  Using format with script name makes sense, if more than one main script
+#    uses CONFDIR, DEFCONFDIR, METACONFDIR.
+#  Custom RC file names are NEVER picked instead of the default, but they
+#    are accepted, when specified via command line.
+#  Essentially, defining this variable permits to bundle several main scripts,
+#    that use the same configuration directories.
+#
+# declare -g RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
- # Expand this array with variable names in your script to check
-#  their value (yes/no, 0/1, enabled/disabled…), give an error,
-#  if there’s no such variable and unset the variables having negative
-#  value (so that they could be later checked with [ -v varname ]).
+
+ # Expand this array with config variable names to check their value: yes/no,
+#    on/off, true/false, 1/0, enabled/disabled etc. and if it wouldn’t be
+#    recognised as “positive”, then unset it, essentially turning the very
+#    existence of a variable into a boolean flag.
+#  Gives an error, if a variable from this list is not set, or its contents
+#    cannot be recognised as either positive or negative (when declared,
+#    but not set; when decalred and set, but the value is empty or gibbersih).
 #
 declare -gax RCFILE_BOOLEAN_VARS=()
+
+
+ # Expand this array to strip a substring at the end of the value in the
+#    config file. (Assuming, that the units are placed there for convenience.)
+#  Format:  [variable_name]='string_to_strip'
+#  Example: RCFILE_STRIPUNIT+=(  [myvar]='%'  )
+#
+#               Definition                        After processing
+#           myvar='5'                         myvar='5'
+#           myvar='5%'                        myvar='5'
+#           myvar='5 %'                       myvar='5'
+#           myvar=( 5 7% )                    myvar=( 5 7 )
+#
+declare -gAx RCFILE_STRIPUNIT_VARS=()
+
+
+ # Returns true (0), if the passed string is a valid rcfile name, false (1)
+#  otherwise
+#  $1  – file name or a path to file (directories will be stripped)
+# [$2] – substitute for $MYNAME, if the script name is required in the
+#        RC file name, and the file being checked is for another main script.
+#        (If the main script, that is currently running, does the check
+#        not for its own RC file, but for some other main script’s RC file.)
+#
+is_a_valid_rcfile_name() {
+	local fname="${1##*/}" script_name=${2:-$MYNAME_NOEXT}
+	if [ -v RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME ]; then
+		#  Here placing $script_name in the pattern would be dangerous
+		[ "${fname#$script_name}" = "$fname" ] && return 1
+		[[ "${fname#$script_name}" =~ ^[A-Za-z0-9_\.\,\:\;\-]*\.rc\.sh$ ]] \
+			&& return 0  \
+			|| return 1
+	else
+		[[ "$fname" =~ ^rc\.sh$  || "$fname" =~ \.rc\.sh$ ]] \
+			&& return 0  \
+			|| return 1
+	fi
+}
 
 
  # Pass the main script’s positional parameters to this function
@@ -78,17 +136,18 @@ set_rcfile_from_args() {
 	declare -gx  RCFILE  NEW_ARGS
 	[ $# -eq 0 ] &&	{ NEW_ARGS=(); return 0; }
 
-	local  temp_args=( "$@" )  i  args_to_unset=()  \
-	       arg  next_arg  \
-	       number_of_deleted_args=0  fname_pattern='[A-Za-z0-9_\.\,\:\;\-]+\.rc\.sh'
+	[ -v CONFDIR ] || err 'CONFDIR must be set!'
+
+	local  temp_args=( "$@" )  i  args_to_unset=()  arg  next_arg  \
+	       number_of_deleted_args=0  rc_fname  arg_for_display
 
 	for ((i=0; i<${#temp_args[*]}; i++)); do
-		unset -n  arg  next_arg  ||:
+		unset -n  arg  next_arg || true  # Sic!
 		declare -n arg="temp_args[$i]"
 		(( i < (${#temp_args[*]}-1) )) \
 			&& declare -n next_arg="temp_args[$i+1]"
 
-		[[ "$arg" =~ ^$fname_pattern$ ]] && {
+		is_a_valid_rcfile_name "$arg" && {
 			[ -r "$CONFDIR/$arg" ] && {
 				RCFILE="$CONFDIR/$arg"
 				args_to_unset+=(  $(( i - number_of_deleted_args++ ))  )
@@ -96,14 +155,15 @@ set_rcfile_from_args() {
 			} || ierr 'rc: no such rc file' "$arg"
 		}
 
+
 		[[ "$arg" =~ ^--rc(-|)file$ ]] && {
 			if  (( i < (${#temp_args[*]}-1) ));  then
-				if  [[ "$next_arg" =~ ^$fname_pattern$ ]];  then
+				if  is_a_valid_rcfile_name "$next_arg";  then
 					if  [ -r "$CONFDIR/$next_arg" ];  then
 						RCFILE="$CONFDIR/$next_arg"
 						args_to_unset+=(  $((   i - number_of_deleted_args   ))
 						                  $(( i+1 - number_of_deleted_args++ ))  )
-						let ++i
+						let '++i,  1'
 						continue
 					else
 						ierr 'rc: no such rc file' "$next_arg"
@@ -116,174 +176,294 @@ set_rcfile_from_args() {
 			fi
 		}
 
-		[[ "$arg" =~ ^--rc(-|)file= ]] && {
 
-			if  [[ "$arg" =~ ^--rc(-|)file=($fname_pattern)$ ]];  then
-				[ -r "$CONFDIR/${BASH_REMATCH[2]}" ] && {
-					RCFILE="$CONFDIR/${BASH_REMATCH[2]}"
+		if	   [[ "$arg" =~ ^--rc(-|)file=(.+)$ ]]  \
+			|| [[ "$arg" =~ ^--rc(-|)file=\'(.+)\'$ ]]  \
+			|| [[ "$arg" =~ ^--rc(-|)file=\"(.+)\"$ ]]
+		then
+			rc_fname="${BASH_REMATCH[2]}"
+			if  is_a_valid_rcfile_name "$rc_fname";  then
+				[ -r "$CONFDIR/$rc_fname" ] && {
+					RCFILE="$CONFDIR/$rc_fname"
 					args_to_unset+=(  $(( i - number_of_deleted_args++ ))  )
 					continue
-				} ||  ierr 'rc: no such rc file' "${BASH_REMATCH[2]}"
-
-			elif  [[ "$arg" =~ ^--rc(-|)file=\"($fname_pattern)\"$ ]];  then
-				[ -r "$CONFDIR/${BASH_REMATCH[2]}" ] && {
-					RCFILE="$CONFDIR/${BASH_REMATCH[2]}"
-					args_to_unset+=(  $(( i - number_of_deleted_args++ ))  )
-					continue
-				} ||  ierr 'rc: no such rc file' "${BASH_REMATCH[2]}"
-
-			elif  [[ "$arg" =~ ^--rc(-|)file=\'($fname_pattern)\'$ ]];  then
-				[ -r "$CONFDIR/${BASH_REMATCH[2]}" ] && {
-					RCFILE="$CONFDIR/${BASH_REMATCH[2]}"
-					args_to_unset+=(  $(( i - number_of_deleted_args++ ))  )
-					continue
-				} ||  ierr 'rc: no such rc file' "${BASH_REMATCH[2]}"
-
+				} ||  ierr 'rc: no such rc file' "$rc_fname"
 			else
-				local arg_to_display
-				arg_to_display=${arg#--rc-file}
-				arg_to_display=${arg_to_display#--rcfile}
-				ierr 'rc: wrong filename for --rc-file' "$arg_to_display"
+				arg_for_display
+				arg_for_display=${arg#--rc-file}
+				arg_for_display=${arg_for_display#--rcfile}
+				ierr 'rc: wrong filename for --rc-file' "$arg_for_display"
 			fi
+		fi
 
-		}
 	done
+
+
 	for i in ${args_to_unset[*]}; do
 		unset temp_args[$i]
 	done
+
 	NEW_ARGS=( "${temp_args[@]}" )
 	[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-		info "${FUNCNAME[0]}: setting NEW_ARGS."
+		info "rc: $FUNCNAME: setting NEW_ARGS."
 		milinc
 		for ((i=0; i<${#NEW_ARGS[@]}; i++)) do
 			echo "${__mi}NEW_ARGS[$i] = ${NEW_ARGS[i]}"
 		done
 		mildec
 	}
+
 	return 0
 }
 #  No export: init stage function.
 
 
- # Copies example RC file from the installation files into user’s CONFDIR.
-#  Updates an old example RC file, if the file in the installation is newer.
-#  If there is no RC file in CONFDIR, puts a copy of example RC in its place.
-#  [$1] – name of the example rc file (only the unique part). If not set,
-#         equals to "${MYNAME%.*}".
-#            It makes sense to pass this parameter, if you have a bundle of
-#         scripts each with its own config, and you have one “mother” script,
-#         that calls another. If the mother script reads other script’s RC file
-#        (or just verifies, that it does exist), this will trigger an error –
-#         at least until somebody would figure out to launch that inner script
-#         by itself. Thus, if you’re going to operate with another script RC
-#         file, you should prepare its RC files beforehand with this function
-#         and pass the name of that script as an argument.
-#  If the argument is not set or is equal to “${MYFILE%.*}”,
-#  then RCFILE and EXAMPLE_RCFILE are set.
+ # Copies a default configuration file as example into CONFDIR.
+#  If the configuration file in DEFCONFDIR will not be newer than an existing
+#  example file, the example file won’t be replaced.
+#  [$1] – name of a file in DEFCONFDIR. If omitted, then the first file
+#         in alphabetic order, that would have a valid name, will be placed.
+#  [$2] – script name. If not set, MYNAME_NOEXT is used.
+#         Requires $1 to be set (pass an empty string in place of $1
+#         to allow automatic search).
 #
-place_rc_and_examplerc() {
+place_examplerc() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	declare -gx  RCFILE  EXAMPLE_RCFILE
-	local config_name="${MYNAME%.*}"
-	[ "${1:-}" ] && config_name="$1"
-	local rc_path="$CONFDIR/$config_name.rc.sh"
-	local installed_examplerc_path="$EXAMPLECONFDIR/example.$config_name.rc.sh"
-	local local_examplerc_path="$CONFDIR/example.$config_name.rc.sh"
+	local defconf="${1:-}"  script_name="${2:-$MYNAME_NOEXT}"
+	local exampleconf="$CONFDIR/example.$script_name.rc.sh"
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ] && local verbosecp='--verbose'
 
-	if [ -v EXAMPLECONFDIR ]; then
-		#  Copy or update config example.
-		if [ -r "$installed_examplerc_path" ]; then
-			[ "$installed_examplerc_path" -nt "$local_examplerc_path" ] \
-				&&  cp "$installed_examplerc_path" "$local_examplerc_path"
-		else
-			redmsg "Example RC file doesn’t exist in the installation
-			        $installed_examplerc_path
-			        Check that “set_exampleconfdir” is called prior to calling
-			        “prepare_confdir”, and the latter – before this function."
-			err "Example RC file doesn’t exist."
-		fi
-		[ ! -r "$rc_path" ] && {
-			info "RC file ($rc_path) doesn’t exist, copying example RC file:
-			      $local_examplerc_path"
-			cp "$local_examplerc_path" "$rc_path" \
-				|| err "Couldn’t create RC file!"
-		}
-		#  Setting global values only when working with script’s own
-		#  RC and example RC files.
-		[ "$config_name" = "${MYNAME%.*}" ] && {
-			RCFILE="$rc_path"
-			EXAMPLE_RCFILE="$local_examplerc_path"
-		}
+	[ -v DEFCONFDIR  -a  -v CONFDIR ]  \
+		|| err "DEFCONFDIR and CONFDIR must be set."
+
+	if [ -f "$DEFCONFDIR/$defconf"  -a  -r "$DEFCONFDIR/$defconf" ]; then
+		cp --update ${verbosecp:-} "$DEFCONFDIR/$defconf"  "$exampleconf"
+
 	else
-		err "EXAMPLECONFDIR is not set."
+		defconf=$(ls -1 "$DEFCONFDIR" | head -n1)
+		if [ -f "$DEFCONFDIR/$defconf"  -a  -r "$DEFCONFDIR/$defconf" ]; then
+			cp --update ${verbosecp:-} "$DEFCONFDIR/$defconf"  "$exampleconf"
+		else
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+				&& warn "rc: ${FUNCANME[0]}: There is no config in $DEFCONFDIR
+				         to place as $exampleconf"
+        fi
+
+    fi
+
+	return 0
+}
+#  No export: init stage function.
+
+
+ # Source meta and then default configuration from the installation directory
+#  Unlike with directory that hold *user’s* configuration files, here all
+#  appropriate by name files, are sourced. (Assuming that the default and meta
+#  configuration files are split for convenience and modularisation purposes.)
+#
+__read_metaconfdir() {  __read_metaconfdir_or_defconfdir  meta;  }
+__read_defconfdir()  {  __read_metaconfdir_or_defconfdir  def;   }
+__read_metaconfdir_or_defconfdir() {
+	#  Internal! No xtrace_off/on needed!
+	local dir="$1"
+	case "$dir" in
+		meta)
+			[ -v METACONFDIR ] || err 'METACONFDIR must be set!'
+			declare -n dir=METACONFDIR
+			;;
+
+		def)
+			[ -v DEFCONFDIR ] || err 'DEFCONFDIR must be set!'
+			declare -n dir=DEFCONFDIR
+			;;
+	esac
+
+	local conf_files=() conf_file  conf_file_path
+
+	 # “|| true” is needed to avoid ls quitting with an error, if there is
+	#  just no configuration files in either defconf or in metaconf.
+	#
+	if [ -v RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME ]; then
+		conf_files=(
+			$(set +f;  ls -1 "$dir/$RCFILE_SCRIPTNAME".*rc.sh  || true)
+		)
+	else
+		conf_files=( $(set +f; ls -1 "$dir/"*rc.sh  || true) )
+	fi
+
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+		&& info "rc: ${FUNCNAME[1]}: Found ${#conf_files[@]} config files."
+
+	for conf_file in "${conf_files[@]}"; do
+		conf_file_path="$conf_file"
+		is_a_valid_rcfile_name "$conf_file" "$RCFILE_SCRIPTNAME" || {
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+				&& warn "rc: $FUNCNAME: skipping rcfile because of inappropriate file name:
+				         $conf_file_path"
+			continue
+		}
+		if [ -f "$conf_file_path"  -a  -r "$conf_file_path" ]; then
+			. "$conf_file_path" \
+				|| err "Error on sourcing ${dir}conf file:
+				        $conf_file_path"
+		else
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+				&& warn "rc: $FUNCNAME: ${dir}conf path is not a readable file:
+				         $conf_file_path"
+		fi
+	done
+
+	return 0
+}
+#  No export: read_rcfile’s subroutine, which is an init stage function.
+
+
+__set_rcfile_from_confdir() {
+	#  Internal! No xtrace_off/on needed!
+	declare -gx RCFILE
+	local rc_path
+
+	#  If already set from the command line, then RCFILE already points
+	#  to a valid file, there’s no need to search.
+	if [ -v RCFILE ]; then
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+			&& info "rc: $FUNCNAME: RCFILE is set via command line:
+			         $RCFILE"
+		return 0
+	else
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+			&& info "rc: $FUNCNAME: command line didn’t set RCFILE.
+			         Now searching CONFDIR…"
+	fi
+
+	[ -v CONFDIR ] || err 'CONFDIR must be set!'
+
+	rc_path="$CONFDIR/$RCFILE_SCRIPTNAME.rc.sh"
+	[ -f "$rc_path"  -a  -r "$rc_path" ] && {
+		RCFILE="$rc_path"
+		return 0
+	}
+
+	#  Cannot search for the other file names, assuming, that there is no
+	#  custom $MYNAME_NOEXT.rc.sh  or that the rest are custom names configs
+	#  that should be specified via command line
+	[ -v RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME ] && return 0
+
+	#  If simple RC file name rc.sh is allowed
+	rc_path="$CONFDIR/rc.sh"
+	[ -f "$rc_path"  -a  -r "$rc_path" ] && {
+		RCFILE="$rc_path"
+		return 0
+	}
+
+	#  If there is not even simple rc.sh, assuming there’s no custom rc.sh.
+	return 0
+}
+#  No export: read_rcfile’s subroutine, which is an init stage function.
+
+
+ # Source user’s configuration file from CONFDIR.
+#  Unlike with metaconf and defconf, that source *every* appropriate by name
+#    file, here *only one* file with the *default name* is sourced.
+#  Sourcing a custom config file happens only when its filename was specified
+#    via the command line
+#
+__read_confdir() {
+	__set_rcfile_from_confdir
+	if [ -v RCFILE ]; then
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+			&& info "rc: $FUNCNAME: Sourcing RCFILE:
+			         $RCFILE"
+		. "$RCFILE" || err "Error while sourcing RCFILE
+		                    $RCFILE"
+	else
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+			&& info "rc: $FUNCNAME: No default RC file in $CONFDIR."
 	fi
 	return 0
 }
-#  No export: init stage function.
+
+
+__postprocess_rc_variables() {
+	local varname  varval  string_to_strip  subst_reg_array  key
+
+	#  1. Pseudo-boolean variables
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+		&& info "Processing pseudo-boolean variables."
+
+	for varname in "${RCFILE_BOOLEAN_VARS[@]}"; do
+		if [ -v "$varname" ]; then
+			is_true $varname --unset-if-not
+		else
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+				&& warn "rc: $FUNCNAME: Skipping variable $varname: it isn’t set."
+		fi
+	done
+
+	#  2. Variables from which the units must be stripped.
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+		&& info "Processing “strip unit” variables."
+	for varname in ${!RCFILE_STRIPUNIT_VARS[@]}; do
+		if [ -v "$varname" ]; then
+			declare -n varval="$varname"
+			string_to_strip="${RCFILE_STRIPUNIT_VARS[$varname]}"
+			case "$(vartype "$varname")" in
+				'string')
+					varval=${varval//*( )$string_to_strip}
+					;;
+				'regular array')
+					subst_reg_array=( "${varval[@]%*( )$string_to_strip}" )
+					varval=( "${subst_reg_array[@]}" )
+					;;
+				'assoc. array')
+					for key in ${!varval[@]}; do
+						varval[$key]=${varval[$key]%*( )$string_to_strip}
+					done
+					;;
+			esac
+		else
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+				&& warn "rc: $FUNCNAME: Skipping variable $varname: it isn’t set."
+		fi
+	done
+	return 0
+}
+#  No export: read_rcfile’s subroutine, which is an init stage function.
 
 
  # Reads an RC file and verifies, that it has a compatible version.
 #  If version is lower, than minimum compatible version, throws an error.
-#   $1 – the minimal compatible version for the RC file.
-#  [$2] – path to RC file.
-#  [$3] – example RC file, that should silently be copied and used,
-#         if there would be no RC file (it’s the first time program starts).
+#  [$1] – script name to be used, if RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME
+#         is set. If not set, equals to MYNAME_NOEXT.
 #
 read_rcfile() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	local  rcfile_min_ver="$1"  rcfile  example_rcfile  \
-	       rcfile_ver  varname  old_vars  new_vars  missing_variable_list=()
+	#  To be used in all underlying functions.
+	declare -g RCFILE_SCRIPTNAME
+	local  rcfile  varname  old_vars  new_vars  missing_variable_list=()
 
-	if [ "${2:-}" ]; then
-		rcfile="$2"
+	[[ "${1:-}" =~ ^[A-Za-z0-9_\.\,\;\:-]+$ ]]  \
+		&& RCFILE_SCRIPTNAME="$1"  \
+		|| RCFILE_SCRIPTNAME="$MYNAME_NOEXT"
+
+	if [ -v METACONFDIR ]; then
+		__read_metaconfdir
 	else
-		[ -v RCFILE ] || {
-			redmsg 'No RC file provided and RCFILE is not set.
-			        Did you forget to run prepare_confdir?'
-			err 'Cannot read config file: RCFILE is not set.'
-		}
-		rcfile="$RCFILE"
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+			&& info "rc: $FUNCNAME: METACONFDIR is not set – not reading meta RC files."
 	fi
 
-	if [ "${3:-}" ]; then
-		example_rcfile="$3"
+	if [ -v DEFCONFDIR ]; then
+		__read_defconfdir
 	else
-		[ -v EXAMPLE_RCFILE ] || {
-			redmsg "No example RC file provided and EXAMPLE_RCFILE is not set.
-			        Did you forget to run place_rc_and_examplerc?"
-			err 'Cannot read config file: EXAMPLE_RCFILE is not set.'
-		}
-		example_rcfile="$EXAMPLE_RCFILE"
-	fi
-	#  This allows to keep user RC files short.
-	#  Full settings are picked from the example RC, and user’s RC
-	#  just overrides them.
-	. "$example_rcfile"
-
-	if [ -r "$rcfile" ]; then
-		#  Verifying RC file version
-		rcfile_ver=$(
-			sed -rn "1 s/\s*#\s*(${rcfile##*/}|${MYNAME%.sh}.rc.sh)\s+v([0-9\.]+)\s*$/\2/p" \
-			        "$rcfile"
-		)
-		if	compare_versions "$rcfile_min_ver" '>' "$rcfile_ver"; then
-			warn "RC file format changed!
-			      Current RC version: $rcfile_ver
-			      Minimum compatible version: $rcfile_min_ver"
-			warn-ns 'Please COPY and EDIT the new config file!'
-			exit 5
-		fi
-		. "$rcfile"
-
-	else
-		err "Config file doesn’t exist:
-		     $rcfile"
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+			&& info "rc: $FUNCNAME: DEFCONFDIR is not set – not reading default RC files."
 	fi
 
-	#  Unsetting variables with a negative value
-	for varname in "${RCFILE_BOOLEAN_VARS[@]}"; do
-		is_true $varname --unset-if-not
-	done
+	__read_confdir
+
+	__postprocess_rc_variables
+
 	return 0
 }
 #  No export: init stage function.

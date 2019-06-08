@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_DIRECTORIES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_DIRECTORIES_VER='1.1.6'
+declare -grx BAHELITE_MODULE_DIRECTORIES_VER='1.1.7'
 
 
 
@@ -53,7 +53,7 @@ prepare_confdir() {
 			|| own_subdir="${MYNAME%.*}"
 		CONFDIR="$XDG_CONFIG_HOME/$own_subdir"
 	fi
-	bahelite_check_directory "$CONFDIR" 'Config'
+	__check_directory "$CONFDIR" 'Config'
 	return 0
 }
 #  No export: init stage function.
@@ -79,7 +79,7 @@ prepare_cachedir() {
 			|| own_subdir="${MYNAME%.*}"
 		CACHEDIR="$XDG_CACHE_HOME/$own_subdir"
 	fi
-	bahelite_check_directory "$CACHEDIR" 'Cache'
+	__check_directory "$CACHEDIR" 'Cache'
 	return 0
 }
 #  No export: init stage function.
@@ -105,7 +105,7 @@ prepare_datadir() {
 			|| own_subdir="${MYNAME%.*}"
 		DATADIR="$XDG_DATA_HOME/$own_subdir"
 	fi
-	bahelite_check_directory "$DATADIR" 'Data'
+	__check_directory "$DATADIR" 'Data'
 	return 0
 }
 #  No export: init stage function.
@@ -198,9 +198,13 @@ set_modulesdir() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	__set_source_dir MODULESDIR "$@"
 }
-set_exampleconfdir() {
+set_defconfdir() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	__set_source_dir EXAMPLECONFDIR "$@"
+	__set_source_dir DEFCONFDIR "$@"
+}
+set_metaconfdir() {
+	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
+	__set_source_dir METACONFDIR "$@"
 }
 set_resdir() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
@@ -266,7 +270,7 @@ __set_source_dir() {
 #  $2 – the purpose like “config” or “logging”. It is used only in the
 #       error message.
 #
-bahelite_check_directory() {
+__check_directory() {
 	#  Internal! No xtrace_off/on needed!
 	local dir="${1:-}" purpose="${2:-}"
 	[ -v purpose ] && purpose="${purpose,,}"
