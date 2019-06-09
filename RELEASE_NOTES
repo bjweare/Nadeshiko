@@ -1,3 +1,17 @@
+——— v 2.8.4 ——————————————————————————————————————————————————————————————————
+
+Removed libtinynotify from the dependencies: left only libnotify.
+Libtinynotify doesn’t support --hint option, which is needed to make messages
+transient. Without transient hint the messages will pile up to the point,
+where no messages can be displayed, until the message stack is cleared, i.e.
+viewed by the user – however, it is not obligatory to have means to view the
+message stack on a desktop, hence messages may just pile up until no messages
+can be shown, and the user will have no idea what happened. This is why --hint
+option is obligatory for notify-send.
+
+
+
+
 ——— v 2.8.3 ——————————————————————————————————————————————————————————————————
 
 Fixed a bug in Makefile: exampleconf still present, while defconf and meta-
