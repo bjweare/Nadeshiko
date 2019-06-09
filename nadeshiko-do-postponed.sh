@@ -31,7 +31,7 @@ set_defconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_examplerc 'nadeshiko-do-postponed.10_main.rc.sh'
 
-declare -r version="2.3.2"
+declare -r version="2.3.3"
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -105,7 +105,7 @@ post_read_rcfile() {
 #
 process_dir() {
 	declare -g  processed_jobs  failed_jobs  completed_jobs
-	local  msg
+	local  msg  no_alljobs_message_to_desktop
 	while IFS= read -r -d '' jobfile; do
 		if [[ "${jobfile##*/}" =~ \.(.{8})\.sh$ ]]; then
 			job_id="${BASH_REMATCH[1]}"
@@ -147,7 +147,15 @@ process_dir() {
 		let '++processed_jobs,  1'
 
 	done < <( find "$postponed_commands_dir"  -maxdepth 1  -type f  -print0 )
-	(( processed_jobs > 0 ))  &&  info-ns 'All jobs processed.'
+	(( processed_jobs > 0 )) && {
+		(( processed_jobs == 1  &&  nadeshiko_desktop_notifications == 3 ))  \
+			&& no_alljobs_message_to_desktop=t
+		if [ -v no_alljobs_message_to_desktop ]; then
+			info 'All jobs processed.'
+		else
+			info-ns 'All jobs processed.'
+		fi
+	}
 	info "Encoded: $completed_jobs
 	      Failed:  $failed_jobs
 	      Total:   $total_jobs"

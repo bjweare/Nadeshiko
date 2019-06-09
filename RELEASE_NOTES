@@ -1,3 +1,30 @@
+——— v 2.8.5 ——————————————————————————————————————————————————————————————————
+                                                           Nadeshiko-mpv 2.4.2
+                                                  Nadeshiko-do-postponed 2.3.3
+
+1. Nadeshiko-mpv now has “quickrun” as a command line parameter.
+   “quick_run” – as in the config file and “quick-run” are also accepted.
+   A command line switch is easier to use in mpv’s input.conf (or in some
+   wrapper) than keeping a custom configuration file.
+
+2. Fixed the bug leading to error “GUI default preset with name ‘default’
+   doesn’t exist”, that happened when gui_default_preset wasn’t defined.
+   Now it gets assigned “default”, when it’s empty.
+
+3. Nadeshiko-do-postponed now doesn’t show two messages, when only one clip
+   was encoded. (When $nadeshiko_desktop_notifications is set to “all”, a mes-
+   sage is sent for each video. These messages are sent by the backend.
+   Nadeshiko-do-postponed sends its own message “all jobs are complete”, and
+   that looked superfluous for just one clip, especially that the memory
+   about that there’s only one webm might still be fresh. but two messages
+   were returned. Saying “all” about one clip is also somewhat inappropriate.)
+
+4. Fixed confusing wording in the description to Input colourspace options
+   in `defconf/nadeshiko.10_main.rc.sh`
+
+
+
+
 ——— v 2.8.4 ——————————————————————————————————————————————————————————————————
 
 Removed libtinynotify from the dependencies: left only libnotify.

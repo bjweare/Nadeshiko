@@ -134,10 +134,10 @@ ffmpeg_input_options=()
 #
  # Input colourspace options
 #  FFmpeg usually sets it appropriately, so the only time, when it might need
-#    to be set by hand is when it for some reason cannot. Mind, that some
-#    codecs (libvpx-vp9, I am looking at you) may change some of the colours
-#    at will, and this isn’t related to colourspace conversion, this is just
-#    how the codec works.
+#    to be set by hand is when ffmpeg for some reason cannot define the colour-
+#    space right. Mind, that some codecs (libvpx-vp9, I am looking at you) may
+#    change some of the colours at will, and this isn’t related to colourspace
+#    conversion, this is just how the codec works.
 #  That FFmpeg chooses colourspace automatically doesn’t mean you will see
 #    that in the log of pass1 or pass2, this goes in the internal kitchen,
 #    where it converts ffmpeg parameters into codec parameters and adds some

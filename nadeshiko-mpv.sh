@@ -46,7 +46,7 @@ set_defconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_examplerc 'nadeshiko-mpv.10_main.rc.sh'
 
-declare -r version="2.4.1"
+declare -r version="2.4.2"
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
 declare -r datadir="$CACHEDIR/nadeshiko-mpv_data"
@@ -96,15 +96,20 @@ on_exit() {
 show_help() {
 	cat <<-EOF
 	Usage:
-	./nadeshiko-mpv.sh [postpone]
+	./nadeshiko-mpv.sh [options]
 
 	    postpone – Store the command for Nadeshiko for later, instead of
 	               running it right away.
+
+	    quickrun – Speed up taking clips: disable GUI, disable predictor
+	               and turn on postpone. Cropping dialogue will remain,
+	               as will preview and postview.
 
 	Nadeshiko-mpv in the wiki: https://git.io/fx8D6
 
 	Post bugs here: https://github.com/deterenkelt/Nadeshiko/issues
 	EOF
+	exit 0
 }
 
 
@@ -116,10 +121,12 @@ show_version() {
 	This is free software: you are free to change and redistribute it.
 	There is no warranty, to the extent permitted by law.
 	EOF
+	exit 0
 }
 
 
 post_read_rcfile() {
+	declare -g  gui_default_preset
 	local preset_name  gui_default_preset_exists
 	if [ -v quick_run ]; then
 		[ "${quick_run_preset:-}" ] && {
@@ -141,6 +148,7 @@ post_read_rcfile() {
 		if (( ${#nadeshiko_presets[*]} == 1 )); then
 			gui_default_preset="${!nadeshiko_presets[@]}"
 		else
+			: ${gui_default_preset:=default}
 			for preset_name in "${!nadeshiko_presets[@]}"; do
 				[ "$gui_default_preset" = "$preset_name" ]  \
 					&& gui_default_preset_exists=t
@@ -174,6 +182,35 @@ check_needed_vars() {
 }
 
 
+ # Processes arguments passed via command line
+#
+parse_args() {
+	declare -g  postpone quick_run
+	local args=("$@") arg
+
+	for arg in "${args[@]}"; do
+		if [[ "$arg" =~ ^(-h|--help)$ ]]; then
+			show_help
+
+		elif [[ "$arg" =~ ^(-v|--version)$ ]]; then
+			show_version
+
+		elif [ "$arg" = 'postpone' ]; then
+			postpone=t
+
+		elif [[ "$arg" =~ ^quick[_-]?run$ ]]; then
+			quick_run=t
+
+		else
+			err "“$arg”: parameter unrecognised.
+			     For usage see the output of -h / --help."
+		fi
+	done
+
+	return 0
+}
+
+
 
 [ -d "$datadir" ] || mkdir "$datadir"
 cd "$datadir"
@@ -200,15 +237,7 @@ REQUIRED_UTILS+=(
 )
 check_required_utils
 declare -r xml='xmlstarlet'  # for lib/xml_and_python_functions.sh
-
-builtin set -- "${NEW_ARGS[@]}"
-[[ "${1:-}" =~ ^(-h|--help)$ ]] && show_help && exit 0
-[[ "${1:-}" =~ ^(-v|--version)$ ]] && show_version && exit 0
-[ "${1:-}"  -a  "${1:-}" = postpone ] && postpone=yes  # sic!
-[ "$*" -a  "${1:-}" != 'postpone' ] && {
-	show_help
-	err 'The only parameter may be “postpone”!'
-}
+parse_args "${NEW_ARGS[@]}"
 info "Nadeshiko-mpv v$version"
 
  # Test, that all the entries from our properties array
