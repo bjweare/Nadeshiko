@@ -1,3 +1,11 @@
+——— v 2.8.3 ——————————————————————————————————————————————————————————————————
+
+Fixed a bug in Makefile: exampleconf still present, while defconf and meta-
+conf were absent.
+
+
+
+
 ——— v 2.8.2 ——————————————————————————————————————————————————————————————————
                                                            Nadeshiko-mpv 2.4.1
 
