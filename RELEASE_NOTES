@@ -1,3 +1,15 @@
+——— v 2.8.6 ——————————————————————————————————————————————————————————————————
+                                                           Nadeshiko-mpv 2.4.3
+
+1. Fixed a minor issue: Nadeshiko-mpv continued to create empty job list of
+   the old format (~/.cache/nadeshiko/postponed_commands), which was not harm-
+   ful, but confusing, as postponed jobs go to postponed_commands_dir since
+   Nadeshiko-2.2.
+2. Updated ebuild metadata with a description for the crop USE-flag.
+
+
+
+
 ——— v 2.8.5 ——————————————————————————————————————————————————————————————————
                                                            Nadeshiko-mpv 2.4.2
                                                   Nadeshiko-do-postponed 2.3.3

@@ -46,13 +46,10 @@ set_defconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_examplerc 'nadeshiko-mpv.10_main.rc.sh'
 
-declare -r version="2.4.2"
+declare -r version="2.4.3"
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
 declare -r datadir="$CACHEDIR/nadeshiko-mpv_data"
-#  Old, this file is deprecated.
-declare -r postponed_commands="$CACHEDIR/postponed_commands"
-#  New, this directory is to be used instead.
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 
 single_process_check

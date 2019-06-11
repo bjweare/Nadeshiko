@@ -88,7 +88,7 @@ encode() {
 				printf '\t%q  \\\n' "$str" >>"$postponed_job_file"
 			fi
 		done
-		echo >>"$postponed_commands"
+		echo >>"$postponed_job_file"
 		rm "$data_file"
 		if [ -e "/proc/${mpv_pid:-not exists}" ]; then
 			send_command  show-text \

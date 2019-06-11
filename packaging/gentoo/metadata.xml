@@ -2,6 +2,7 @@
 <!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
 <pkgmetadata>
   <use>
+    <flag name='crop'>Pull sys-fs/inotify-tools dependency for the cropping tool.</flag>
     <flag name='hardsub'>Support burning subtitles into video.</flag>
     <flag name='mpv'>Bindings for the mpv frontend.</flag>
     <flag name='x264'>Bindings for H.264 video codec. It encodes fast.</flag>
