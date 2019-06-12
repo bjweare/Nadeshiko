@@ -85,7 +85,7 @@ if_predictor_runs_for_this_size() {
 			break
 		fi
 	done
-	[ -v run_predictor ] \
+	[ -v run_predictor ]  \
 		&& return 0  \
 		|| return 1
 }
@@ -109,6 +109,9 @@ prepare_preset_options() {
 
 	info "Preset: $nadeshiko_preset"
 	milinc
+	#  Unsetting RCFILE, or we’ll read it by mistake.
+	#  (We’re in a subshell, so the real RCFILE will stay untouched.)
+	unset RCFILE || true
 	read_rcfile 'nadeshiko'
 
 	 # Preset options for the dialogue window
@@ -122,7 +125,7 @@ prepare_preset_options() {
 	option_list+=( "$nadeshiko_preset_name" )
 
 	#  3. Brief description of the configuration for the popup
-	option_list+=( "$( prepare_preset_info )" )  # in subshell was: 2>&1
+	option_list+=( "$( prepare_preset_info )" )
 
 	if [ -v predictor ]; then
 		#  4. Source video description.
@@ -137,7 +140,7 @@ prepare_preset_options() {
 		[ ! -v predictor ] && {
 			option_list+=(
 				"$size"
-				"$( prepare_size_radiobox_label "$size" )"  # in subshell was: 2>&1
+				"$( prepare_size_radiobox_label "$size" )"
 				"$( [ "$max_size_default" = "$size" ] \
 						&& echo on  \
 						|| echo off  )"
@@ -151,7 +154,7 @@ prepare_preset_options() {
 		[ "$size" = unlimited ] && {
 			option_list+=(
 				"$size"
-				"$( prepare_size_radiobox_label "$size" )"  # in subshell was: 2>&1
+				"$( prepare_size_radiobox_label "$size" )"
 				"$( [ "$max_size_default" = "$size" ] \
 						&& echo on  \
 						|| echo off  )"
@@ -166,7 +169,7 @@ prepare_preset_options() {
 		if_predictor_runs_for_this_size "$size" || {
 			option_list+=(
 				"$size"
-				"$( prepare_size_radiobox_label "$size" )"  # in subshell was: 2>&1
+				"$( prepare_size_radiobox_label "$size" )"
 				"$( [ "$max_size_default" = "$size" ] \
 						&& echo on  \
 						|| echo off  )"
@@ -238,7 +241,7 @@ prepare_preset_options() {
 			lastline_in_lastlog=${LASTLOG_TEXT##*$'\n'}
 			[[ "$lastline_in_lastlog" =~ .*(Encoding\ with|Cannot\ fit).* ]] || {
 				headermsg 'Nadeshiko log'
-				plainmsg "$( <$LASTLOG_PATH )"
+				msg "$( <$LASTLOG_PATH )"
 				footermsg 'End of Nadeshiko log'
 				redmsg 'Nadeshiko couldn’t perform the scene complexity test.
 				        There is no “Encoding with” or “Cannot fit” on the last line
@@ -255,7 +258,7 @@ prepare_preset_options() {
 				if [[ "$scene_complexity" =~ ^(static|dynamic)$ ]]; then
 					info "Determined scene complexity as $scene_complexity."
 					#  Updating preset info now that we know scene complexity.
-					option_list[2]="$( prepare_preset_info )"   # in subshell was: 2>&1
+					option_list[2]="$( prepare_preset_info )"
 					[ "${option_list[3]}" = ' ' ] && {
 						#  4. Updating source video description.
 						option_list[3]="$scene_complexity"

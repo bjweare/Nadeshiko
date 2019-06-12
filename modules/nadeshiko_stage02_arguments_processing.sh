@@ -220,6 +220,13 @@ check_util_support() {
 			check_for_updates)
 				. "$LIBDIR/bahelite/bahelite_github.sh"
 				;;
+			ffmpeg_progressbar)
+				REQUIRED_UTILS+=(
+					#  To temporarily switch off the cursor while drawing
+					#  a progressbar for ffmpeg
+					tput
+				)
+				;;
 		esac
 	done
 	REQUIRED_UTILS_HINTS+=(
@@ -231,6 +238,9 @@ check_util_support() {
 
 		[time]='time is found in the package of the same name.
 		https://www.gnu.org/directory/time.html'
+
+		[tput]='tput belongs to the ncurses package.
+		https://www.gnu.org/software/ncurses/'
 	)
 	check_required_utils
 	#  Checking ffmpeg version

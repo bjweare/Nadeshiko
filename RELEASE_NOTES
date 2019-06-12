@@ -1,3 +1,27 @@
+——— v 2.9 ————————————————————————————————————————————————————————————————————
+                                                           Nadeshiko-mpv 2.4.4
+
+1. New feature in Nadeshiko: ffmpeg pass 1 and pass 2 now display a progress
+   bar. It is turned on by default. The configuration option is set in
+   defconf/nadeshiko.10_main.rc.sh as `ffmpeg_progressbar=on` and can be
+   turned off in user’s configuration file, if it will cause problems.
+
+2. Fixed a bug in Nadeshiko-mpv, that caused predictor to be active even when
+   it should not. ($RCFILE set by Nadeshiko-mpv was used by read_rcfile() in
+   the subshell, that collects options for the GUI, and that caused $predictor
+   to still be present in the environment).
+
+   The GUI now builds within 1.5–2 s with `predictor=off` set in the configu-
+   ration file. Check [how it should look like](https://git.io/fj2LW), when predictor is disabled.
+
+3. RC subsystem verbosity now prints every configuration file it loads,
+   and the messages have become more descriptive.
+
+4. Fixed a bug encountered for the first time in the time_functions module.
+
+
+
+
 ——— v 2.8.6 ——————————————————————————————————————————————————————————————————
                                                            Nadeshiko-mpv 2.4.3
 

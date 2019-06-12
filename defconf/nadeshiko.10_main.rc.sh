@@ -264,6 +264,14 @@ ffmpeg_subtitle_fallback_style=(
 )
 
 
+ # Whether Nadeshiko should draw a progressbar for ffmpeg, when it does
+#    pass 1 and pass 2.
+#  Possible values: on, off.
+#  Default value: on
+#
+ffmpeg_progressbar=on
+
+
  # Default scaling
 #  Enable, if you want encoded videos to be not larger than the specified
 #    resolution. This option enables a kind of “auto-scale” and differs from

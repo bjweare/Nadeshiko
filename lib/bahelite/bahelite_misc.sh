@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MISC_VER='1.11'
+declare -grx BAHELITE_MODULE_MISC_VER='1.12'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # (procps) Single process check.
@@ -87,6 +87,12 @@ is_function() {
 	[ "$(type -t "$1")" = 'function' ]
 }
 export -f  is_function
+
+
+is_extfile() {
+	[ "$(type -t "$1")" = 'file' ]
+}
+export -f  is_extfile
 
 
  # Sets MYRANDOM global variable to a random number either fast or secure way

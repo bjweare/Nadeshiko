@@ -15,7 +15,7 @@
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_LOGGING_VER='1.7.1'
+declare -grx BAHELITE_MODULE_LOGGING_VER='1.7.3'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date   #  (coreutils) to add date to $LOGPATH file name and to the log itself.
 #	ls     #  (coreutils)
@@ -185,11 +185,11 @@ start_logging() {
 			#  Same story as above, expect that here we handle both
 			#  stdout and stderr.
 			#
-			[ -v STDOUT_ORIG_FD ] && {
+			[ -v BAHELITE_CONSOLE_VERBOSITY_SENT_STDOUT_TO_DEVNULL ] && {
 				#  Restore the original FD 1 for the exec
 				exec 1>&${STDOUT_ORIG_FD}
 			}
-			if [ -v STDOUT_ORIG_FD ]; then
+			if [ -v BAHELITE_CONSOLE_VERBOSITY_SENT_STDOUT_TO_DEVNULL ]; then
 				#  Console doesn’t need this FD, but the log does.
 				exec >>"$LOGPATH"
 			else
@@ -199,11 +199,11 @@ start_logging() {
 				BAHELITE_LOGGING_USES_TEE=t
 			fi
 
-			[ -v STDERR_ORIG_FD ] && {
+			[ -v BAHELITE_CONSOLE_VERBOSITY_SENT_STDERR_TO_DEVNULL ] && {
 				#  Restore the original FD 2 for the exec
 				exec 2>&${STDERR_ORIG_FD}
 			}
-			if [ -v STDERR_ORIG_FD ]; then
+			if [ -v BAHELITE_CONSOLE_VERBOSITY_SENT_STDERR_TO_DEVNULL ]; then
 				#  Console doesn’t need this FD, but the log does.
 				exec 2>>"$LOGPATH"
 			else
@@ -408,7 +408,9 @@ stop_logging() {
 		#  to close, so we’re quitting.
 		(( ${#tee_pids[*]} == 0 )) && return 0
 
-		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && echo  && sleep 10
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+			&& echo 'Sleeping 10 seconds'    \
+			&& sleep 10
 
 		tee_parents_pids=( $(ps h -o ppid "${tee_pids[@]}" || true) )
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
@@ -453,8 +455,19 @@ stop_logging() {
 				exec >/dev/null
 			}
 
-			 # “kill” caused a segmentation fault before. Read the comment
-			#  above the initial declarations in start_logging().
+			 # “kill -HUP” caused a segmentation fault before. Read the comment
+			#    above the initial declarations in start_logging().
+			#  There is an evidence retrieved with consolve verbosity level 5,
+			#    that -TERM does not kill the tee parents – tee processes are
+			#    still there after 10 seconds, and this function has to go
+			#    Way II to deal with them.
+			#  However, it works fine like it is, and it is undesirable
+			#    to touch a working system. Killing parents with -INT won’t
+			#    kill tees. Maybe sending -PIPE to them is not quite clean
+			#    (tee commands themselves must be shielded with “|| true”),
+			#    but at least there was no spam to console – even without
+			#    the redirection to /dev/null above. So, touching it is unde-
+			#    sirable.
 			#
 			kill -TERM "${tee_parents_pids[@]}"
 
@@ -471,7 +484,7 @@ stop_logging() {
 
 
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-			echo -en '\n\nSleeping 10 seconds…'
+			echo -e '\n\nSleeping 10 seconds…'
 			sleep 10
 			warn 'Something went wrong: killing mother shells did not succeed,
 			      and we’re going to kill tees directly.'

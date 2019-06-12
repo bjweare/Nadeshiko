@@ -17,7 +17,7 @@ bahelite_load_module 'versioning' || return $?
 bahelite_load_module 'directories' || return $?
 bahelite_load_module 'misc' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_RCFILE_VER='2.0'
+declare -grx BAHELITE_MODULE_RCFILE_VER='2.0.1'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -265,8 +265,8 @@ __read_metaconfdir() {  __read_metaconfdir_or_defconfdir  meta;  }
 __read_defconfdir()  {  __read_metaconfdir_or_defconfdir  def;   }
 __read_metaconfdir_or_defconfdir() {
 	#  Internal! No xtrace_off/on needed!
-	local dir="$1"
-	case "$dir" in
+	local meta_or_def="$1"  dir
+	case "$meta_or_def" in
 		meta)
 			[ -v METACONFDIR ] || err 'METACONFDIR must be set!'
 			declare -n dir=METACONFDIR
@@ -285,10 +285,14 @@ __read_metaconfdir_or_defconfdir() {
 	#
 	if [ -v RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME ]; then
 		conf_files=(
-			$(set +f;  ls -1 "$dir/$RCFILE_SCRIPTNAME".*rc.sh  || true)
+			$(set +f;  \
+			  ls -1 "$dir/$RCFILE_SCRIPTNAME".*rc.sh  2>/dev/null || true)
 		)
 	else
-		conf_files=( $(set +f; ls -1 "$dir/"*rc.sh  || true) )
+		conf_files=(
+			$(set +f;  \
+			  ls -1 "$dir/"*rc.sh  2>/dev/null || true)
+		)
 	fi
 
 	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
@@ -297,18 +301,21 @@ __read_metaconfdir_or_defconfdir() {
 	for conf_file in "${conf_files[@]}"; do
 		conf_file_path="$conf_file"
 		is_a_valid_rcfile_name "$conf_file" "$RCFILE_SCRIPTNAME" || {
-			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
 				&& warn "rc: $FUNCNAME: skipping rcfile because of inappropriate file name:
 				         $conf_file_path"
 			continue
 		}
 		if [ -f "$conf_file_path"  -a  -r "$conf_file_path" ]; then
-			. "$conf_file_path" \
-				|| err "Error on sourcing ${dir}conf file:
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+				&& info "rc: $FUNCNAME: sourcing ${meta_or_def}conf file:
+				         $conf_file_path"
+			. "$conf_file_path"  \
+				|| err "Error on sourcing ${meta_or_def}conf file:
 				        $conf_file_path"
 		else
 			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
-				&& warn "rc: $FUNCNAME: ${dir}conf path is not a readable file:
+				&& warn "rc: $FUNCNAME: ${meta_or_def}conf path is not a readable file:
 				         $conf_file_path"
 		fi
 	done
@@ -388,20 +395,20 @@ __postprocess_rc_variables() {
 	local varname  varval  string_to_strip  subst_reg_array  key
 
 	#  1. Pseudo-boolean variables
-	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
 		&& info "Processing pseudo-boolean variables."
 
 	for varname in "${RCFILE_BOOLEAN_VARS[@]}"; do
 		if [ -v "$varname" ]; then
 			is_true $varname --unset-if-not
 		else
-			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
 				&& warn "rc: $FUNCNAME: Skipping variable $varname: it isn’t set."
 		fi
 	done
 
 	#  2. Variables from which the units must be stripped.
-	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
 		&& info "Processing “strip unit” variables."
 	for varname in ${!RCFILE_STRIPUNIT_VARS[@]}; do
 		if [ -v "$varname" ]; then
@@ -422,7 +429,7 @@ __postprocess_rc_variables() {
 					;;
 			esac
 		else
-			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
 				&& warn "rc: $FUNCNAME: Skipping variable $varname: it isn’t set."
 		fi
 	done

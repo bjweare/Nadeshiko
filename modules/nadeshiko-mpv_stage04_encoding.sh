@@ -102,7 +102,7 @@ encode() {
 		errexit_off
 
 		env  \
-			VERBOSITY_LEVEL=050  \
+			VERBOSITY_LEVEL=030  \
 			"${nadeshiko_command[@]}"
 
 		nadeshiko_retval=$?

@@ -137,14 +137,17 @@ encode-libvpx-vp9() {
 	libvpx18_check
 
 	pass() {
-		local pass=$1  \
-		      pass1_params=( -pass 1 -sn -an -f $ffmpeg_muxer /dev/null )  \
-		      pass2_params=( -pass 2 -sn ${audio_opts[@]} "$new_file_name" )
+		local pass=$1
+		local pass1_params=( -pass 1 -sn -an -f $ffmpeg_muxer /dev/null )
+		local pass2_params=( -pass 2 -sn ${audio_opts[@]} "$new_file_name" )
+		local ffmpeg_caught_an_error
 		declare -n ffmpeg_command_end=pass${pass}_params
 		declare -n deadline=libvpx_vp9_pass${pass}_deadline
 		declare -n cpu_used=libvpx_vp9_pass${pass}_cpu_used
 		declare -n extra_options=libvpx_vp9_pass${pass}_extra_options
 		info "PASS $pass"
+		[ -v ffmpeg_progressbar ]  && launch_a_progressbar_for_ffmpeg
+
 		FFREPORT=file=$LOGDIR/ffmpeg-pass$pass.log:level=32  \
 		$ffmpeg -y -v error  -nostdin  \
 		            -ss "${start[ts]}"  \
@@ -180,11 +183,17 @@ encode-libvpx-vp9() {
 		        -tune-content $libvpx_vp9_tune_content  \
 		        ${libvpx_vp9_tune:+-tune $libvpx_vp9_tune}  \
 		        "${extra_options[@]}"  \
+		        ${ffmpeg_progressbar:+-progress "$TMPDIR/ffmpeg_progress.log"}  \
 		        -map_metadata -1  -map_chapters -1  \
 		        -metadata title="$video_title"  \
 		        -metadata comment="Converted with Nadeshiko v$version"  \
 		        "${ffmpeg_command_end[@]}"  \
-			|| err "ffmpeg error on pass $pass."
+			|| ffmpeg_caught_an_error=t
+
+		[ -v ffmpeg_progressbar ]  \
+			&& stop_the_progressbar_for_ffmpeg
+		[ -v ffmpeg_caught_an_error ]  \
+			&& err "ffmpeg error on pass $pass."
 		return 0
 	}
 

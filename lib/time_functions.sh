@@ -28,11 +28,11 @@ is_valid_timestamp() {
 	minutes="${BASH_REMATCH[3]%:}"
 	[ "$minutes" ] && {
 		#  If minutes are set, they must be <=59
-		[ $minutes -gt 59 ] && return 5
+		(( 10#$minutes > 59 ))  && return 5
 		seconds="${BASH_REMATCH[4]}"
 		#  Same for the seconds.
 		#  Only when mintues are not present, seconds may be >59.
-		[ "$seconds" -gt 59 ] && return 5
+		(( 10#$seconds > 59 ))  && return 5
 	}
 	return 0
 }

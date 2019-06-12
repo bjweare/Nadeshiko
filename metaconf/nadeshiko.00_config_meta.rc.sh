@@ -32,4 +32,5 @@ RCFILE_BOOLEAN_VARS=(
 	time_stat
 	crop_uses_profile_vbitrate
 	create_windows_friendly_filenames
+	ffmpeg_progressbar
 )

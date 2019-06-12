@@ -18,7 +18,7 @@
 	bahelite_load_module 'colours' || return $?
 }
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_VER='2.8.1'
+declare -grx BAHELITE_MODULE_MESSAGES_VER='2.8.2'
 
 
 
@@ -1178,9 +1178,11 @@ bahelite_xtrace_off
 mi_assemble
 bahelite_xtrace_on
 
- # Stream control
-#
-#  Remembering the original FD paths. They are needed to send info, warn etc.
+
+
+                         #  Stream control  #
+
+ # Remembering the original FD paths. They are needed to send info, warn etc.
 #  messages from subshells properly.
 #
 if (( BASH_SUBSHELL == 0 )); then
@@ -1195,16 +1197,32 @@ else
 	[ -v STDERR_ORIG_FD_PATH ]  \
 		|| declare -gx STDERR_ORIG_FD_PATH="/proc/$$/fd/2"
 fi
+
+
+ # Setting initial verbosity according to $VERBOSITY_LEVEL.
 #
+#  Saving the original destinations of console stdout and stderr,
+#  so that they may be used to bypass writing some temporary information
+#  like a progressbar to the log file, and also for the logging module
+#  to have these in case console verbosity would redirect stdout and stderr
+#  to /dev/null.
 #
-#  Setting initial verbosity according to VERBOSITY_LEVEL.
-#
+exec {STDOUT_ORIG_FD}>&1
+exec {STDERR_ORIG_FD}>&2
 case "$(get_bahelite_verbosity  'console')" in
-	0)	exec {STDOUT_ORIG_FD}>&1;  exec 1>/dev/null
-		exec {STDERR_ORIG_FD}>&2;  exec 2>/dev/null
+	0)	exec 1>/dev/null
+		#
+		#  If the logging module would need to log stdout, it would need
+		#  to know, that it must grab not FD 1, but FD $STDOUT_ORIG_FD.
+		#  Same for stderr.
+		#
+		BAHELITE_CONSOLE_VERBOSITY_SENT_STDOUT_TO_DEVNULL=t
+		exec 2>/dev/null
+		BAHELITE_CONSOLE_VERBOSITY_SENT_STDERR_TO_DEVNULL=t
 		;;
 
-	1)	exec {STDOUT_ORIG_FD}>&1;  exec 1>/dev/null
+	1)	exec 1>/dev/null
+		BAHELITE_CONSOLE_VERBOSITY_SENT_STDOUT_TO_DEVNULL=t
 		;;
 
 	4|5|6|7|8|9)

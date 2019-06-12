@@ -54,7 +54,7 @@ prepare_confdir
 place_examplerc 'nadeshiko.10_main.rc.sh'
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
-declare -r version='2.8.6'
+declare -r version='2.9'
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 
  # Minimal libav libraries versions
@@ -131,6 +131,9 @@ show_version() {
 
 on_exit() {
 	rm -f  ffmpeg2pass-0.log  ffmpeg2pass-0.log.mbtree
+	#  Turning the cursor visible again,
+	#  in case an error happened before ffmpeg progressbar could restore it.
+	tput cnorm
 	return 0
 }
 
@@ -144,8 +147,9 @@ post_read_rcfile
 #  Stage 2
 info "Nadeshiko v$version"
 parse_args "${NEW_ARGS[@]}"
-check_util_support  video  ${audio:+audio}  ${subs:+subs} \
-                    ${time_stat:+time_stat} \
+check_util_support  video  ${audio:+audio}  ${subs:+subs}  \
+                    ${time_stat:+time_stat}  \
+                    ${ffmpeg_progressbar:+ffmpeg_progressbar}  \
                     ${check_for_updates:+check_for_updates}
 [ -v check_for_updates ] && check_for_new_release_on_github
 set_vars
