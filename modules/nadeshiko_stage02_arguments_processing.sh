@@ -18,8 +18,9 @@ parse_args() {
 	declare -g  subs  subs_explicitly_requested  \
 	            audio  audio_explicitly_requested  \
 	            kilo  scale  crop  where_to_place_new_file="$PWD"  \
-	            new_filename_user_prefix  max_size  vbitrate  abitrate \
-	            scene_complexity  dryrun
+	            new_filename_user_prefix  max_size  vbitrate  abitrate  \
+	            scene_complexity  dryrun  \
+	            do_not_report_ffmpeg_progress_to_console
 	local args=("$@") arg pid
 
 	for arg in "${args[@]}"; do
@@ -129,6 +130,18 @@ parse_args() {
 			crop+="trunc($crop_h/2)*2:"
 			crop+="trunc($crop_x/2)*2:"
 			crop+="trunc($crop_y/2)*2"
+
+		elif [ "$arg" = do_not_report_ffmpeg_progress_to_console ]; then
+			#
+			#  This is a service option to shut the progressbar output. It is
+			#    used by wrappers: Nadeshiko-mpv and Nadeshiko-do-postponed,
+			#    whose logs get cluttered, because \r obviously do not work
+			#    when the console output in the end gets redirected to a file.
+			#  This option does not disable $ffmpeg_progress, so ffmpeg will
+			#    still write the progress log, so it may be processed by the
+			#    wrapper, if needed.
+			#
+			do_not_report_ffmpeg_progress_to_console=t
 
 		elif [ -f "$arg" ]; then
 			if [[ "$(mimetype -L -b "$arg")" =~ ^video/ ]]; then

@@ -292,9 +292,10 @@ set_file_name_and_video_title() {
 
 
  # Launches a coprocess, that will read ffmpeg’s progress log and report
-#  progress information to console.00
+#  progress information to console.
 #
 launch_a_progressbar_for_ffmpeg() {
+	[ -v do_not_report_ffmpeg_progress_to_console ] && return 0
 	declare -g  ffmpeg_progress_log="$TMPDIR/ffmpeg_progress.log"  \
 	            progressbar_pid  frame_count
 	local progress_status  frame_no  elapsed_time
@@ -329,13 +330,10 @@ launch_a_progressbar_for_ffmpeg() {
 
 			exec {ffmpeg_progress_log_fd}<>"$ffmpeg_progress_log"
 
-			 # Reading with until would make things more complicated, as the
-			#  break
-			#
-			until [ "${progress_status:-}" = end ]; do
-				read -r  -u"$ffmpeg_progress_log_fd"
 
-			# while read -r; do
+			until [ "${progress_status:-}" = end ]; do
+				read -r -u "$ffmpeg_progress_log_fd"
+
 				case "$REPLY" in
 
 					progress=*)  #  → $progress_status
@@ -373,7 +371,7 @@ launch_a_progressbar_for_ffmpeg() {
 				#  Exporting it for the subshell with printf
 				export frame_no
 
-				#  Clear the line.
+				#  Caret return.
 				echo -en "\r"
 
 				#  Message indentation.
@@ -422,7 +420,7 @@ launch_a_progressbar_for_ffmpeg() {
 				echo -n ']'
 
 			done
-			# done <&$ffmpeg_progress_log_fd
+
 
 			 # Jumping off from the line with progress bar and making
 			#  an empty line after the bar, symmetric to the empty line above.
@@ -439,8 +437,9 @@ launch_a_progressbar_for_ffmpeg() {
 
 
 stop_the_progressbar_for_ffmpeg() {
+	[ -v do_not_report_ffmpeg_progress_to_console ] && return 0
 	local i
-	#  Wait for a maximum of two seconds for progressbar coprocess to finish.
+	#  Wait for a maximum of five seconds for progressbar coprocess to finish.
 	for ((i=0; i<5; i++)); do
 		[ -e /proc/$progressbar_pid ] && sleep 1 || break
 	done

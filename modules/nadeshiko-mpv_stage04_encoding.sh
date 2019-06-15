@@ -63,6 +63,7 @@ encode() {
 		                       ${fname_pfx:+"fname_pfx=$fname_pfx"}
 		                       ${scene_complexity:+force_scene_complexity=$scene_complexity}
 		                       "${nadeshiko_preset[@]}"
+		                       do_not_report_ffmpeg_progress_to_console
 	)
 	if [ -v postpone ]; then
 		[ -d "$postponed_commands_dir" ] || mkdir "$postponed_commands_dir"

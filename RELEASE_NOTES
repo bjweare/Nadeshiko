@@ -1,3 +1,16 @@
+——— v 2.9.1 ——————————————————————————————————————————————————————————————————
+                                                           Nadeshiko-mpv 2.4.5
+
+1. A fix to cluttered logs of Nadeshiko-mpv and Nadeshiko-do-postponed.
+   Now when Nadeshiko runs from within these two wrappers, ffmpeg progressbar
+   is silenced.
+
+2. The call to `tput` in the exit check is now done only if ffmpeg_progressbar
+   variable is set.
+
+
+
+
 ——— v 2.9 ————————————————————————————————————————————————————————————————————
                                                            Nadeshiko-mpv 2.4.4
 
@@ -9,10 +22,13 @@
 2. Fixed a bug in Nadeshiko-mpv, that caused predictor to be active even when
    it should not. ($RCFILE set by Nadeshiko-mpv was used by read_rcfile() in
    the subshell, that collects options for the GUI, and that caused $predictor
-   to still be present in the environment).
+   to still be present in the environment, where Nadeshiko is launched in dry
+   run mode).
 
    The GUI now builds within 1.5–2 s with `predictor=off` set in the configu-
-   ration file. Check [how it should look like](https://git.io/fj2LW), when predictor is disabled.
+   ration file. Check how it should look like, when predictor is disabled:
+
+   ![](https://git.io/fj2LW)
 
 3. RC subsystem verbosity now prints every configuration file it loads,
    and the messages have become more descriptive.
