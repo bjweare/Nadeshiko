@@ -1,4 +1,4 @@
-# Should be sourced.
+#  Should be sourced.
 
 #  bahelite_messages_to_desktop.sh
 #  To send notifications to desktop with notify-send.

@@ -1,4 +1,4 @@
-# Should be sourced.
+#  Should be sourced.
 
 #  bahelite_error_handling.sh
 #  Places traps on signals ERR, EXIT group and DEBUG. Catches even those

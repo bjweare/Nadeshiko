@@ -1,4 +1,4 @@
-# Should be sourced.
+#  Should be sourced.
 
 #  bahelite_colours.sh
 #  Defines character sequences, that control font colour and style

@@ -1,4 +1,4 @@
-# Should be sourced.
+#  Should be sourced.
 
 #  bahelite_messages.sh
 #  Provides messages for console and desktop (if messages_to_desktop module

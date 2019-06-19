@@ -1,4 +1,4 @@
-# Should be sourced.
+#  Should be sourced.
 
 #  bahelite_logging.sh
 #  Organises logging and maintains logs in a separate folder.
@@ -77,7 +77,9 @@ start_logging() {
 	#        └ if can’t write to it:
 	#          TMPDIR.                                 LOGDIR = $TMPDIR/logs
 	#          (In this case you may also want to set
-	#           BAHELITE_DONT_CLEAR_TMPDIR.)
+	#           BAHELITE_DONT_CLEAR_TMPDIR or do it
+	#           with a console (or log) verbosity
+	#           level 5+, e.g. x5x or 5xx.)
 	if [ -v LOGPATH ]; then
 		touch "$LOGPATH" || {
 			redmsg "Cannot write to LOGPATH specified in the environment:

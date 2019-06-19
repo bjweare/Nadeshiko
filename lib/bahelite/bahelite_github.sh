@@ -1,4 +1,4 @@
-# Should be sourced.
+#  Should be sourced.
 
 #  bahelite_github.sh
 #  Functions to check for the latest release page on github.com.

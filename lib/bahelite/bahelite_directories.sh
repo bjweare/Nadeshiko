@@ -1,4 +1,4 @@
-# Should be sourced.
+#  Should be sourced.
 
 #  bahelite_directories.sh
 #  Functions to set paths to internal and user directories.

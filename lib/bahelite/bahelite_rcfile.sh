@@ -1,4 +1,4 @@
-# Should be sourced.
+#  Should be sourced.
 
 #  bahelite_rcfile.sh
 #  Functions to source an RC file and verify, that its version is compatible.

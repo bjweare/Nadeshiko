@@ -1,4 +1,4 @@
-# Should be sourced.
+#  Should be sourced.
 
 #  bahelite_versioning.sh
 #  Provides simple versioning in the form <major[.minor[.patch]]>.
