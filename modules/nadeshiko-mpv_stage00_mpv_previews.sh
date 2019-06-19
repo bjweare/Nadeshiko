@@ -18,9 +18,9 @@ pause_and_leave_fullscreen() {
 	(( rewind_to_time_pos < 0 )) && rewind_to_time_pos=0
 	set_prop 'pause' 'yes'
 
-	if  (
-			[    "${FUNCNAME[1]}" = play_preview ] \
-			|| [ "${FUNCNAME[1]}" = choose_crop_settings ] \
+	if	(
+			[    "${FUNCNAME[1]}" = play_preview ]  \
+			|| [ "${FUNCNAME[1]}" = choose_crop_settings ]  \
 			|| [ "${FUNCNAME[1]}" = play_encoded_file  -a  ! -v postpone ]
 		) \
 		&& [ -v fullscreen_true ]

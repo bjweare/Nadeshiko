@@ -23,7 +23,7 @@ mpv='mpv'
 #  If you call mpv from SMplayer or another wrapper, input-ipc-server
 #  can be added as a command line option – but make sure you use the ‘=’ sign!
 #      $ mpv --input-ipc-server=/tmp/mpv-socket
-#  After assigning mpv path to its socket, place it here.
+#  After assigning path to the socket for mpv, specify that path here.
 #
 mpv_sockets=(
 	[Usual]='/tmp/mpv-socket'
@@ -41,13 +41,13 @@ postpone=no
 
 
  # Set to “no” to skip previewing the clip before encoding it.
-#  This plays the source file, as it will be clipped.
+#  This plays the source file, as it will be clipped. (If the video is to be
+#  cropped, ignore the subtitle placement.)
 #
 show_preview=yes
 
 
  # Set to “no” to skip playing the encoded clip.
-#  This plays an actually encoded file.
 #
 show_encoded_file=yes
 
@@ -56,8 +56,6 @@ show_encoded_file=yes
 #  Each line corresponds to one Nadeshiko configuration file. Create custom
 #    configurations to switch between them on the fly in Nadeshiko-mpv.
 #    Read about file naming rules on the wiki: https://git.io/fx3Qr.
-#    The order of presets in the GUI will correspond to the order here,
-#    and the topmost preset here will be the default tab opened in the GUI.
 #  May be empty, in this case an item named “default” is created and assigned
 #    “nadeshiko.rc.sh” as the value.
 #  Format: [name for display]='nadeshiko-custom.rc.sh'
@@ -107,15 +105,12 @@ predictor=on
  # To save time, predictor runs only for the default maximum size (that is
 #    specified in max_size_default variable in Nadeshiko RC file). This redu-
 #    ces the number of runs threefold.
-#  Usually the only values, that are really helpful are for the default
-#    maximum sizes, specified in the presets. The others are nice to look at,
-#    but they only take time. However, you may add other sizes, if you wish.
-#  Format: all size codes used in a Nadeshiko RC file: tiny, small, normal,
+#  Format: all size codes used in the Nadeshiko RC file: tiny, small, normal,
 #    unlimited, default.
 #  Size “unlimited” can be omitted, as predictor never actually runs for
 #    this size (everything fits in unlimited size).
 #  Size “default” will enable predictor for whatever maximum size is set
-#    as maximum_size_default in the Nadeshiko configuration file aka preset.
+#    as maximum_size_default in the Nadeshiko configuration file.
 #    (It is not an error, if it will be set to “normal” and both “default”
 #    and “normal” would be specified here.)
 #  Default value: =( "default" )

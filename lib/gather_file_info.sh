@@ -2,14 +2,14 @@
 
 #  gather_file_info.sh
 #  A set of functions to get information with ffmpeg and mediainfo.
-#  © deterenkelt 2018
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
 
 
  # FFmpeg helps to retrieve several attributes, that mediainfo doesn’t report.
-#  - subtitle codec name ;
+#  - subtitle codec name;
 #  - subtitle resolution for DVD and BD subtitle resolution, without which
 #    it isn’t possible to center them right in stage04.
 #
