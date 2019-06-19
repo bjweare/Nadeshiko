@@ -22,7 +22,7 @@ encode-libx264() {
 		declare -n ffmpeg_command_end=pass${pass}_params
 		declare -n extra_options=libx264_pass${pass}_extra_options
 		info "PASS $pass"
-		[ -v ffmpeg_progressbar ]  && launch_a_progressbar_for_ffmpeg
+		launch_a_progressbar_for_ffmpeg
 
 		FFREPORT=file=$LOGDIR/ffmpeg-pass$pass.log:level=32  \
 		$ffmpeg -y -hide_banner  -v error  -nostdin  \
@@ -49,8 +49,7 @@ encode-libx264() {
 		        "${ffmpeg_command_end[@]}"  \
 			|| ffmpeg_caught_an_error=t
 
-		[ -v ffmpeg_progressbar ]  \
-			&& stop_the_progressbar_for_ffmpeg
+		stop_the_progressbar_for_ffmpeg
 		[ -v ffmpeg_caught_an_error ]  \
 			&& err "ffmpeg error on pass $pass."
 		return 0

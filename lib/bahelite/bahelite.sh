@@ -244,7 +244,7 @@ unset  sed_version  grep_version  getopt_version  yes_version
 
                         #  Initial settings  #
 
-BAHELITE_VERSION="2.19.1"
+BAHELITE_VERSION="2.20"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -413,6 +413,7 @@ export -f bahelite_verify_error_code
 #  Required modules
 bahelite_load_module 'util_overrides' || exit $?
 bahelite_load_module 'messages' || exit $?
+bahelite_load_module 'verbosity' || exit $?
 if [ -v BAHELITE_CHERRYPICK_MODULES ]; then
 	for module_name in "${BAHELITE_CHERRYPICK_MODULES[@]}"; do
 		bahelite_load_module "$module_name" || exit $?

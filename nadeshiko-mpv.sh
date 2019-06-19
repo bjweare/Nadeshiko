@@ -46,7 +46,7 @@ set_defconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_examplerc 'nadeshiko-mpv.10_main.rc.sh'
 
-declare -r version="2.4.5"
+declare -r version="2.4.6"
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
 declare -r datadir="$CACHEDIR/nadeshiko-mpv_data"
@@ -236,6 +236,7 @@ check_required_utils
 declare -r xml='xmlstarlet'  # for lib/xml_and_python_functions.sh
 parse_args "${NEW_ARGS[@]}"
 info "Nadeshiko-mpv v$version"
+print_verbosity_level
 
  # Test, that all the entries from our properties array
 #  can be retrieved.
@@ -258,6 +259,7 @@ info "Nadeshiko-mpv v$version"
 #    many, 2, 4, 20…), turn on and off sound and subtitles, set crop area, and
 #    run preview. The second window would  be as it is now, unchanged.
 #
+check_socket
 get_props mpv-version filename
 data_file=$(grep -rlF "${filename@A}" |& head -n1)
 if [ -e "$data_file" ]; then

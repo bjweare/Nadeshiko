@@ -31,7 +31,7 @@ set_defconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_examplerc 'nadeshiko-do-postponed.10_main.rc.sh'
 
-declare -r version="2.3.3"
+declare -r version="2.3.4"
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -218,6 +218,7 @@ post_read_rcfile
 check_required_utils
 declare -r xml='xmlstarlet'   # for lib/xml_and_python_functions.sh
 info "Nadeshiko-do-postponed v$version"
+print_verbosity_level
 single_process_check
 pgrep -u $USER -af "bash.*nadeshiko.sh" &>/dev/null  \
 	&& err 'Cannot run at the same time with Nadeshiko.'

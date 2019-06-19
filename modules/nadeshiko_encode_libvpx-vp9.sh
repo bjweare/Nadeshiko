@@ -146,7 +146,7 @@ encode-libvpx-vp9() {
 		declare -n cpu_used=libvpx_vp9_pass${pass}_cpu_used
 		declare -n extra_options=libvpx_vp9_pass${pass}_extra_options
 		info "PASS $pass"
-		[ -v ffmpeg_progressbar ]  && launch_a_progressbar_for_ffmpeg
+		launch_a_progressbar_for_ffmpeg
 
 		FFREPORT=file=$LOGDIR/ffmpeg-pass$pass.log:level=32  \
 		$ffmpeg -y -v error  -nostdin  \
@@ -183,15 +183,14 @@ encode-libvpx-vp9() {
 		        -tune-content $libvpx_vp9_tune_content  \
 		        ${libvpx_vp9_tune:+-tune $libvpx_vp9_tune}  \
 		        "${extra_options[@]}"  \
-		        ${ffmpeg_progressbar:+-progress "$TMPDIR/ffmpeg_progress.log"}  \
+		        ${ffmpeg_progressbar:+-progress "$ffmpeg_progress_log"}  \
 		        -map_metadata -1  -map_chapters -1  \
 		        -metadata title="$video_title"  \
 		        -metadata comment="Converted with Nadeshiko v$version"  \
 		        "${ffmpeg_command_end[@]}"  \
 			|| ffmpeg_caught_an_error=t
 
-		[ -v ffmpeg_progressbar ]  \
-			&& stop_the_progressbar_for_ffmpeg
+		stop_the_progressbar_for_ffmpeg
 		[ -v ffmpeg_caught_an_error ]  \
 			&& err "ffmpeg error on pass $pass."
 		return 0

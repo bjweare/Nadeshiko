@@ -14,11 +14,17 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1.3'
+declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1.4'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
-	notify-send   # (libnotify or libtinynotify)
+	notify-send
 )
+
+BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
+	[notify-send]='notify-send belongs to the libnotify package
+	https://developer.gnome.org/libnotify/'
+)
+
 
 
                       #  Desktop notifications  #
@@ -88,12 +94,29 @@ bahelite_notify_send() {
 	esac
 
 	[ -v MSG_NOTIFYSEND_USE_ICON ] || unset icon
-	#  The hint is for the message to not pile in the stack – it is limited.
-	notify-send --hint int:transient:1  \
-	            --urgency "$urgency"  \
-	            -t $duration  \
-	            "$MY_DISPLAY_NAME"  "$msg"  \
-	            ${icon:+--icon=$icon}
+
+	(
+		 # Dbus session address may be stale in the environment, – and to force
+		#    applications to evaluate it at runtime, this variable must be
+		#    unset. Displaying a desktop message is of critical importance for
+		#    the scripts not running from the terminal. The lack of a message
+		#    may lead to confusion.
+		#  The value in the environment variable gets stale, if the shell was
+		#    spawned during one Dbus session, but it was closed, and the shell
+		#    now runs in another. This is common for applications like tmux
+		#    and screen, that usually persist between X sessions.
+		#  As the variable is a global one, unsetting it in the global scope
+		#    may lead to unforseen consequences, hence the subshell.
+		#
+		unset DBUS_SESSION_BUS_ADDRESS
+		#  The hint is for the message to not pile in the stack –
+		#  it is limited.
+		notify-send --hint int:transient:1  \
+		            --urgency "$urgency"  \
+		            -t $duration  \
+		            "$MY_DISPLAY_NAME"  "$msg"  \
+		            ${icon:+--icon=$icon}
+	)
 	return 0
 }
 export -f  bahelite_notify_send

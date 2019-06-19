@@ -390,8 +390,10 @@ choose_preset() {
 			                       ${scene_complexity:-}
 		)
 		echo
-		info "Options for preset $nadeshiko_preset:"
-		declare -p param_list
+		(( $(get_overall_verbosity console) >= 52 )) && {
+			info "Options for preset $nadeshiko_preset:"
+			declare -p param_list
+		}
 		readarray -d $'\n'  -t  current_preset_option_array  <<<"$param_list"
 		let '++preset_idx,  1'
 	done
@@ -408,9 +410,11 @@ choose_preset() {
 	}
 
 	echo
-	info "Dispatching options to dialogue window:"
-	declare -p ordered_preset_list
-	declare -p ${!preset_option_array_*}
+	(( $(get_overall_verbosity console) >= 52 )) && {
+		info "Dispatching options to dialogue window:"
+		declare -p ordered_preset_list
+		declare -p ${!preset_option_array_*}
+	}
 	send_command  show-text 'Building GUI' '3000'
 	show_dialogue_choose_preset "${ordered_preset_list[@]}"
 	IFS=$'\n' read -r -d ''  resp_nadeshiko_preset  \

@@ -20,7 +20,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.6'
+declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.7'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
 )
@@ -428,6 +428,11 @@ bahelite_print_call_stack() {
 	fi
 	(( BASH_SUBSHELL > 0 )) && with_subshell=' (with subshell)'
 	divider_message "Call stack${with_subshell:-}"  '-'  "$__bright" >&2
+
+	#  Dropping message indentation level either to the level upon entrance,
+	#  or completely, if the output is on top level.
+	[ "$__mi" = '  ' ] && __mi=''
+
 	for ((f=${#FUNCNAME[@]}-1; f>levels_to_skip; f--)); do
 		#  Hide on_exit and on_error, as the error only bypasses through
 		#  there. We don’t show THIS function in the call stack, right?
@@ -444,7 +449,7 @@ bahelite_print_call_stack() {
 			}
 		}
 		# echo "Printing FUNCNAME[$f], BASH_LINENO[$((f-1))], BASH_SOURCE[$f]"
-		echo -en "${__bri:-}${FUNCNAME[f]}${__s:-}, " >&2
+		echo -en "${__mi}${__bri:-}${FUNCNAME[f]}${__s:-}, " >&2
 		echo -e  "line $line_number_to_print in ${BASH_SOURCE[f]}" >&2
 	done
 	touch "$TMPDIR/call_stack_printed"
@@ -454,10 +459,10 @@ export -f  bahelite_print_call_stack
 
 
 bahelite_on_error() {
-
 	#  Disabling xtrace, for even if the programmer has put set +x where
 	#  needed, but the program catches an error before that all, there will be
 	#  a lot of trace, that the programmer doesn’t need.
+	#
 	builtin set +x
 	trap '' DEBUG
 	declare -gx BAHELITE_DUMP_VARIABLES  \
@@ -470,14 +475,18 @@ bahelite_on_error() {
 	BAHELITE_DUMP_VARIABLES=t   # This is for bahelite_on_exit().
 	[ -v LOGDIR ] || BAHELITE_DONT_CLEAR_TMPDIR=t   # This too.
 	mildrop
+
 	#  Since an error occurred, let all output go to stderr by default.
 	#  Bad idea: to put “exec 2>&1” here
 	#  Run user’s on_error().
+	#
 	[ "$(type -t on_error)" = 'function' ] && on_error
+
 	#  If this is a stipulated error, that happened in a subshell,
 	#  and because of that, the call to err() did only make the subshell
 	#  exit(), and not the main script, the must not treat it as an unhandled
 	#  error.
+	#
 	declare -g __bahelite_onerr_entrance_counter
 	let '++__bahelite_onerr_entrance_counter,  1'
 	local in_subshell
@@ -491,21 +500,24 @@ bahelite_on_error() {
 	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
 		&& info "Entering bahelite_${__bri}on_error${__s} $in_subshell for the ${__bri}$(nth $__bahelite_onerr_entrance_counter) time${__s}." ${info_redir:-}
 
- # builtin set -x
 	if	(( failed_command_code >= 5 )) \
 		&& [ -r "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL" ]
 	then
 		return 0   #  return code >0 would break bahelite_on_exit procedures!
 	fi
 
+	#  Dropping message indentation level either to the level upon entrance,
+	#  or completely, if the output is on top level.
+	#
+	[ "$__mi" = '  ' ] && __mi=''
 	bahelite_print_call_stack "${from_on_exit:-}" "${real_line_number:-}"
 
-	echo -en "Command: " >&2
 	(
+		echo -en "${__mi}Command: "
 		echo -en  "${__bri:-}$failed_command${__s:-} "
 		echo -en  "${__r:-}${__bri:-}(exit code: $failed_command_code)${__s:-}."
-	)		| fold -w $((term_cols-9)) -s  \
-			| sed -r '1 !s/^/         /g' >&2
+	)		| fold -w $((term_cols-9-${#__mi})) -s  \
+			| sed -r "1 !s/^/${__mi}         /g" >&2
 	echo >&2
 
 	#  SIGERR is triggered, when the last executed command has $? ≠ 0.
@@ -518,10 +530,12 @@ bahelite_on_error() {
 	#  to avoid calling bahelite_on_error recursively. For that we set
 	#  BAHELITE_ERROR_PROCESSED to indicate, that there is no need to call
 	#  this function twice.
+	#
 	BAHELITE_ERROR_PROCESSED=t
 
 	#  If in a subshell, do not go to print the path to a logfile –
 	#  the call to this function from the main shell will do it.
+	#
 	(( BASH_SUBSHELL > 0 )) && return 0
 
 	if [ -v BAHELITE_LOGGING_STARTED ]; then

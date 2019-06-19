@@ -12,6 +12,7 @@
 #
 vcodec_name_as_formats_libx264=(
 	'AVC'
+	'MPEG-4'
 )
 
 

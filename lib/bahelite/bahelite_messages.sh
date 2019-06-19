@@ -14,141 +14,12 @@
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
+bahelite_load_module 'messages_indentation' || return $?
 [ -v MSG_DISABLE_COLOURS ] || {
 	bahelite_load_module 'colours' || return $?
 }
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_VER='2.8.2'
-
-
-
-                         #  Message types  #
-
-#  See the wiki. (It’s not written yet.)
-
-
-
-                        #  Verbosity levels  #
-
-#  See the wiki. (It’s not written yet.)
-
- # Removes spacing characters: “-”, “_” and “ ” from VERBOSITY_LEVEL
-#
-bahelite_sanitise_verbosity_level() {
-	declare -g VERBOSITY_LEVEL
-	if [[ "$VERBOSITY_LEVEL" =~ ^([0-9]{2})[\ _-]?([0-9]{2})[\ _-]?([0-9]{2}) ]]; then
-		#  All six numbers? Just remove spacing.
-		VERBOSITY_LEVEL="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
-
-	elif [[ "$VERBOSITY_LEVEL" =~ ^([0-9])[\ _-]?([0-9])[\ _-]?([0-9]) ]]; then
-		#  Short form of three numbers? Remove spacing, add zeroes
-		#  for user-level verbosity.
-		VERBOSITY_LEVEL="${BASH_REMATCH[1]}0${BASH_REMATCH[2]}0${BASH_REMATCH[3]}0"
-
-	else
-		redmsg "Incorrect value for VERBOSITY_LEVEL: “$VERBOSITY_LEVEL”.
-		        Should be a string of six numbers, optionally divided by either
-		        a space, a hyphen or an underscore, e.g. 303030 or 30-10-00."
-		err "VERBOSITY_LEVEL must be a string of six numbers."
-	fi
-	return 0
-}
-#  No export: init stage function.
-
-
- # Verifies, that VERBOSITY_LEVEL is a correct string.
-#  To be used in runtime calls to get_bahelite/user_verbosity().
-#
-bahelite_verify_verbosity_level() {
-	#  In the future more format may appear, e.g. as an associative array
-	#  or as a string with spaces like “30 30 30”.
-	[[ "$VERBOSITY_LEVEL" =~ ^[0-9]{6}$ ]] || {
-		redmsg "Incorrect value for VERBOSITY_LEVEL: “$VERBOSITY_LEVEL”.
-		        Should be a string of six numbers, optionally divided by either
-		        a space, a hyphen or an underscore."
-		err "VERBOSITY_LEVEL must be a string of six numbers."
-	}
-	return 0
-}
-export -f  bahelite_verify_verbosity_level
-
-
- # Extracts output (log/console/desktop) verbosity level from VERBOSITY_LEVEL.
-#
-#  Returns the first number of the output verbosity number,
-#  e.g. 123456 for requested output “log” will return “1”
-get_bahelite_verbosity()  { __get_verbosity "$1" bahelite; }
-#
-#  Returns the second digit of the output verbosity number,
-#  e.g. 123456 for requested output “log” will return “2”
-get_user_verbosity()      { __get_verbosity "$1" user; }
-#
-#  Returns both digits of the output verbosity number,
-#  e.g. 123456 for requested output “log” will return “10”
-get_overall_verbosity()   { __get_verbosity "$1" overall; }
-#
-#
-__get_verbosity() {
-	local output="$1" mode="$2"
-	bahelite_verify_verbosity_level
-	case "$output" in
-		log)
-			case "$mode" in
-				'bahelite')
-					echo "${VERBOSITY_LEVEL:0:1}"
-					;;
-				'user')
-					echo "${VERBOSITY_LEVEL:1:1}"
-					;;
-				'overall')
-					echo "${VERBOSITY_LEVEL:0:2}"
-					;;
-			esac
-			;;
-
-		console)
-			case "$mode" in
-				'bahelite')
-					echo "${VERBOSITY_LEVEL:2:1}"
-					;;
-				'user')
-					echo "${VERBOSITY_LEVEL:3:1}"
-					;;
-				'overall')
-					echo "${VERBOSITY_LEVEL:2:2}"
-					;;
-			esac
-			;;
-
-		desktop)
-			case "$mode" in
-				'bahelite')
-					echo "${VERBOSITY_LEVEL:4:1}"
-					;;
-				'user')
-					echo "${VERBOSITY_LEVEL:5:1}"
-					;;
-				'overall')
-					echo "${VERBOSITY_LEVEL:4:2}"
-					;;
-			esac
-			;;
-		*)
-			err "Unknown verbosity output: “$output”.
-			     Must be one of: log, console, desktop."
-			;;
-	esac
-	return 0
-}
-export -f  __get_verbosity  \
-               get_bahelite_verbosity  \
-               get_user_verbosity  \
-               get_overall_verbosity  \
-
-[ -v VERBOSITY_LEVEL ]  \
-	|| declare -gx VERBOSITY_LEVEL='333'
-bahelite_sanitise_verbosity_level
-
+declare -grx BAHELITE_MODULE_MESSAGES_VER='2.9.2'
 
 
 
@@ -158,7 +29,7 @@ bahelite_sanitise_verbosity_level
 #
 declare -gAx BAHELITE_INFO_MESSAGES=()
 declare -gAx BAHELITE_WARNING_MESSAGES=()
-#
+
  # Error messages
 #  Keys are used as parameters to err() and values are printed via msg().
 #  The keys can contain spaces – e.g. ‘my key’. Passing them to err() doesn’t
@@ -170,8 +41,7 @@ declare -gAx BAHELITE_ERROR_MESSAGES=(
 	[no such msg]='No such message keyword: “$1”.'
 	[no util]='Utils are missing: $1.'
 )
-#
-#
+
  # User lists
 #  By default, functions like info(), warn(), err() will accept a text string
 #  and display it. However, it’s possible to replace strings with keywords
@@ -234,112 +104,7 @@ declare -gx HEADER_MESSAGE_COLOUR=${__yellow:-}${__bright:-}
 #
 # declare -gx MSG_FOLD_MESSAGES=t
 
- # Message indentation level
-#  Checking, if it’s already set, in case one script calls another –
-#  so that indentaion would be inherited in the inner script.
-[ -v MSG_INDENTATION_LEVEL ]  \
-	|| declare -gx MSG_INDENTATION_LEVEL=0
-#
-#  So that mildrop() could decrease the level properly in chainloaded scripts.
-declare -gx MSG_INDENTATION_LEVEL_UPON_ENTRANCE=$MSG_INDENTATION_LEVEL
-#
-#  The whitespace indentation itself.
-#  As it belongs to markup, that user may use in the main script for custom
-#    messages, it follows the corresponding style, akin to terminal sequences.
-#  The string will be set according too the MSG_INDENTATION_LEVEL on the call
-#    to mi_assemble() below.
-declare -gx __mi=''
-#
-#  Number of spaces to use per indentation level.
-#  Not tabs, because predicting the tab length in a particular terminal
-#  is impossible anyway.
-[ -v MSG_INDENTATION_SPACES_PER_LEVEL ]  \
-	|| declare -gx MSG_INDENTATION_SPACES_PER_LEVEL=4
 
-
- # Assembles __mi according to the current MSG_INDENTATION_LEVEL
-#
-mi_assemble() {
-	#  Internal! No xtrace_off/on needed!
-	__mi=''
-	local i
-	for	((	i=0;
-			i < (    MSG_INDENTATION_LEVEL
-			       * MSG_INDENTATION_SPACES_PER_LEVEL);
-			i++
-		))
-	do
-		__mi+=' '
-	done
-	#  Without this, multiline messages that occur on MSG_INDENTATION_LEVEL=0,
-	#  when $__mi is empty, won’t be indented properly. ‘* ’, remember?
-	[ "$__mi" ] || __mi='  '
-	return 0
-}
-export -f  mi_assemble
-
-
- # Increments the indentation level.
-#  [$1] — number of times to increment $MI_LEVEL.
-#         The default is to increment by 1.
-#
-milinc() {
-	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	local count=${1:-1}  z
-	for ((z=0; z<count; z++)); do
-		let '++MSG_INDENTATION_LEVEL,  1'
-	done
-	mi_assemble || return $?
-}
-export -f  milinc
-
-
- # Decrements the indentation level.
-#  [$1] — number of times to decrement $MI_LEVEL.
-#  The default is to decrement by 1.
-#
-mildec() {
-	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	local count=${1:-1}  z
-	if (( MSG_INDENTATION_LEVEL == 0 )); then
-		warn "No need to decrease indentation, it’s on the minimum."
-	else
-		for ((z=0; z<count; z++)); do
-			let '--MSG_INDENTATION_LEVEL,  1'
-		done
-		mi_assemble || return $?
-	fi
-	return 0
-}
-export -f  mildec
-
-
- # Sets the indentation level to a specified number.
-#  The use of this function is discouraged. milinc, mildec and mildrop are
-#  better for handling increases and drops in the message indentation level.
-#  $1 – desired indentation level, 0..9999.
-#
-milset () {
-	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	local mi_level=${1:-}
-	[[ "$mi_level" =~ ^[0-9]{1,4}$ ]] || {
-		warn "Indentation level should be an integer between 0 and 9999."
-		return 0
-	}
-	MSG_INDENTATION_LEVEL=$mi_level
-	mi_assemble || return $?
-}
-export -f  milset
-
-
- # Removes any indentation.
-#
-mildrop() {
-	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	MSG_INDENTATION_LEVEL=$MSG_INDENTATION_LEVEL_UPON_ENTRANCE
-	mi_assemble || return $?
-}
-export -f  mildrop
 
 
 
@@ -851,6 +616,80 @@ plainmsg() {
 export -f  msg  plainmsg
 
 
+ # Wrappers to hide messages behind certain verbosity levels.
+#  When you wish to show a message only when verbosity is raised – maybe even
+#    to some particular level, – use these wrappers in place of regular info()
+#    and warn(), and you won’t need typing heavy constructions like…
+#        [ -v BAHELITE_MODULES_ARE_VERBOSE ] && info …
+#        # ^ You may, but shouldn’t rely on Bahelite variables in this case.
+#    or
+#        (( $(get_bahelite_verbosity  console) >= 5 ))  && info …
+#        (( $(get_user_verbosity  console) >= 5 ))  && info …
+#        (( $(get_overall_verbosity  console) >= 55 ))  && info …
+#        # ^ This is sane, but looks way too heavy in the main script code.
+#    or
+#        (( ${VERBOSITY_LEVEL:1:1} == 5 ))  && info …
+#        # ^ What are you doing?!
+#
+#  Most scripts would be satisfied with just debug50-info and debug50-warn,
+#    but the list of aliases spans over the entire 5x verbosity level to demon-
+#    strate, that an application may use up to ten levels.
+#  You may create an alias function for any message function that is defined
+#    above – for infon() or msg() for example. Simply replace the function
+#    names.
+#  It is also possible to get not 10, but up to 50 verbosity level by creating
+#    corresponding alises (that is, from 60 to 99). Since the overall verbosity
+#    that is checked, belongs to the “console” facility, and levels above 5x
+#    do not increase verbosity any further (they do only in “logs”), it is per-
+#    fectly safe to create debug99-info() – it will be shown as long as the
+#    *console verbosity* is raised to 99 (it won’t turn on automatic xtrace
+#    or spam you with metric tons of logs).
+#
+debug50-info() { __debug_msg info 50 "$@"; }
+debug50-warn() { __debug_msg warn 50 "$@"; }
+debug50-msg()  { __debug_msg  msg 50 "$@"; }
+debug51-info() { __debug_msg info 51 "$@"; }
+debug51-warn() { __debug_msg warn 51 "$@"; }
+debug51-msg()  { __debug_msg  msg 51 "$@"; }
+debug52-info() { __debug_msg info 52 "$@"; }
+debug52-warn() { __debug_msg warn 52 "$@"; }
+debug52-msg()  { __debug_msg  msg 52 "$@"; }
+debug53-info() { __debug_msg info 53 "$@"; }
+debug53-warn() { __debug_msg warn 53 "$@"; }
+debug53-msg()  { __debug_msg  msg 53 "$@"; }
+debug54-info() { __debug_msg info 54 "$@"; }
+debug54-warn() { __debug_msg warn 54 "$@"; }
+debug54-msg()  { __debug_msg  msg 54 "$@"; }
+debug55-info() { __debug_msg info 55 "$@"; }
+debug55-warn() { __debug_msg warn 55 "$@"; }
+debug55-msg()  { __debug_msg  msg 55 "$@"; }
+debug56-info() { __debug_msg info 56 "$@"; }
+debug56-warn() { __debug_msg warn 56 "$@"; }
+debug56-msg()  { __debug_msg  msg 56 "$@"; }
+debug57-info() { __debug_msg info 57 "$@"; }
+debug57-warn() { __debug_msg warn 57 "$@"; }
+debug57-msg()  { __debug_msg  msg 57 "$@"; }
+debug58-info() { __debug_msg info 58 "$@"; }
+debug58-warn() { __debug_msg warn 58 "$@"; }
+debug58-msg()  { __debug_msg  msg 58 "$@"; }
+debug59-info() { __debug_msg info 59 "$@"; }
+debug59-warn() { __debug_msg warn 59 "$@"; }
+debug59-msg()  { __debug_msg  msg 59 "$@"; }
+__debug_msg() {
+	local msg_func="$1" verbosity="$2" overall_verbosity
+	shift 2
+	[ "$(type -t "$msg_func")" = 'function' ]  \
+		|| err "Not such message function: “$msg_func”."
+	[[ "$verbosity" =~ ^[0-9]+$ ]]  \
+	&& (( verbosity >= 50  && verbosity <= 99 ))  \
+		|| err "Verbosity must be a number from 50 to 99."
+	overall_verbosity=$(get_overall_verbosity console)
+	(( overall_verbosity >= verbosity )) \
+		&& $msg_func "$@"
+	return 0
+}
+
+
  # Shows an info, a warning or an error message
 #  on console and optionally, on desktop too.
 #  $1 — a text message or,
@@ -888,14 +727,14 @@ __msg() {
 		[ "$f" = "${FUNCNAME[0]}" ] && let '++f_count,  1'
 	done
 	(( f_count >= 3 )) && {
-		echo "Bahelite error: call to ${FUNCNAME[0]} went into recursion." >&2
+		echo "Bahelite error: call to $FUNCNAME has went into recursion." >&2
 		[ "$(type -t bahelite_print_call_stack)" = 'function' ]  && {
 			#  Print call stack, unless already in the middle of doing it
 			for f in "${FUNCNAME[@]}"; do
 				[ "$f" = "bahelite_print_call_stack" ]  \
 					&& already_printing_call_stack=t
 			done
-			[ -v already_printing_call_stack ] \
+			[ -v already_printing_call_stack ]  \
 				|| bahelite_print_call_stack
 		}
 		#  Unsetting the traps, or the recursion may happen again.
@@ -1157,82 +996,27 @@ divider_message() {
 	for	(( i=0;  i < TERM_COLS - line_to_print_length;  i++ )); do
 		line_to_print+="$divider_line_character"
 	done
+	line_to_print+="${__s:-}"
 	if (( BASH_SUBSHELL == 0 )); then
-		echo -e "$line_to_print${__s}"
+		[ "${FUNCNAME[1]}" = headermsg ] && echo
+		echo -e "$line_to_print"
+		[ "${FUNCNAME[1]}" = footermsg ] && echo
 	else
 		#  If this is the subshell, use the parent shell’s
 		#    file descriptors to send messages, because they
 		#    shouldn’t be grabbed along with the output.
 		#  The parent shell’s FD may be closed, so a check
 		#    is needed to confirm, that it’s still writeable.
-		[ -w "$STDOUT_ORIG_FD_PATH" ]  \
-			&& echo -e "$line_to_print${__s}"  >$STDOUT_ORIG_FD_PATH
+		[ -w "$STDOUT_ORIG_FD_PATH" ] && {
+			[ "${FUNCNAME[1]}" = headermsg ] && echo  >$STDOUT_ORIG_FD_PATH
+			echo -e "$line_to_print"  >$STDOUT_ORIG_FD_PATH
+			[ "${FUNCNAME[1]}" = footermsg ] && echo  >$STDOUT_ORIG_FD_PATH
+		}
 	fi
 	return 0
 }
 export -f divider_message
 
 
-
-bahelite_xtrace_off
-mi_assemble
-bahelite_xtrace_on
-
-
-
-                         #  Stream control  #
-
- # Remembering the original FD paths. They are needed to send info, warn etc.
-#  messages from subshells properly.
-#
-if (( BASH_SUBSHELL == 0 )); then
-	declare -gx STDIN_ORIG_FD_PATH="/proc/$$/fd/0"
-	declare -gx STDOUT_ORIG_FD_PATH="/proc/$$/fd/1"
-	declare -gx STDERR_ORIG_FD_PATH="/proc/$$/fd/2"
-else
-	[ -v STDIN_ORIG_FD_PATH ]  \
-		|| declare -gx STDIN_ORIG_FD_PATH="/proc/$$/fd/0"
-	[ -v STDOUT_ORIG_FD_PATH ]  \
-		|| declare -gx STDOUT_ORIG_FD_PATH="/proc/$$/fd/1"
-	[ -v STDERR_ORIG_FD_PATH ]  \
-		|| declare -gx STDERR_ORIG_FD_PATH="/proc/$$/fd/2"
-fi
-
-
- # Setting initial verbosity according to $VERBOSITY_LEVEL.
-#
-#  Saving the original destinations of console stdout and stderr,
-#  so that they may be used to bypass writing some temporary information
-#  like a progressbar to the log file, and also for the logging module
-#  to have these in case console verbosity would redirect stdout and stderr
-#  to /dev/null.
-#
-exec {STDOUT_ORIG_FD}>&1
-exec {STDERR_ORIG_FD}>&2
-case "$(get_bahelite_verbosity  'console')" in
-	0)	exec 1>/dev/null
-		#
-		#  If the logging module would need to log stdout, it would need
-		#  to know, that it must grab not FD 1, but FD $STDOUT_ORIG_FD.
-		#  Same for stderr.
-		#
-		BAHELITE_CONSOLE_VERBOSITY_SENT_STDOUT_TO_DEVNULL=t
-		exec 2>/dev/null
-		BAHELITE_CONSOLE_VERBOSITY_SENT_STDERR_TO_DEVNULL=t
-		;;
-
-	1)	exec 1>/dev/null
-		BAHELITE_CONSOLE_VERBOSITY_SENT_STDOUT_TO_DEVNULL=t
-		;;
-
-	4|5|6|7|8|9)
-		BAHELITE_XTRACE_ALLOWED=t
-		;;&
-
-	5|6|7|8|9)
-		BAHELITE_MODULES_ARE_VERBOSE=t
-		BAHELITE_DONT_CLEAR_TMPDIR=t
-		;;
-esac
 
 return 0

@@ -60,7 +60,8 @@ assemble_vf_string() {
 	#  unset to avoid confusion in the later check.
 	#
 	extract_subs() {
-		declare -g src_s
+		[ -v subtitles_are_already_extracted ] && return 0
+		declare -g src_s  subtitles_are_already_extracted
 		info "Extracting subtitles…"
 		src_s[external_file]="$TMPDIR/subs.ass"
 		# NB: -map uses 0:s:<subtitle_track_id> syntax here.
@@ -78,12 +79,15 @@ assemble_vf_string() {
 			|| err "Cannot extract subtitle stream ${src_s[track_id]}: ffmpeg error."
 		sub-msg 'Ignore ffmpeg errors, if there are any.'
 		unset src_s[track_id]
+		#  Saving time on re-encodes.
+		subtitles_are_already_extracted=t
 		return 0
 	}
 
 
 	extract_fonts() {
-		declare -g  font_list
+		[ -v fonts_are_already_extracted ] && return 0
+		declare -g  font_list  fonts_are_already_extracted
 		info "Extracting fonts…"
 		milinc
 		[ -d "$TMPDIR/fonts" ] || mkdir "$TMPDIR/fonts"
@@ -110,6 +114,8 @@ assemble_vf_string() {
 			info 'Video has no attachments.'
 		fi
 		mildec
+		#  Saving time on re-encodes.
+		fonts_are_already_extracted=t
 		return 0
 	}
 
@@ -295,9 +301,12 @@ set_file_name_and_video_title() {
 #  progress information to console.
 #
 launch_a_progressbar_for_ffmpeg() {
-	[ -v do_not_report_ffmpeg_progress_to_console ] && return 0
+	[ -v ffmpeg_progressbar ] || return 0
 	declare -g  ffmpeg_progress_log="$TMPDIR/ffmpeg_progress.log"  \
 	            progressbar_pid  frame_count
+	# ^ ffmpeg_progress_log must be defined before the check on whether
+	#   console output should be prevented.
+	[ -v do_not_report_ffmpeg_progress_to_console ] && return 0
 	local progress_status  frame_no  elapsed_time
 	export frame_count
 	mkfifo "$ffmpeg_progress_log"
@@ -437,6 +446,7 @@ launch_a_progressbar_for_ffmpeg() {
 
 
 stop_the_progressbar_for_ffmpeg() {
+	[ -v ffmpeg_progressbar ] || return 0
 	[ -v do_not_report_ffmpeg_progress_to_console ] && return 0
 	local i
 	#  Wait for a maximum of five seconds for progressbar coprocess to finish.

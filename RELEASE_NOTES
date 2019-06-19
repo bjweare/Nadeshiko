@@ -1,3 +1,79 @@
+——— v 2.9.2 ——————————————————————————————————————————————————————————————————
+                                                           Nadeshiko-mpv 2.4.6
+                                                  Nadeshiko-do-postponed 2.3.4
+
+1. Speed improvement for the case when Nadeshiko has to encode the same clip
+   more than once: now subsequent subtitle and attachment extraction is avoi-
+   ded
+
+2. Improved multi-socket handling in Nadeshiko-mpv: earlier, when Nadeshiko-
+   mpv must have set Time1 or Time2, and several mpv windows were open – each
+   using a different socket, – Nadeshiko-mpv spawned a dialogue window, but
+   it often was unseen, because mpv window was in fullscreen. When user sent
+   a command from the player and …nothing happened, this created confusion
+   and required the user to guess, that they must unmaximise the mpv window
+   to continue.
+
+   Unfortunately, it isn’t possible to display a dialogue window above mpv,
+   because nothing can be more “on top” than a program in fullscreen mode.
+   And it wasn’t possible to unpause and unfullscreen that one mpv window,
+   because at this stage it is not yet known, which of the player windows
+   Nadeshiko-mpv should connect to – this is what the dialogue window is
+   spawned for.
+
+   Now Nadeshiko-mpv just sends “unpause” and “unfullscreen” to all sockets,
+   that it is configured with, and that are currently in use (by some mpv
+   window, presumably). Among these sockets should be the one, which the
+   focused mpv window is connected to. So when the mpv window goes unmaxi-
+   mised, the dialogue window appears in front, as it should be.
+
+3. Improved sending desktop notifications in bugged shells with a stale
+   DBUS_SESSION_BUS_ADDRESS. When a shell persists between X sessions
+   (because it runs in tmux, for example), it maintains the address of the
+   first one, in which that shell was spawned.
+
+   When the address is stale, a desktop notification dispatched by notify-send
+   is not shown, and for desktop-oriented script like Nadeshiko-mpv it looks
+   like a silent failure. (The logs are still complete, but it takes to open
+   them first to understand what happened. And it would still leave some con-
+   fusion, because the reason why the desktop notification wasn’t shown, won’t
+   be in the logs – notify-send dispatched the message correctly, it’s the
+   shell that has wrong directions for it.)
+
+4. The “Quit” button in Nadeshiko-do-postponed now uses another icon, that
+   should be more calm and appropriate for the action: the red one might give
+   a wrong impression that the jobs would be discarded on quit.
+
+5. Nadeshiko-mpv now has more messages for debugging the internals.
+   All of them and also some of the previously existing messages are now
+   hidden behind the verbosity levels 51 and 52. This should speed up GUI
+   building a little.
+
+   Console output of all Nadeshiko scripts now displays the current verbosity
+   level and hints, that it may be raised.
+
+6. When Nadeshiko-mpv prints Nadeshiko log, it is now separated by an empty
+   line above and below. This helps to distinguish Nadeshiko-mpv messages from
+   those of Nadeshiko (the backend). If Nadeshiko output is printed within Na-
+   deshiko-mpv’s and it has call stack, it will now be aligned along with the
+   rest of the Nadeshiko log (earlier the printing of the call stack didn’t
+   obey the message indentation).
+
+7. Format “MPEG-4” added for libx264 codec (earlier was only “AVC”).
+
+8. Fixed a bug in libvpx-vp9 encoding module, when ffmpeg_progress.log was
+   specified directly to ffmpeg (should be by $ffmpeg_progress_log).
+
+   Fixed a related bug in the function launching a progressbar: when the con-
+   sole output was disabled, $ffmpeg_progress_log  was not set yet, and that
+   caused libx264 encoding module to fail, because it specified the path to
+   log for ffmpeg via $ffmpeg_progress_log (as it should be). This didn’t
+   affect libvpx-vp9 encoding module, because the way how the log is specified
+   there wasn’t updated. Everything’s fixed now.
+
+
+
+
 ——— v 2.9.1 ——————————————————————————————————————————————————————————————————
                                                            Nadeshiko-mpv 2.4.5
 

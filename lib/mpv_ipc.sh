@@ -196,6 +196,10 @@ test_cursor_autohide_false() {
 
 
  # Choose a socket from predefined in the associative array mpv_sockets.
+#
+#  MUST BE CALLED BY ITSELF IN THE MAIN SHELL CONTEXT, SOMEWHERE IN THE
+#  BEGINNING.
+#
 #  Entries of mpv_sockets have format [human_readable_name]="/path/to/socket".
 #  - what socket an mpv instance should use is defined by either command line
 #    option “--input-ipc-server”, or the option in the config file.
@@ -209,65 +213,89 @@ test_cursor_autohide_false() {
 #    listening to socket B, a dialogue window spawns to choose socket.
 #
 check_socket() {
-	declare -g mpv_socket
-	local sockets_that_work=()  socket_name  socket  sockets_occupied=() \
+	local i
+	#  Avoid recursive processing.
+	for ((i=1; i<${#FUNCNAME[@]}; i++)); do
+		[ "${FUNCNAME[i]}" = check_socket ] && return 0
+	done
+
+	debug51-info 'Checking mpv socket'
+	milinc
+	#  After the possible early return!
+	declare -gx mpv_socket
+	local sockets_that_work=()  socket_name  socket_path  sockets_occupied=() \
 	      sockets_unused=() bad_sockets=() dialog_socket_list=() \
-	      i  err_message  resp_mpv_socket
-	[ ${#mpv_sockets[@]} -eq 0 ] && err 'No sockets defined.'
-	#  To avoid get_prop annoying the user with “Choose a socket” 50 times
+	      err_message  resp_mpv_socket
+	(( ${#mpv_sockets[@]} == 0 ))  && err 'No sockets defined.'
+
+	 # To avoid get_prop annoying the user with “Choose a socket” 50 times
 	#  during the same run, limit the socket list to already chosen socket
 	#  and just check, that it’s still there and okay.
+	#
 	[ -v mpv_socket ] && mpv_sockets=( [Already_chosen]="$mpv_socket" )
 	for socket_name in ${!mpv_sockets[@]}; do
-		socket=${mpv_sockets[$socket_name]}
-		if [ -S "$socket" ]; then
-			#  In the future, it may be necessary to use
-			#  lsof -t +E -- "$socket"
-			if lsof_output=$(lsof -t -c mpv -a -f -- "$socket"); then
-				#  This override is for the weird behaviour, when mpv spawns
+		socket_path=${mpv_sockets[$socket_name]}
+		debug51-info "Socket [$socket_name]=\"$socket_path\""
+		milinc
+		if [ -S "$socket_path" ]; then
+			debug51-msg 'Path leads to a proper socket file.'
+			 # In the future, it may be necessary to use
+			#  lsof -t +E -- "$socket_path"
+			#
+			if lsof_output=$(lsof -t -c mpv -a -f -- "$socket_path"); then
+				debug51-msg 'Socket is used by mpv(s?).'
+
+				 # This override is for the weird behaviour, when mpv spawns
 				#  a subprocess after “load-script” command. (The next command
 				#  sent in a row with “load-script”, e.g. “script-binding”,
 				#  would fail occasionally, because it would see that phantom
 				#  mpv process spawned by the previous command, which would
 				#  occupy the socket. This mpv subprocess doesn’t break IPC,
 				#  so the only way is to ignore it.)
+				#
 				if [ -v MPV_IPC_CHECK_SOCKET_ASSUME_ONE_PROCESS ]; then
+					debug51-info 'Assuming there is only one mpv process to avoid a bug.'
 					sockets_that_work+=( "$socket_name" )
 				else
 					case "$(wc -l <<<"$lsof_output")" in
-						1)  sockets_that_work+=( "$socket_name" )
+						1)
+							debug51-info 'Only one mpv process uses this socket.'
+							sockets_that_work+=( "$socket_name" )
 							;;
-						*)  sockets_occupied+=( "$socket" )
-							warn "More than one mpv keeps open this socket: $socket
-							      $lsof_output"
+						*)
+							debug51-warn "Several mpv use this socket:
+							              $lsof_output"
+							sockets_occupied+=( "$socket_path" )
 							;;
 					esac
 				fi
 			else
-				sockets_unused+=("$socket")
-				info "No mpv is listening on socket $socket."
+				sockets_unused+=("$socket_path")
+				debug51-info "No mpv is listening this socket."
 			fi
 		else
-			bad_sockets+=("$socket")
-			if [ -e "$socket" ]; then
-				if [ -r "$socket" ]; then
-					warn "“$socket”:\nfile exists, but isn’t a socket."
+			bad_sockets+=("$socket_path")
+			if [ -e "$socket_path" ]; then
+				if [ -r "$socket_path" ]; then
+					debug51-warn "File exists, but isn’t a socket."
 				else
-					warn "“$socket”:\nisn’t readeable."
+					debug51-warn "Path doesn’t lead to a readeable file."
 				fi
 			else
-				warn "“$socket”:\nsocket doesn’t exist."
+				debug51-warn "Path doesn’t exist."
 			fi
 		fi
+		mildec
 	done
+
 	case "${#sockets_that_work[@]}" in
 		0)
 			err_message="Socket error: "
-			[ ${#sockets_occupied[@]} -ne 0 ] \
+			(( ${#sockets_occupied[@]} != 0 ))  \
 				&& err_message+=$'\n'"${#sockets_occupied[@]} socket(s) occupied."
-			[ ${#sockets_unused[@]} -ne 0 ] \
+			(( ${#sockets_unused[@]} != 0 ))  \
 				&& err_message+=$'\n'"${#sockets_unused[@]} socket(s) unused."
-			[ ${#bad_sockets[@]} -ne 0 ] \
+			(( ${#bad_sockets[@]} != 0 ))  \
 				&& err_message+=$'\n'"${#bad_sockets[@]} bad socket(s)."
 			err "$err_message"
 			;;
@@ -281,20 +309,32 @@ check_socket() {
 				#  String to display in the radiobox label
 				dialog_socket_list+=("${sockets_that_work[i]}")
 				#  Which radiobox should be active
-				(( i == 0 )) \
-					&& dialog_socket_list+=( on  ) \
+				(( i == 0 ))  \
+					&& dialog_socket_list+=( on  )  \
 					|| dialog_socket_list+=( off )
+
+				 # In order to bring the dialogue window in front, the mpv
+				#  window has to be unmaximised. But since it is not known
+				#  at this time yet, which mpv socket we should work with,
+				#  each window has to be set on pause and unmaximised. At
+				#  least this is better than when a user presses a hotkey
+				#  and nothing visibly happens.
+				#
+				mpv_socket="${mpv_sockets[${sockets_that_work[i]}]}"  #  Temporarily!
+				set_prop 'pause' 'yes'
+				set_prop 'fullscreen' 'no'
+
 			done
-			#  Cannot do it here, because in order to connect to mpv
-			#  mpv_socket must be set first, and it does not, if the
-			#  algorithm went here.
-			#pause_and_leave_fullscreen
+
+			#  Returning $mpv_socket to undefined state.
+			unset mpv_socket
+			declare -gx mpv_socket  #  Because unset has reset the flags.
 			show_dialogue_choose_mpv_socket 'dialog_socket_list'
 			resp_mpv_socket="$dialog_output"
 			[[ "$resp_mpv_socket" =~ ^[0-9]+$ ]] \
 			&& (( resp_mpv_socket >= 0  )) \
 			&& (( resp_mpv_socket <= ${#sockets_that_work[@]} )) \
-				|| err 'Dialog returned invalid index.'
+				|| err 'Dialog returned invalid socket index.'
 			#  mpv_socket is now an array index (integer),
 			#  we use it for sockets_that_work, that has names like “Usual”.
 			mpv_socket=${sockets_that_work[resp_mpv_socket]}
@@ -303,6 +343,7 @@ check_socket() {
 			mpv_socket=${mpv_sockets[$mpv_socket]}
 			;;
 	esac
+	mildec
 	return 0
 }
 
@@ -318,14 +359,18 @@ check_prop_name() {
 
 
 send_command() {
-	local command="$1" command_args mpv_answer data status \
-	      commands_that_dont_return_data='show-text'
+	local command="$1"  command_args  mpv_answer  data  status  \
+	      return_data_via_stdout
+	[ "${FUNCNAME[1]}" = 'get_prop' ] && return_data_via_stdout=t
 	unset data
 	shift
 	check_socket
 	for arg in "$@"; do
 		command_args+=", \"$arg\""
 	done
+	debug52-info "$FUNCNAME: sending a command to mpv via IPC:
+	              command: $command
+	              arguments: $@"
 	#  Would be good to implement check on request id – any string that
 	#  should be returned as it was passed.
 	#
@@ -341,6 +386,7 @@ send_command() {
 		{ "command": ["$command"${command_args:-}] }
 		EOF
 	) || err "Connection refused."
+
 	# command:
 	# {"data":null,"error":"success"}
 	# {"error":"invalid parameter"}
@@ -356,30 +402,33 @@ send_command() {
 	# {"error":"property not found"}
 	#
 	#  There may be no .data, it’s OK, and it returns OK.
-	data=$(echo "$mpv_answer" | jq -r .data) || {
+
+	data=$(echo "$mpv_answer" | jq -r .data 2>&1) || {
 		redmsg "“$command $*”: no .data in JSON answer. The answer was:
 		        $mpv_answer"
 		err "Protocol error"
 	}
-	status=$(echo "$mpv_answer" | jq -r .error) || {
+	status=$(echo "$mpv_answer" | jq -r .error 2>&1) || {
 		redmsg "“$command $*”: no .error in JSON answer. The answer was:
 		        $mpv_answer"
 		err "Protocol error"
 	}
+
 	#  If there’s no status, or status ≠ success, this is a problem.
 	[ "$status" != success ] && {
 		redmsg "$command $*: the status in the error field is “$status”."
 		err "Protocol error"
 	}
-	[[ "$command" =~ ^($commands_that_dont_return_data)$ ]] || echo "$data"
+
+	[ -v return_data_via_stdout ] && echo "$data"
 	return 0
 }
 
 
 internal_set_prop() {
-	local propname="$1" propval="$2" orig_propname \
+	local propname="$1" propval="$2" orig_propname  \
 	      prop_true_test prop_false_test
-	read -d '' prop_true_test prop_false_test \
+	read -d '' prop_true_test prop_false_test  \
 		< <( echo -n "${properties[$propname]}"; echo -en '\0' )
 	orig_propname=$propname
 	propname=${propname//-/_}
@@ -403,8 +452,7 @@ internal_set_prop() {
 
 
 get_prop() {
-	local propname="$1" mpv_answer propdata
-	check_socket
+	local propname="$1"  propdata
 	check_prop_name "$propname"
 	 # "get_property" vs "get_property_string"
 	#    The latter gives more predictable and universal results. The downside
@@ -439,7 +487,6 @@ get_props() {
 
 set_prop() {
 	local propname="$1" propval="$2" mpv_answer status
-	check_socket
 	check_prop_name "$propname"
 	send_command 'set_property' "$propname" "$propval"
 	# a Check the answer here.

@@ -205,17 +205,17 @@ check_util_support() {
 
 					#  For retrieving data from the source video
 					#  and verifying resulting video.
-					ffprobe
-
-					#  For the parts not retrievable with ffprobe
-					#  and as a fallback option for when ffprobe fails.
 					mediainfo
+
+					#  For the parts not retrievable with mediainfo
+					#  and as a fallback option.
+					ffprobe
 
 					#  To parse mediainfo output.
 					xmlstarlet
 
-					#  To determine, that the file is really a video.
-					#  “file” command is not sufficient.
+					#  To determine the mime types of video and subtitle files
+					#  correctly, “file” command is not sufficient.
 					mimetype
 
 					#  For the floating point calculations, that are necessary
