@@ -1,3 +1,13 @@
+——— v 2.9.4 ——————————————————————————————————————————————————————————————————
+
+A bugfix for Nadeshiko: when it runs from within Nadeshiko-mpv, the call to
+tput in the on_exit() trap must also check, if progressbar output is allowed
+to go to console. (Without this check tput is called when it actually should
+not.)
+
+
+
+
 ——— v 2.9.3 ——————————————————————————————————————————————————————————————————
 
 A hotfix to add the new libraries.
