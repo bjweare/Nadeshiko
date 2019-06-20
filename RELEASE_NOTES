@@ -1,3 +1,15 @@
+——— v 2.9.5 ——————————————————————————————————————————————————————————————————
+                                                           Nadeshiko-mpv 2.4.7
+
+Bugfix for the bugfix in v2.9.4. Nadeshiko dry run for predictor still may
+have $ffmpeg_progressbar set, and even though there is no progress bar –
+because it is a dry run – the on_exit() still called tput because the argument
+disabling the progressbar output to console wasn’t passed (as it seemed unne-
+cessary). Now it’s passed and the bugfix should work.
+
+
+
+
 ——— v 2.9.4 ——————————————————————————————————————————————————————————————————
 
 A bugfix for Nadeshiko: when it runs from within Nadeshiko-mpv, the call to

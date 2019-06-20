@@ -217,7 +217,10 @@ prepare_preset_options() {
 			                      "$size" "$path"                \
 			                      ${crop:+crop=$crop}            \
 			                      dryrun                         \
-			                      ${scene_complexity:+force_scene_complexity=$scene_complexity}
+			                      ${scene_complexity:+force_scene_complexity=$scene_complexity}  \
+			                      do_not_report_ffmpeg_progress_to_console
+			                      # ^ The last argument is only to prevent
+			                      #   calling tput in Nadeshiko’s on_exit().
 
 		errexit_on
 

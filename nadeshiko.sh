@@ -54,7 +54,7 @@ prepare_confdir
 place_examplerc 'nadeshiko.10_main.rc.sh'
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
-declare -r version='2.9.4'
+declare -r version='2.9.5'
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 
  # Minimal libav libraries versions
