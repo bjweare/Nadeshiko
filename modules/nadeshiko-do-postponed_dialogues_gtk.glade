@@ -50,6 +50,7 @@ along with Nadeshiko.  If not, see <http://www.gnu.org/licenses/>.
     <property name="window_position">center</property>
     <property name="destroy_with_parent">True</property>
     <property name="type_hint">dialog</property>
+    <property name="decorated">False</property>
     <signal name="destroy" handler="on_window_destroy" swapped="no"/>
     <child>
       <object class="GtkStack" id="stack1">
@@ -236,7 +237,7 @@ Run them?</property>
         </child>
       </object>
     </child>
-    <child type="titlebar">
+    <child>
       <placeholder/>
     </child>
   </object>

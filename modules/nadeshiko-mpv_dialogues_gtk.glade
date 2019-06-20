@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.20.4
+<!-- Generated with glade 3.20.4 
 
 Copyright (C) deterenkelt 2018
 
@@ -259,6 +259,7 @@ Python 3.6.5-r1</property>
     <property name="destroy_with_parent">True</property>
     <property name="icon">../res/icons/icon_32.png</property>
     <property name="type_hint">dialog</property>
+    <property name="decorated">False</property>
     <property name="gravity">north</property>
     <signal name="destroy" handler="on_window_destroy" swapped="no"/>
     <child>
@@ -1418,7 +1419,7 @@ to be run later (Nadeshiko backend will not start &lt;i&gt;now&lt;/i&gt;).</prop
         </child>
       </object>
     </child>
-    <child type="titlebar">
+    <child>
       <placeholder/>
     </child>
   </object>
