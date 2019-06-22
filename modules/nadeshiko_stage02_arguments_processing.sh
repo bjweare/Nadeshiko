@@ -602,7 +602,7 @@ determine_scene_complexity() {
 set_vars() {
 	declare -g orig_vcodec_format  orig_acodec_format  \
 	           # source_video_container=$(mimetype -L -b -d "${src[path]}")
-	local i
+	local  i  output_framerate
 
 	check_muxing_set
 
@@ -619,8 +619,9 @@ set_vars() {
 	gather_info 'before-encode' 'src'
 	check_times
 	#  Frame count is used as primary indicator of the expected muxing overhead.
+	output_framerate=${custom_output_framerate:-${src_v[frame_rate]}}
 	frame_count=$(echo "scale=3;  fc =    ${duration[total_s_ms]}  \
-	                                    * ${src_v[frame_rate]};
+	                                    * $output_framerate;
 	                    scale=0;  fc/1"  | bc                    )
 
 	 # There are three sources for subtitles:

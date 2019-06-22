@@ -1,3 +1,10 @@
+——— v 2.9.7 ——————————————————————————————————————————————————————————————————
+
+A bugfix for the ffmpeg progressbar to prevent the console spam.
+
+
+
+
 ——— v 2.9.6 ——————————————————————————————————————————————————————————————————
                                                            Nadeshiko-mpv 2.4.8
                                                   Nadeshiko-do-postponed 2.3.5

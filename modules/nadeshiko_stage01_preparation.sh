@@ -29,8 +29,8 @@ compose_known_res_list() {
 post_read_rcfile() {
 	declare -g  muxing_sets  codec_name_as_formats  container_own_size_pct  \
 	            minimal_bitrate_pct  rc_default_subs  rc_default_audio  \
-	            scale  rc_default_scale
-	local  pct_varname  pct_var  vcodec
+	            scale  rc_default_scale  custom_output_framerate_set
+	local  pct_varname  pct_var  vcodec=${ffmpeg_vcodec//-/_}  varname  i
 
 	#  Setting up the superglobal variables for Bahelite.
 	[ -v new_release_check_interval ]  \
@@ -47,7 +47,6 @@ post_read_rcfile() {
 		&& declare -gn max_size_default=max_size_${max_size_default}  \
 		|| err 'Invalid value for max_size_default.'
 
-	vcodec=${ffmpeg_vcodec//-/_}
 	declare -gn codec_name_as_formats=${vcodec}_codec_name_as_formats
 	declare -gn muxing_sets=${vcodec}_muxing_sets
 	declare -gn container_own_size_pct=${vcodec}_container_own_size_pct
@@ -66,6 +65,21 @@ post_read_rcfile() {
 	#  NB “scale” from RC doesn’t set force_scale!
 	[ -v scale ] && scale=${scale%p}  rc_default_scale=$scale
 	# [ -v time_stat ] && ffmpeg_input_options+=( -benchmark )  # test later
+
+	for varname in ${vcodec}_pass1_extra_options  \
+	               ${vcodec}_pass2_extra_options
+	do
+		local -n pass_params=$varname
+		for ((i=0; i<${#pass_params[*]}; i++)); do
+			[ "${pass_params[i]}" = '-r' ] && {
+				custom_output_framerate=${pass_params[i+1]}
+				[[ "$custom_output_framerate" =~ ^[0-9]+(/[0-9]+|\.[0-9]+|)$ ]]  \
+					|| err "Unknown output frame rate value set in $varname: “$custom_output_framerate”."
+				break 2
+			}
+		done
+	done
+
 	return 0
 }
 

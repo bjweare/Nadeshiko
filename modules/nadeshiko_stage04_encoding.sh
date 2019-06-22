@@ -349,14 +349,15 @@ launch_a_progressbar_for_ffmpeg() {
 
 						[[ "$REPLY" =~ ^progress=(continue|end)$ ]]  \
 							&& progress_status=${BASH_REMATCH[1]}  \
-							|| err "FFmpeg returned an unknown value for the key “progress”: “${BASH_REMATCH[1]}”."
+							|| err "FFmpeg returned an unknown value for the key “progress”: “${REPLY#progress=}”."
 						;;
 
 					frame=*)  #  → $frame_no
 
-						[[ "$REPLY" =~ ^frame=([0-9]+)$ ]]  \
-							&& frame_no=${BASH_REMATCH[1]}  \
-							|| err "FFmpeg returned an unknown value for the key “frame”: “${BASH_REMATCH[1]}”."
+						#  Stripping the leading zeroes just in case
+						[[ "$REPLY" =~ ^frame=([0]*)([0-9]+)$ ]]  \
+							&& frame_no=${BASH_REMATCH[2]}  \
+							|| err "FFmpeg returned an unknown value for the key “frame”: “${REPLY#frame=}”."
 						;;
 
 					out_time=*)  #  → $elapsed_time
@@ -369,7 +370,7 @@ launch_a_progressbar_for_ffmpeg() {
 							out_time_has_an_unknown_value=t
 						fi
 						[ -v out_time_has_an_unknown_value ]  \
-							&& err "FFmpeg returned an unknown value for the key “frame”: “${BASH_REMATCH[1]}”."
+							&& err "FFmpeg returned an unknown value for the key “out_time”: “${REPLY#out_time=}”."
 						;;
 
 				esac
@@ -398,8 +399,17 @@ launch_a_progressbar_for_ffmpeg() {
 				#
 				if (( readiness_pct == 100 )); then
 					blocks_done_no=$progressbar_length
-				else
+
+				elif (( readiness_pct < 100 )); then
 					blocks_done_no=$(( frame_no * progressbar_length / frame_count ))
+
+				elif (( readiness_pct > 100 )); then
+					#  A bug was reported, when readiness has exceeded the
+					#  $frame_count in the clip. For this bug the bar should
+					#  have the “progress going” block (usually ‘>’), so the
+					#  bar should end like '…======>?  '
+					blocks_done_no=$(( progressbar_length -1 ))
+
 				fi
 
 				 # The last block done (the last ‘=’) will be replaced with
@@ -426,7 +436,14 @@ launch_a_progressbar_for_ffmpeg() {
 					blocks_to_be_done_chars+='-'
 				done
 				echo -n "$blocks_to_be_done_chars"
-				echo -n ']'
+
+				 # Avoiding the bug with the percentage exceeding 100.
+				#  Why it exceeds 100% is not yet known – the reporter didn’t
+				#  provide sufficient information about the case.
+				#
+				(( readiness_pct <= 100 ))  \
+					&& echo -n ']'  \
+					|| echo -n '?'
 
 			done
 
