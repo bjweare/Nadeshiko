@@ -1,6 +1,6 @@
 #  nadeshiko.rc.sh
 #
-#  Main configuration file. Codec-specific options reside in the defconf/
+#  Main configuration file. Codec-specific options reside in the “defconf”
 #  directory
 #
 #  RC file uses bash syntax:
@@ -287,9 +287,9 @@ scale=no
  # Threshold of the seconds-per-scene ratio between static and dynamic videos
 #  Before the encode, clips are analysed for this ratio. If the ratio would be
 #    lower, than specified here, the clip will be considered dynamic, if the
-#    ratio happens to be equal or higher – the clip will count as statc.
+#    ratio happens to be equal or higher – the clip will count as static.
 #  Dynamic clips lock bitrate-resolution range on desired values –
-#    high motion calls for the top bitrate possible.
+#    high motion calls for the top bitrate.
 #  Default value: 2.5
 #
 video_sps_threshold=2.5
