@@ -1,3 +1,17 @@
+——— v 2.9.8 ——————————————————————————————————————————————————————————————————
+                                                           Nadeshiko-mpv 2.4.9
+                                                  Nadeshiko-do-postponed 2.3.6
+
+1. Added verification for option values from the main RC files and certain
+   auxiliary RC files.
+
+2. Disabled playback of the encoded file, if logging was turned off in Nade-
+   shiko-mpv (grabbing the file name requires logging to be enabled, and there
+   will be a notification about that in this case).
+
+
+
+
 ——— v 2.9.7 ——————————————————————————————————————————————————————————————————
 
 A bugfix for the ffmpeg progressbar to prevent the console spam.

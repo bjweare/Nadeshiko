@@ -61,7 +61,7 @@ pause_and_leave_fullscreen() {
 
 play_preview() {
 	[ -v show_preview ] || return 0
-	local  temp_sock="$(mktemp -u)"  sub_file  sid  audio_file  aid  vfcrop
+	local  temp_sock="$(mktemp -u)"  sub_file  sid  audio_file  aid  vf_crop
 	check_needed_vars  'sub-file'
 	pause_and_leave_fullscreen
 	#  --ff-sid and --ff-aid, that take track numbers in FFmpeg order,
@@ -79,10 +79,10 @@ play_preview() {
 		[ -v ffmpeg_audio_tr_id ]  \
 			&& aid="--aid=$(( ffmpeg_audio_tr_id +1 ))"
 	}
-	[ -v crop ] && vfcrop="--vf=crop=$crop"
+	[ -v crop ] && vf_crop="--vf=crop=$crop"
 
 	info 'Playing preview of the clip to be cut.'
-	$mpv --x11-name mpv-nadeshiko-preview  \
+	$mpv --x11-name mpv-nadeshiko-preview   \
 	     --title "Preview – $MY_DISPLAY_NAME"  \
 	     --input-ipc-server="$temp_sock"  \
 	     --pause=no  \
@@ -95,7 +95,7 @@ play_preview() {
 	     --sub-visibility=$sub_visibility  \
 	         "${sub_file[@]}"  \
 	         ${sid:-}  \
-	     ${vfcrop:-}  \
+	     ${vf_crop:-}  \
 	     --osd-msg1="Preview"  \
 	     "$path"
 	rm "$temp_sock"
@@ -105,7 +105,10 @@ play_preview() {
 
 play_encoded_file() {
 	[ -v show_encoded_file ] || return 0
-
+	(( $(get_bahelite_verbosity logging) < 3 ))  && {
+		info-ns 'Not showing encoded file: logs are disabled.'
+		return 0
+	}
 	local  last_file  temp_sock
 	check_needed_vars
 	last_file=$(
@@ -129,16 +132,16 @@ play_encoded_file() {
 		#  Setting --screenshot-directory, because otherwise screenshots
 		#  taken from that video would fall into $datadir, and it’s not
 		#  obvious to seek for them there.
-		$mpv --x11-name mpv-nadeshiko-preview \
-		     --title "Encoded file – $MY_DISPLAY_NAME" \
-		     --input-ipc-server="$temp_sock" \
-		     --pause=no \
-		     --loop-file=inf \
-		     --mute=no \
-		     --volume=$volume \
-		     --sub-visibility=yes \
-		     --osd-msg1="Encoded file" \
-		     --screenshot-directory="${screenshot_directory:-$working_directory}" \
+		$mpv --x11-name mpv-nadeshiko-preview  \
+		     --title "Encoded file – $MY_DISPLAY_NAME"  \
+		     --input-ipc-server="$temp_sock"  \
+		     --pause=no  \
+		     --loop-file=inf  \
+		     --mute=no  \
+		     --volume=$volume  \
+		     --sub-visibility=yes  \
+		     --osd-msg1="Encoded file"  \
+		     --screenshot-directory="${screenshot_directory:-$working_directory}"  \
 		     "${screenshot_directory:-$working_directory}/$last_file"
 		rm -f "$temp_sock"
 	}

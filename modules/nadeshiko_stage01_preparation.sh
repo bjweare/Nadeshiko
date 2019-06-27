@@ -27,7 +27,7 @@ compose_known_res_list() {
 
 
 post_read_rcfile() {
-	declare -g  muxing_sets  codec_name_as_formats  container_own_size_pct  \
+	declare -g  muxing_sets  codec_name_as_formats   \
 	            minimal_bitrate_pct  rc_default_subs  rc_default_audio  \
 	            scale  rc_default_scale  custom_output_framerate_set
 	local  pct_varname  pct_var  vcodec=${ffmpeg_vcodec//-/_}  varname  i
@@ -43,19 +43,10 @@ post_read_rcfile() {
 	}
 
 	#  Processing the rest of the variables
-	[[ "$max_size_default" =~ ^(tiny|small|normal|unlimited)$ ]]  \
-		&& declare -gn max_size_default=max_size_${max_size_default}  \
-		|| err 'Invalid value for max_size_default.'
-
+	declare -gn max_size_default=max_size_${max_size_default}
 	declare -gn codec_name_as_formats=${vcodec}_codec_name_as_formats
 	declare -gn muxing_sets=${vcodec}_muxing_sets
-	declare -gn container_own_size_pct=${vcodec}_container_own_size_pct
 	declare -gn minimal_bitrate_pct=${vcodec}_minimal_bitrate_pct
-	(
-		   [[ "$minimal_bitrate_pct" =~ ^[0-9]{1,3}$ ]]  \
-		&& (( minimal_bitrate_pct > 0  &&  minimal_bitrate_pct <= 100 ))
-	) \
-		|| err "${vcodec}_minimal_bitrate_pct must be a number between in range 0…100."
 
 	compose_known_res_list
 
@@ -63,7 +54,12 @@ post_read_rcfile() {
 	[ -v subs ] && rc_default_subs=t
 	[ -v audio ] && rc_default_audio=t
 	#  NB “scale” from RC doesn’t set force_scale!
-	[ -v scale ] && scale=${scale%p}  rc_default_scale=$scale
+	if [ "${scale:-}" = no ]; then
+		unset scale
+	else
+		scale="${scale%p}"
+	fi
+	[ -v scale ] && rc_default_scale=$scale
 	# [ -v time_stat ] && ffmpeg_input_options+=( -benchmark )  # test later
 
 	for varname in ${vcodec}_pass1_extra_options  \

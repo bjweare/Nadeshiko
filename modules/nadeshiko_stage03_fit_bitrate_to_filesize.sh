@@ -20,8 +20,7 @@ recalc_space() {
 	#  used in unset_our_options() ↓
 	declare -g space_for_video_track
 	local vidres  audio_info  padding_per_duration  duration_secs  \
-	      old_duration_secs  audio_track_expected_overhead  audio_track_size  \
-	      container_own_size_pct_bits
+	      old_duration_secs  audio_track_expected_overhead  audio_track_size
 
 	milinc
 

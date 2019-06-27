@@ -20,7 +20,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.7'
+declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.8'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
 )
@@ -284,7 +284,7 @@ bahelite_on_exit() {
 	trap ''  DEBUG  EXIT  TERM  INT  HUP  PIPE  ERR  RETURN
 
 	local command="$1"  retval="$2"  stored_lnos="$3"  signal="$4"  \
-	      current_varlist  varname  varval  new_variables  vardump
+	      current_varlist  _varname  _varval  new_variables  vardump
 	mildrop
 
 	 # Normally, when a subshell exits, trap on EXIT is called is the main
@@ -371,9 +371,9 @@ bahelite_on_exit() {
 			echo "$BAHELITE_VARLIST_AFTER_STARTUP"$'\n'"$current_varlist" \
 				| grep -v BAHELITE_BRING_BACK_ | sort | uniq -u | sort
 		)
-		for varname in $new_variables; do
-			declare -n varval="$varname"
-			vardump+="${varval@A}"$'\n'
+		for _varname in $new_variables; do
+			declare -n _varval="$_varname"
+			vardump+="${_varval@A}"$'\n'
 		done
 		echo "$vardump"  >"${LOGDIR:-$TMPDIR}/variables"
 	}
@@ -469,7 +469,7 @@ bahelite_on_error() {
 	            BAHELITE_DONT_CLEAR_TMPDIR  \
 	            BAHELITE_ERROR_PROCESSED
 	local failed_command=$1  failed_command_code=$2  from_on_exit="${3:-}"  \
-	      real_line_number=${4:-}  log_path_copied_to_clipboard  varname  \
+	      real_line_number=${4:-}  log_path_copied_to_clipboard  \
 	      current_varlist  term_cols=$TERM_COLS  info_redir
 	[[ "$-" =~ .*i.* ]] || term_cols=80
 	BAHELITE_DUMP_VARIABLES=t   # This is for bahelite_on_exit().

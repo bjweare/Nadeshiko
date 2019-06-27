@@ -17,7 +17,7 @@ bahelite_load_module 'versioning' || return $?
 bahelite_load_module 'directories' || return $?
 bahelite_load_module 'misc' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_RCFILE_VER='2.0.1'
+declare -grx BAHELITE_MODULE_RCFILE_VER='3.0'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -70,6 +70,11 @@ declare -gax RCFILE_BOOLEAN_VARS=()
 #           myvar=( 5 7% )                    myvar=( 5 7 )
 #
 declare -gAx RCFILE_STRIPUNIT_VARS=()
+
+declare -gAx RCFILE_CHECKVALUE_VARS=()
+declare -gAx RCFILE_CHECKVALUE_VARS_DESCS=()
+
+declare -gAx RCFILE_REPLACEVALUE_VARS=()
 
 
  # Returns true (0), if the passed string is a valid rcfile name, false (1)
@@ -392,47 +397,94 @@ __read_confdir() {
 
 
 __postprocess_rc_variables() {
-	local varname  varval  string_to_strip  subst_reg_array  key
+	local varname  varval  varval_pattern  repl  i
 
-	#  1. Pseudo-boolean variables
 	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-		&& info "Processing pseudo-boolean variables."
+		&& info "Checking values of the RC variables."
 
-	for varname in "${RCFILE_BOOLEAN_VARS[@]}"; do
-		if [ -v "$varname" ]; then
-			is_true $varname --unset-if-not
-		else
-			[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-				&& warn "rc: $FUNCNAME: Skipping variable $varname: it isn’t set."
-		fi
-	done
-
-	#  2. Variables from which the units must be stripped.
-	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-		&& info "Processing “strip unit” variables."
-	for varname in ${!RCFILE_STRIPUNIT_VARS[@]}; do
+	for varname in "${!RCFILE_CHECKVALUE_VARS[@]}"; do
 		if [ -v "$varname" ]; then
 			declare -n varval="$varname"
-			string_to_strip="${RCFILE_STRIPUNIT_VARS[$varname]}"
-			case "$(vartype "$varname")" in
-				'string')
-					varval=${varval//*( )$string_to_strip}
+			varval_pattern="${RCFILE_CHECKVALUE_VARS[$varname]}"
+			case "$varval_pattern" in
+				bool)
+					is_bool $varname
 					;;
-				'regular array')
-					subst_reg_array=( "${varval[@]%*( )$string_to_strip}" )
-					varval=( "${subst_reg_array[@]}" )
+
+				int)
+					is_integer $varname
 					;;
-				'assoc. array')
-					for key in ${!varval[@]}; do
-						varval[$key]=${varval[$key]%*( )$string_to_strip}
-					done
+
+				int_in_range\ *)
+					is_integer_in_range $varname ${varval_pattern#* }
+					;;
+
+				int_with_unit\ *)
+					is_integer_with_unit $varname ${varval_pattern#* }
+					;;
+
+				int_with_unit_or_without_it\ *)
+					is_integer_with_unit_or_without_it $varname ${varval_pattern#* }
+					;;
+
+				int_in_range_with_unit\ *)
+					is_integer_in_range_with_unit $varname ${varval_pattern#* }
+					;;
+
+				int_in_range_with_unit_or_without_it\ *)
+					is_integer_in_range_with_unit_or_without_it $varname ${varval_pattern#* }
+					;;
+
+				float)
+					is_float "$varname"
+					;;
+
+				float_in_range\ *)
+					is_float_in_range $varname ${varval_pattern#* }
+					;;
+
+				float_with_unit\ *)
+					is_float_with_unit $varname ${varval_pattern#* }
+					;;
+
+				float_with_unit_or_without_it\ *)
+					is_float_with_unit_or_without_it $varname ${varval_pattern#* }
+					;;
+
+				float_in_range_with_unit\ *)
+					is_float_in_range_with_unit $varname ${varval_pattern#* }
+					;;
+
+				float_in_range_with_unit_or_without_it\ *)
+					is_float_in_range_with_unit_or_without_it $varname ${varval_pattern#* }
+					;;
+
+				*)
+					[[ "$varval" =~ $varval_pattern ]] || {
+						if [ -v RCFILE_CHECKVALUE_VARS_DESCS[$varname]  ]; then
+							err "Error in the configuration file:
+							     ${RCFILE_CHECKVALUE_VARS_DESCS[$varname]}"
+						else
+							err "Error in the configuration file:
+							     $varname is set to an invalid value “$varval”."
+						fi
+					}
 					;;
 			esac
+
+			[ -v RCFILE_REPLACEVALUE_VARS[$varname]  ] && {
+				repl="${RCFILE_REPLACEVALUE_VARS[$varname]}"
+				for ((i=1; i<${#BASH_REMATCH[*]}; i++)); do
+					repl="${repl//\\$i/${BASH_REMATCH[i]:-}}"
+				done
+				varval="$repl"
+			}
 		else
 			[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
 				&& warn "rc: $FUNCNAME: Skipping variable $varname: it isn’t set."
 		fi
 	done
+
 	return 0
 }
 #  No export: read_rcfile’s subroutine, which is an init stage function.
@@ -447,7 +499,7 @@ read_rcfile() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	#  To be used in all underlying functions.
 	declare -g RCFILE_SCRIPTNAME
-	local  rcfile  varname  old_vars  new_vars  missing_variable_list=()
+	# local  rcfile  varname  old_vars  new_vars  missing_variable_list=()
 
 	[[ "${1:-}" =~ ^[A-Za-z0-9_\.\,\;\:-]+$ ]]  \
 		&& RCFILE_SCRIPTNAME="$1"  \

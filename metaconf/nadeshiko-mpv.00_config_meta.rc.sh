@@ -15,10 +15,10 @@ declare -gA nadeshiko_presets
 #  on/off, true/false, 1/0 and either leaves or unsets – making their
 #  existence into a boolean value.
 #
-RCFILE_BOOLEAN_VARS=(
-	show_preview
-	show_encoded_file
-	predictor
-	postpone
-	quick_run
+RCFILE_CHECKVALUE_VARS+=(
+	[show_preview]=bool
+	[show_encoded_file]=bool
+	[predictor]=bool
+	[postpone]=bool
+	[quick_run]=bool
 )

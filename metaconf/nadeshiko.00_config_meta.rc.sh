@@ -22,15 +22,24 @@ declare -gA  ffmpeg_subtitle_fallback_style
 #  on/off, true/false, 1/0 and either leaves or unsets – making their
 #  existence into a boolean value.
 #
-RCFILE_BOOLEAN_VARS=(
-	desktop_notifications
-	check_for_updates
-	subs
-	audio
-	scale
-	pedantic
-	time_stat
-	crop_uses_profile_vbitrate
-	create_windows_friendly_filenames
-	ffmpeg_progressbar
+RCFILE_CHECKVALUE_VARS+=(
+	[check_for_updates]='bool'
+	[new_release_check_interval]='int_in_range 1 365'
+	[desktop_notifications]='bool'
+	[max_size_normal]='int_in_range_with_unit 1 99999 [kMG]'
+	[max_size_small]='int_in_range_with_unit 1 99999 [kMG]'
+	[max_size_tiny]='int_in_range_with_unit 1 99999 [kMG]'
+	[max_size_unlimited]='int_in_range_with_unit 1 99999 [kMG]$'
+	[max_size_default]='^(tiny|small|normal|unlimited)$'
+	[kilo]='^(1000|1024)$'
+	[pedantic]='bool'
+	[time_stat]='bool'
+	[create_windows_friendly_filenames]='bool'
+	[subs]='bool'
+	[audio]='bool'
+	[ffmpeg_progressbar]='bool'
+	[scale]='^((2160|1440|1080|720|576|480|360)p|no)$'
+	[video_sps_threshold]='float'
+	[crop_uses_profile_vbitrate]='bool'
+	[min_esp_unit]='int_in_range_with_unit 1 99999 [kMG]'
 )

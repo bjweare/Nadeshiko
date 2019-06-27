@@ -36,7 +36,10 @@ libx264_muxing_sets=(
 )
 
 
-RCFILE_STRIPUNIT_VARS+=(
-	[libx264_container_own_size_pct]='%'
-	[libx264_minimal_bitrate_pct]='%'
+RCFILE_CHECKVALUE_VARS+=(
+	[libx264_minimal_bitrate_pct]='int_in_range_with_unit_or_without_it  0  100  %'
+)
+
+RCFILE_REPLACEVALUE_VARS+=(
+	[libx264_minimal_bitrate_pct]='\1'
 )

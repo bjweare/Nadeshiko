@@ -14,12 +14,13 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MISC_VER='1.12'
+declare -grx BAHELITE_MODULE_MISC_VER='1.14'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # (procps) Single process check.
 #	wc      # (coreutils) Single process check.
 #	shuf    # (coreutils) For random(), it works better than $RANDOM.
+	bc      # (bc) Verifying numbers.
 )
 BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	[pgrep]='pgrep is a part of procps-ng.
@@ -29,51 +30,25 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 
 
 
- # Checks, whether a variable contains a logical or human-readable value,
-#  that can be treated as positive or negative.
-#  $1  – variable name
-# [$2] – “-u” or “--unset-if-not” to unset a negative variable.
-#        The purpose of this option is to turn the very existence of a vari-
-#        able into a flag. Running “is_true flag_variable --unset-if-not”
-#        allows to check it later with [ -v flag_variable ] in the code.
-#
-#  This function can be used two ways. One way it can be a sanitiser
-#    for a script, that reads a config file, for example:
-#        for var in ${config_variables[@]}; do
-#            is_true  $var  --unset-if-not
-#        done
-#    This way is_true will return with a success code, as long as the value
-#    in the variable could be recognised as either positive or negative.
-#    If it couldn’t be recognised, is_true will trigger an error.
-#  But is_true can also function as a value checker.
-#        if is_true $varname; then
-#            …
-#        fi
-#    When used without -u/--unset-if-true, the function will return 0
-#    for positive values and 1 for negative. And if it would be neither,
-#    there will be an error.
+ # Returns 0, if variable passed by name contains a value, that can be treated
+#  as “positive” and returns 1, if the value can be treated as “negative”.
+#  Triggers an error, if the value cannot be treated as either.
+#  $1  – variable name.
 #
 is_true() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	local varname="${1:-}"  unset_if_false
-	[ -v "$varname" ] || {
-		if [ "${FUNCNAME[1]}" = read_rcfile ]; then
-			err "Config option “$varname” is requried, but it’s missing."
-		else
-			err "Cannot check variable “$varname” – it doesn’t exist."
-		fi
-	}
-	[[ "${2:-}" =~ ^(-u|--unset-if-not)$ ]] \
-		&& unset_if_false=t
+	local varname="${1:-}"
+	__varname_exists "$varname"
 	declare -n varval="$varname"
 	if [[ "$varval" =~ ^(y|Y|[Yy]es|1|t|T|[Tt]rue|[Oo]n|[Ee]nable[d])$ ]]; then
 		return 0
 	elif [[ "$varval" =~ ^(n|N|[Nn]o|0|f|F|[Ff]alse|[Oo]ff|[Dd]isable[d])$ ]]; then
-		[ -v unset_if_false ] && {
+		if [ ${FUNCNAME[1]} = is_bool ]; then
 			unset $varname
 			return 0
-		}
-		return 1
+		else
+			return 1
+		fi
 	else
 		err "Variable “$varname” must have a boolean value (0/1, on/off, yes/no),
 		     but it has “$varval”."
@@ -81,6 +56,187 @@ is_true() {
 	return 0
 }
 export -f  is_true
+#
+#
+ # Same as is_true(), but unsets the variable, if its value is false, turning
+#  its very existence into a boolean variable.
+#
+#  The purpose of this function is to verify some preset variable, e.g. from
+#  a configuration file. It is done once. The variables are then should be
+#  checked for existence with “[ -v varname ]”.
+#
+#  The other function – is_true() – is supposed to be used on any variables
+#  in runtime, the variables, which maintain their either “positive” or “nega-
+#  tive” value throughout the program run. They must not be unset.
+#
+is_bool() { is_true "$@"; }
+export -f  is_bool
+
+
+#  $1 – name of the variable to test.
+#
+is_float()            { __is_number   'float' "$1"; }
+is_integer()          { __is_number 'integer' "$1"; }
+#
+#  $1 – number type: either “integer” or “float”.
+#  $2 – name of the variable to test.
+#
+__is_number() {
+	local number_type="$1"  varname="$2"  varval  number_pattern
+	__varname_exists "$varname"
+	declare -n varval="$varname"
+	case $number_type in
+		integer)
+			number_pattern='^([0-9]+)$'
+			;;
+		float)
+			number_pattern='^([0-9]+(\.[0-9]+|))$'
+			;;
+	esac
+
+	[[ "$varval" =~ $number_pattern ]]  \
+		|| err "Variable “$varname” must be an integer number, but it’s set to “$varval”."
+
+	return 0
+}
+export -f  __is_number     \
+               is_integer  \
+               is_float
+
+
+
+#  $1 – name of the variable to test.
+#  $2 – minimum for the value.
+#  $3 – maximum for the value.
+#
+is_float_in_range()   { __is_number_in_range   'float' "$@"; }
+is_integer_in_range() { __is_number_in_range 'integer' "$@"; }
+#
+#  $1 – number type: either “integer” or “float”.
+#  $2 – the name of the variable to test.
+#  $3 – minimum for the value.
+#  $4 – maximum for the value.
+#
+__is_number_in_range() {
+	local number_type="$1"  varname="$2"  minval="$3"  maxval="$4"
+	__is_number "$number_type" "$varname"
+	declare -n varval="$varname"
+	case $number_type in
+		integer)
+			number_pattern='^([0-9]+)$'
+			;;
+		float)
+			number_pattern='^([0-9]+(\.[0-9]+|))$'
+			;;
+	esac
+
+	[[ "$minval" =~ $number_pattern  &&  "$maxval" =~ $number_pattern ]]  \
+		|| err "Variable “$varname” must be in range $minval <= x <= $maxval."
+
+	if [ "$number_type" = integer ]; then
+		# fast arithmetic
+		if (( varval >= minval  &&  varval <= maxval )); then
+			return 0
+		else
+			err "Variable “$varname” must be in range $minval <= x <= $maxval."
+		fi
+	else
+		# slow bc arithmetic
+		case "$(echo "$varval >= $minval && $varval <= $maxval" | bc)" in
+
+			0)  # bc “false”
+				err "Variable “$varname” must be in range $minval <= x <= $maxval."
+				;;
+
+			1)  # bc “true”
+				return 0
+				;;
+
+			*)  # unknown error
+				err "Couldn’t verify, that variable “$varname” conforms to the set range."
+				;;
+		esac
+	fi
+	return 0
+}
+export -f  __is_number_in_range     \
+               is_integer_in_range  \
+               is_float_in_range
+
+
+#  $1 – name of the variable to test.
+#  $2 – PCRE-style pattern to match the unit.
+#
+is_float_with_unit()                 { __is_number_with_unit     'with_unit'   'float' "$@"; }
+is_integer_with_unit()               { __is_number_with_unit     'with_unit' 'integer' "$@"; }
+is_float_with_unit_or_without_it()   { __is_number_with_unit 'or_without_it'   'float' "$@"; }
+is_integer_with_unit_or_without_it() { __is_number_with_unit 'or_without_it' 'integer' "$@"; }
+#
+#  $1 – name of the variable to test.
+#  $2 – minimum for the value.
+#  $3 – maximum for the value.
+#  $4 – PCRE-style pattern to match the unit.
+#
+is_float_in_range_with_unit()                 { __is_number_with_unit     'with_unit'   'float' "$@"; }
+is_integer_in_range_with_unit()               { __is_number_with_unit     'with_unit' 'integer' "$@"; }
+is_float_in_range_with_unit_or_without_it()   { __is_number_with_unit 'or_without_it'   'float' "$@"; }
+is_integer_in_range_with_unit_or_without_it() { __is_number_with_unit 'or_without_it' 'integer' "$@"; }
+#
+#  $1  – possible values: “with_unit”,  “or_without_unit”
+#  $2  – number type: either “integer” or “float”
+#  $3  – name of the varaible to test
+# [$4] – minimal value
+# [$5] – maximal value
+#  $6  – PCRE-style unit pattern
+#
+__is_number_with_unit() {
+	local may_be_without_unit  varname  unit_pattern  minval  maxval  varval  \
+	      proto_number  use_range  errors
+	[ "$1" = 'or_without_it' ]  \
+		&& may_be_without_unit=t
+	number_type="$2"
+
+	if (( $# == 4 )); then
+		varname="$3"  unit_pattern="$4"
+
+	elif (( $# == 6 )); then
+		varname="$3" minval="$4" maxval="$5" unit_pattern="$6"
+		use_range=t
+
+	else
+		err "Invalid arguments: “$@”"
+	fi
+
+	__varname_exists "$varname"
+	declare -n varval=$varname
+
+	[[ "$varval" =~ ^([0-9]+(\.[0-9]+|))(\ *$unit_pattern${may_be_without_unit:+|})$ ]]  \
+		|| errors=t
+	proto_number="${BASH_REMATCH[1]}"
+
+
+	if [ -v use_range ]; then
+		(is_${number_type}_in_range "proto_number" "$minval" "$maxval")  \
+			|| errors=t
+	else
+		(is_${number_type} "proto_number")  \
+			|| errors=t
+	fi
+
+	[ -v errors ]  \
+		&& err "Variable $varname must be an integer with${may_be_without_unit:+ or without} unit
+		        (unit pattern is “$unit_pattern”), but it was set to “$varval”."
+	return 0
+}
+export -f  __is_number_with_unit                           \
+               is_float_with_unit                          \
+               is_integer_with_unit                        \
+               is_float_with_unit_or_without_it            \
+               is_integer_with_unit_or_without_it          \
+               is_float_in_range_with_unit                 \
+               is_integer_in_range_with_unit               \
+               is_float_in_range_with_unit_or_without_it   \
+               is_integer_in_range_with_unit_or_without_it
 
 
 is_function() {
@@ -94,6 +250,21 @@ is_extfile() {
 }
 export -f  is_extfile
 
+
+__varname_exists() {
+	local varname="${1:-}"  i  called_from_readrcfile
+	[ -v "$varname" ] || {
+		for ((i=1; i<${FUNCNAME[*]}; i++)); do
+			[ "${FUNCNAME[i]}" = read_rcfile ] && called_from_readrcfile=t
+		done
+		if [ -v called_from_readrcfile ]; then
+			err "Config option “$varname” is requried, but it’s missing."
+		else
+			err "Cannot check variable “$varname” – it doesn’t exist."
+		fi
+	}
+	return 0
+}
 
  # Sets MYRANDOM global variable to a random number either fast or secure way
 #  Secure way may take seconds to complete.

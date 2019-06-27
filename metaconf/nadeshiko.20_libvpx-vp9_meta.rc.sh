@@ -29,16 +29,21 @@ libvpx_vp9_muxing_sets=(
 	#  No mkv, because browsers download it instead of playing.
 )
 
-RCFILE_BOOLEAN_VARS+=(
-	libvpx_vp9_adaptive_tile_columns
+RCFILE_CHECKVALUE_VARS+=(
+	[libvpx_vp9_adaptive_tile_columns]=bool
+	[libvpx_vp9_minimal_bitrate_pct]='int_in_range_with_unit_or_without_it  0  100  %'
+	[libvpx_vp9_minsection_pct]='int_in_range_with_unit_or_without_it  0  1000  %'
+	[libvpx_vp9_maxsection_pct]='int_in_range_with_unit_or_without_it  0  1000  %'
+	[libvpx_vp9_overshoot_pct]='int_in_range_with_unit_or_without_it  0  1000  %'
+	[libvpx_vp9_undershoot_pct]='int_in_range_with_unit_or_without_it  0  1000  %'
+	[libvpx_vp9_bias_pct]='int_in_range_with_unit_or_without_it  0  100  %'
 )
 
-RCFILE_STRIPUNIT_VARS+=(
-	[libvpx_vp9_container_own_size_pct]='%'
-	[libvpx_vp9_minimal_bitrate_pct]='%'
-	[libvpx_vp9_minsection_pct]='%'
-	[libvpx_vp9_maxsection_pct]='%'
-	[libvpx_vp9_overshoot_pct]='%'
-	[libvpx_vp9_undershoot_pct]='%'
-	[libvpx_vp9_bias_pct]='%'
+RCFILE_REPLACEVALUE_VARS+=(
+	[libvpx_vp9_minimal_bitrate_pct]='\1'
+	[libvpx_vp9_minsection_pct]='\1'
+	[libvpx_vp9_maxsection_pct]='\1'
+	[libvpx_vp9_overshoot_pct]='\1'
+	[libvpx_vp9_undershoot_pct]='\1'
+	[libvpx_vp9_bias_pct]='\1'
 )
