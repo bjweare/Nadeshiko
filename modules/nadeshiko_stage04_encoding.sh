@@ -153,7 +153,7 @@ assemble_vf_string() {
 					filter_list+="[0:v][0:s:$tr_id]overlay=$xcorr:$ycorr"
 					;;
 
-				ass|ssa|suprip|srt|webvtt|vtt)
+				ass|ssa|subrip|srt|webvtt|vtt)
 					filter_list="${filter_list:+$filter_list,}"
 					filter_list+="setpts=PTS+$(( ${start[total_ms]}/1000 )).${start[ms]}/TB,"
 					#  “ass” filter has an option “shaping” for better font

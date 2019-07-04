@@ -15,7 +15,7 @@
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_LOGGING_VER='1.7.3'
+declare -grx BAHELITE_MODULE_LOGGING_VER='1.7.4'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date   #  (coreutils) to add date to $LOGPATH file name and to the log itself.
 #	ls     #  (coreutils)
@@ -122,10 +122,8 @@ start_logging() {
 	bahelite_extglob_on
 	(ls -r "${MYNAME%.*}_"+([_0-9:-]).log 2>/dev/null || true ) \
 		| tail -n+$LOGGING_MAX_LOGFILES \
-		| xargs rm -v &>/dev/null || true
-	(ls -r "${MYNAME%.*}_"+([_0-9:-]).xtrace.log 2>/dev/null || true ) \
-		| tail -n+$LOGGING_MAX_LOGFILES \
-		| xargs rm -v &>/dev/null || true
+		| sed -r 's/\.log$//g;  s/\"/\\"/g'  \
+		| xargs -I {} rm -fv  "{}.log" "{}.xtrace.log" &>/dev/null || true
 	bahelite_extglob_off
 	bahelite_noglob_on
 	popd >/dev/null

@@ -32,8 +32,8 @@ esac
 prepare_cachedir
 start_logging
 noglob_off
-rm -f "$LOGDIR/"ffmpeg*  \
-      "$LOGDIR/"mkvextract*  \
+rm -f "$LOGDIR/"ffmpeg*     \
+      "$LOGDIR/"variables   \
       "$LOGDIR/time_output"
 noglob_on
 set_libdir
@@ -54,7 +54,7 @@ prepare_confdir
 place_examplerc 'nadeshiko.10_main.rc.sh'
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
-declare -r version='2.9.8'
+declare -r version='2.9.9'
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 
  # Minimal libav libraries versions
@@ -150,12 +150,16 @@ post_read_rcfile
 info "Nadeshiko v$version"
 print_verbosity_level
 parse_args "${NEW_ARGS[@]}"
-check_util_support  video  ${audio:+audio}  ${subs:+subs}  \
-                    ${time_stat:+time_stat}  \
-                    ${ffmpeg_progressbar:+ffmpeg_progressbar}  \
-                    ${check_for_updates:+check_for_updates}
-[ -v check_for_updates ] && check_for_new_release_on_github
+#  Checking video first, for set_vars() will run scene complexity test.
+check_basic_util_support
 set_vars
+check_encoder_support  video  \
+                       ${audio:+audio}  \
+                       ${subs:+subs}
+check_misc_util_support  ${time_stat:+time_stat}  \
+                         ${check_for_updates:+check_for_updates}  \
+                         ${ffmpeg_progressbar:+ffmpeg_progressbar}
+[ -v check_for_updates ] && check_for_new_release_on_github
 display_settings
 until [ -v size_fits ]; do
 	#  Stage 3

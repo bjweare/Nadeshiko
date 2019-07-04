@@ -58,8 +58,8 @@ post_read_rcfile() {
 		unset scale
 	else
 		scale="${scale%p}"
+		rc_default_scale=$scale
 	fi
-	[ -v scale ] && rc_default_scale=$scale
 	# [ -v time_stat ] && ffmpeg_input_options+=( -benchmark )  # test later
 
 	for varname in ${vcodec}_pass1_extra_options  \

@@ -190,72 +190,44 @@ parse_args() {
  # Check, that all needed utils are in place and ffmpeg supports
 #  user’s encoders.
 #
-check_util_support() {
+check_basic_util_support() {
+	declare -g REQUIRED_UTILS  REQUIRED_UTILS_HINTS
 	#  Encoding modules may need to know versions of ffmpeg or its libraries.
 	declare -g  ffmpeg_version_output  ffmpeg_ver  \
 	            libavutil_ver  libavcodec_ver  libavformat_ver
-	local  encoder_info  missing_encoders  arg  ffmpeg_is_too_old  \
-	       ffmpeg="$ffmpeg -hide_banner"
-	for arg in "$@"; do
-		case "$arg" in
-			video)
-				REQUIRED_UTILS+=(
-					#  For encoding. 3.4.2+ recommended.
-					ffmpeg
+	local  ffmpeg="$ffmpeg -hide_banner"
+	REQUIRED_UTILS+=(
+		#  For encoding. 3.4.2+ recommended.
+		ffmpeg
 
-					#  For retrieving data from the source video
-					#  and verifying resulting video.
-					mediainfo
+		#  For retrieving data from the source video
+		#  and verifying resulting video.
+		mediainfo
 
-					#  For the parts not retrievable with mediainfo
-					#  and as a fallback option.
-					ffprobe
+		#  For the parts not retrievable with mediainfo
+		#  and as a fallback option.
+		ffprobe
 
-					#  To parse mediainfo output.
-					xmlstarlet
+		#  To parse mediainfo output.
+		xmlstarlet
 
-					#  To determine the mime types of video and subtitle files
-					#  correctly, “file” command is not sufficient.
-					mimetype
+		#  To determine the mime types of video and subtitle files
+		#  correctly, “file” command is not sufficient.
+		mimetype
 
-					#  For the floating point calculations, that are necessary
-					#  e.g. in determining scene_complexity.
-					bc
-				)
-				;;
-			time_stat)
-				REQUIRED_UTILS+=(
-					#  To output how many seconds the encoding took.
-					#  Only pass1 and pass2, no fonts/subtitles extraction.
-					time
-				)
-				;;
-			check_for_updates)
-				. "$LIBDIR/bahelite/bahelite_github.sh"
-				;;
-			ffmpeg_progressbar)
-				REQUIRED_UTILS+=(
-					#  To temporarily switch off the cursor while drawing
-					#  a progressbar for ffmpeg
-					tput
-				)
-				;;
-		esac
-	done
+		#  For the floating point calculations, that are necessary
+		#  e.g. in determining scene_complexity.
+		bc
+	)
 	REQUIRED_UTILS_HINTS+=(
 		[ffprobe]='ffprobe comes along with FFmpeg.
 		https://www.ffmpeg.org/'
 
 		[mimetype]='mimetype is a part of File-MimeInfo.
 		https://metacpan.org/pod/File::MimeInfo'
-
-		[time]='time is found in the package of the same name.
-		https://www.gnu.org/directory/time.html'
-
-		[tput]='tput belongs to the ncurses package.
-		https://www.gnu.org/software/ncurses/'
 	)
 	check_required_utils
+
 	#  Checking ffmpeg version
 	ffmpeg_version_output=$($ffmpeg -version)
 	# (( $(get_user_verbosity log user) > 0 ))  \
@@ -303,7 +275,13 @@ check_util_support() {
 		EOF
 		err 'FFmpeg is too old.'
 	fi
+	return 0
+}
 
+
+check_encoder_support() {
+	local  encoder_info  missing_encoders   subtitle_filter  arg  \
+	       ffmpeg="$ffmpeg -hide_banner"
 	for arg in "$@"; do
 		case "$arg" in
 			video)
@@ -326,9 +304,21 @@ check_util_support() {
 				#    in SSA format;
 				#  - OpenType font features can be enabled only with
 				#    “ass” filter, not available with “subtitles” filter.
-				encoder_info=$($ffmpeg -hide_banner -h encoder=ass | head -n1)
-				[[ "$encoder_info" =~ ^Encoder\ ass\  ]] || {
-					redmsg "FFmpeg doesn’t support encoding ASS/SSA subtitles."
+				case ${src_s[codec]} in
+					ass|ssa)
+						subtitle_filter='ass';;
+					subrip|srt|webvtt|vtt)
+						subtitle_filter='subtitles';;
+					dvd_subtitle|hdmv_pgs_subtitle)
+						subtitle_filter='overlay';;
+					*)
+						subtitle_filter='unknown for Nadeshiko';;
+				esac
+				encoder_info=$(
+					$ffmpeg -hide_banner -h filter="$subtitle_filter" | head -n1
+				)
+				[[ "$encoder_info" =~ ^Filter\ $subtitle_filter ]] || {
+					redmsg "FFmpeg filter “$subtitle_filter” is missing."
 					missing_encoders=t
 				}
 				#  Also check fontconfig support?
@@ -336,7 +326,44 @@ check_util_support() {
 		esac
 	done
 	[ -v missing_encoders ] \
-		&& err "FFmpeg doesn’t support requested encoder(s)."
+		&& err "FFmpeg doesn’t support required encoders or filters."
+	return 0
+}
+
+
+check_misc_util_support() {
+	declare -g REQUIRED_UTILS  REQUIRED_UTILS_HINTS
+	local arg
+
+	for arg in "$@"; do
+		case "$arg" in
+			time_stat)
+				REQUIRED_UTILS+=(
+					#  To output how many seconds the encoding took.
+					#  Only pass1 and pass2, no fonts/subtitles extraction.
+					time
+				)
+				;;
+			check_for_updates)
+				. "$LIBDIR/bahelite/bahelite_github.sh"
+				;;
+			ffmpeg_progressbar)
+				REQUIRED_UTILS+=(
+					#  To temporarily switch off the cursor while drawing
+					#  a progressbar for ffmpeg
+					tput
+				)
+				;;
+		esac
+	done
+	REQUIRED_UTILS_HINTS+=(
+		[time]='time is found in the package of the same name.
+		https://www.gnu.org/directory/time.html'
+
+		[tput]='tput belongs to the ncurses package.
+		https://www.gnu.org/software/ncurses/'
+	)
+	check_required_utils
 	return 0
 }
 

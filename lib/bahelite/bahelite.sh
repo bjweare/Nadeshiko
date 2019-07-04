@@ -244,7 +244,7 @@ unset  sed_version  grep_version  getopt_version  yes_version
 
                         #  Initial settings  #
 
-BAHELITE_VERSION="2.21"
+BAHELITE_VERSION="2.21.1"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -436,28 +436,40 @@ unset  module_name  bahelite_module
 #  See also “Checking basic dependencies” above.
 #
 check_required_utils() {
-	local  util  missing_utils req_utils=()
+	declare -g BAHELITE_INTERNALLY_REQUIRED_UTILS  \
+	           BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS  \
+	           REQUIRED_UTILS  \
+	           REQUIRED_UTILS_HINTS
+	local  util  req_utils=()  missing_utils
 	req_utils=$(printf "%s\n" ${BAHELITE_INTERNALLY_REQUIRED_UTILS[@]} \
 	                          ${REQUIRED_UTILS[@]} \
 	                | sort -u  )
 	for util in ${req_utils[@]}; do
 		which "$util" &>/dev/null || {
-			missing_utils="${missing_utils:+$missing_utils, }“$util”"
+			missing_utils=t
 			if [ "${REQUIRED_UTILS_HINTS[$util]:-}" ]; then
-				warn "$util was not found on this system!
-				      ${REQUIRED_UTILS_HINTS[$util]}"
+				redmsg "$util was not found on this system!
+				       ${REQUIRED_UTILS_HINTS[$util]}"
 			elif [ "${BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS[$util]:-}" ]; then
-				warn "$util was not found on this system!
-				      ${BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS[$util]}"
+				redmsg "$util was not found on this system!
+				       ${BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS[$util]}"
 			else
-				warn "$util was not found on this system!"
+				redmsg "$util was not found on this system!"
 			fi
 		}
 	done
-	[ "${missing_utils:-}" ] && ierr 'no util' "$missing_utils"
+	[ -v missing_utils ]  \
+		&& err 'Missing dependencies.
+	            See log or console output for details.'
+
+	#  Emptying the arrays so that the function might be called several times
+	#  and once checked utilites wouldn’t be checked again.
+	BAHELITE_INTERNALLY_REQUIRED_UTILS=()
+	REQUIRED_UTILS=()
 	return 0
 }
 export -f check_required_utils
+
 
 [ -v ERROR_CODES ] && [ ${#ERROR_CODES[*]} -ne 0 ] && {
 	for key in ${!ERROR_CODES[*]}; do

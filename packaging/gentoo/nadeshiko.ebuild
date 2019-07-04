@@ -30,7 +30,7 @@ RDEPEND="
 	app-text/xmlstarlet
 
 	hardsub? (
-		>=media-video/ffmpeg-4.0[iconv,libass,truetype]
+		>=media-video/ffmpeg-4.0[iconv,libass,truetype,fontconfig]
 	)
 
 	crop? (

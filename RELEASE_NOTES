@@ -1,3 +1,24 @@
+——— v 2.9.9 ——————————————————————————————————————————————————————————————————
+
+1. Improved the check for ffmpeg capabilities to encode subtitles. Checking
+   for encoder was not sufficient, and on top of that ffmpeg-4.1.3 misreported
+   “ass” encoder as present in `ffmpeg -hide_banner -h encoder=ass`, when it
+   wasn’t actually compiled in. Separate checks for ass, subtitles and overlay
+   *filters* are now in place.
+
+2. Internal checks for basic utilities and ffmpeg have to have been split
+   on three calls, repeated checks are avoided.
+
+3. Fixed a bug with stale *.xtrace.log files undeleted from $LOGDIR.
+
+4. Fixed a typo in the filter composition module related to subrip.
+
+5. Fontconfig support in FFmpeg is added to .ebuild dependencies.
+   **Package maintainers** should update their package building scripts.
+
+
+
+
 ——— v 2.9.8 ——————————————————————————————————————————————————————————————————
                                                            Nadeshiko-mpv 2.4.9
                                                   Nadeshiko-do-postponed 2.3.6
