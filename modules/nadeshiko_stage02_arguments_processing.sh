@@ -80,7 +80,8 @@ parse_args() {
 
 		elif [[ "$arg" =~ ^(no|)audio((=|:)(.+)|)$ ]]; then
 			case "${BASH_REMATCH[1]}" in
-				no) unset audio ;;
+				no) unset audio
+					;;
 				'')
 					audio=t
 					#  Remembering it for the same reason as with “subs”.
@@ -135,11 +136,11 @@ parse_args() {
 			#
 			#  This is a service option to shut the progressbar output. It is
 			#    used by wrappers: Nadeshiko-mpv and Nadeshiko-do-postponed,
-			#    whose logs get cluttered, because \r obviously do not work
+			#    whose logs get cluttered, because \r obviously does not work
 			#    when the console output in the end gets redirected to a file.
 			#  This option does not disable $ffmpeg_progress, so ffmpeg will
-			#    still write the progress log, so it may be processed by the
-			#    wrapper, if needed.
+			#    still write the progress log, which makes possible for the
+			#    wrappers to implement graphical progressbar (in the future).
 			#
 			do_not_report_ffmpeg_progress_to_console=t
 
@@ -279,54 +280,141 @@ check_basic_util_support() {
 }
 
 
+check_video_encoder_support() {
+	local encoder_info
+	#  It is confirmed, that when a codec is not supported, ffmpeg returns
+	#      “Codec '<name>' is not recognized by FFmpeg”.
+	#  (FFmpeg N-94168-g0f39ef4db2, 5 July 2019)
+	encoder_info=$(
+		$ffmpeg -hide_banner -h encoder="$ffmpeg_vcodec" | head -n1
+	)
+	[[ "${encoder_info:-}" =~ ^Encoder\ $ffmpeg_vcodec\  ]] || {
+		redmsg "“$ffmpeg_vcodec” video codec is missing."
+		return 1
+	}
+	return 0
+}
+
+
+check_audio_encoder_support() {
+	local encoder_info
+	#  It is confirmed, that when a codec is not supported, ffmpeg returns
+	#      “Codec '<name>' is not recognized by FFmpeg”.
+	#  (FFmpeg N-94168-g0f39ef4db2, 5 July 2019)
+	encoder_info=$(
+		$ffmpeg -hide_banner -h encoder="$ffmpeg_acodec" | head -n1
+	)
+	[[ "$encoder_info" =~ ^Encoder\ $ffmpeg_acodec\  ]] || {
+		redmsg "“$ffmpeg_acodec” audio codec is missing."
+		return 1
+	}
+	return 0
+}
+
+
+check_subtitle_filter_support() {
+	local encoder_info  subtitle_filter  helpmsg  font_rendering_problems  \
+	      quit_with_error
+	#
+	#  ASS filter:
+	#    - OpenType font features can be enabled only with the “ass”
+	#      filter, not available with “subtitles” filter;
+	#    - depends on libass;
+	#    - “Same as the subtitles filter, except that it doesn’t require
+	#      libavcodec and libavformat to work.” ― FFmpeg filters documentation.
+	#
+	#  Subtitles fitler:
+	#    - depends on libass;
+	#
+	#  At this point src_s[codec] is guaranteed to have a value
+	#    from $known_sub_codecs.
+	#
+	case "${src_s[codec]}" in
+		ass|ssa)
+			subtitle_filter='ass'
+			helpmsg="Make sure that FFmpeg is compiled with “--enable-libass”."
+			;;
+
+		subrip|srt|webvtt|vtt)
+			subtitle_filter='subtitles'
+			helpmsg="Make sure that FFmpeg is compiled with “--enable-libass”."
+			;;
+
+		dvd_subtitle|hdmv_pgs_subtitle)
+			subtitle_filter='overlay'
+			#  No $helpmsg, because dependencies for the “overlay” filter
+			#  are not known.
+			;;
+	esac
+	helpmsg=${helpmsg:+$helpmsg$'\n'}
+	helpmsg+="Try encoding without subtitles? (Add “nosub” to cmdline options.)"
+	#
+	#  It is confirmed, that when “ass” subtitle codec IS NOT supported,
+	#  `ffmpeg -h encoder=ass` still returns
+	#      “Encoder ass [ASS (Advanced SubStation Alpha) subtitle]:
+	#       General capabilities: none”
+	#  while for `ffmpeg -h filter=ass` it returns
+	#      “Unknown filter 'ass'.”
+	#  (FFmpeg N-94168-g0f39ef4db2, 5 July 2019)
+	#
+	encoder_info=$(
+		$ffmpeg -hide_banner -h filter="$subtitle_filter" | head -n1
+	)
+	[[ "$encoder_info" =~ ^Filter\ $subtitle_filter ]] || {
+		redmsg "“$subtitle_filter” subtitle filter is missing."
+		[ -v helpmsg ] && msg "$helpmsg"
+		quit_with_error=t
+	}
+
+	 # If the subtitle filter to be used is “ass”, then also check,
+	#  that the OpenType features are supported.
+	#
+	[[ "$subtitle_filter" =~ ^(ass|subtitles)$ ]] && {
+		if [    "${ffmpeg_version_output}"  \
+		      = "${ffmpeg_version_output/enable-fontconfig/}"  ]
+		then
+			warn "FFmpeg was built without fontconfig!"
+			font_rendering_problems=t
+		fi
+
+		if [    "${ffmpeg_version_output}"  \
+		      = "${ffmpeg_version_output/enable-libfreetype/}"  ]
+		then
+			warn "FFmpeg was built without freetype!"
+			font_rendering_problems=t
+		fi
+
+		[ -v font_rendering_problems ]  \
+			&& warn "Without freetype and fontconfig libraries FFmpeg won’t be able to use
+			         OpenType font features like kerning and ligatures or render text at all!"
+	}
+
+	[ -v quit_with_error ]  \
+		&& return 1  \
+		|| return 0
+}
+
+
 check_encoder_support() {
-	local  encoder_info  missing_encoders   subtitle_filter  arg  \
-	       ffmpeg="$ffmpeg -hide_banner"
+	local  missing_components  arg
+	info 'Verifying, that FFmpeg supports the required V/A/S codecs…'
+	milinc
 	for arg in "$@"; do
 		case "$arg" in
 			video)
-				encoder_info=$($ffmpeg -h encoder="$ffmpeg_vcodec" | head -n1)
-				[[ "${encoder_info:-}" =~ ^Encoder\ $ffmpeg_vcodec\  ]] || {
-					redmsg "FFmpeg doesn’t support $ffmpeg_vcodec encoder."
-					missing_encoders=t
-				}
+				check_video_encoder_support || missing_components=t
 				;;
 			audio)
-				encoder_info=$($ffmpeg -h encoder="$ffmpeg_acodec" | head -n1)
-				[[ "$encoder_info" =~ ^Encoder\ $ffmpeg_acodec\  ]] || {
-					redmsg "FFmpeg doesn’t support $ffmpeg_acodec encoder."
-					missing_encoders=t
-				}
+				check_audio_encoder_support || missing_components=t
 				;;
 			subs)
-				#  libass filter is needed for two reasons:
-				#  - something with hardsubbing requires them to be
-				#    in SSA format;
-				#  - OpenType font features can be enabled only with
-				#    “ass” filter, not available with “subtitles” filter.
-				case ${src_s[codec]} in
-					ass|ssa)
-						subtitle_filter='ass';;
-					subrip|srt|webvtt|vtt)
-						subtitle_filter='subtitles';;
-					dvd_subtitle|hdmv_pgs_subtitle)
-						subtitle_filter='overlay';;
-					*)
-						subtitle_filter='unknown for Nadeshiko';;
-				esac
-				encoder_info=$(
-					$ffmpeg -hide_banner -h filter="$subtitle_filter" | head -n1
-				)
-				[[ "$encoder_info" =~ ^Filter\ $subtitle_filter ]] || {
-					redmsg "FFmpeg filter “$subtitle_filter” is missing."
-					missing_encoders=t
-				}
-				#  Also check fontconfig support?
+				check_subtitle_filter_support || missing_components=t
 				;;
 		esac
 	done
-	[ -v missing_encoders ] \
+	[ -v missing_components ]  \
 		&& err "FFmpeg doesn’t support required encoders or filters."
+	mildec
 	return 0
 }
 
@@ -464,8 +552,10 @@ check_subtitles() {
 	declare -g subs_need_extraction  subs_need_conversion  prepped_ext_subs
 	local  codec_name  known_sub_codecs_list  ext_subtitle_type
 
+	known_sub_codecs_list=$(IFS='|'; echo "${known_sub_codecs[*]}")
+
 	if [ -v src_s[external_file]  ]; then
-		[[ "${src_s[codec]}" =~ ^(ass|ssa|subrip|srt|webvtt|vtt)$ ]] || {
+		[[ "${src_s[codec]}" =~ ^($known_sub_codecs_list)$ ]] || {
 			#  External subs can only be requested,
 			#    so it’s always an error, when they can’t be rendered.
 			#  This error may be triggered, if mpv or a wrapper like
@@ -499,11 +589,10 @@ check_subtitles() {
 		#  Now the stage04_encoding.sh module can refer to streams
 		#  as s:${src_s[track_id]} with confidence, no need in …:-0?}
 
-		known_sub_codecs_list=$(IFS='|'; echo "${known_sub_codecs[*]}")
 		#  Unlike with a video that simply has no subtitle stream,
 		#  having one that we cannot encode is always an error.
 		[[ "${src_s[codec]}" =~ ^($known_sub_codecs_list)$ ]]  \
-			|| err "Cannot use built-in subtitles – “${src_s[codec]}” type is not supported. Try “nosubs”?"
+			|| err "Cannot use built-in subtitles – “${src_s[mimetype]}” type is not supported. Try “nosubs”?"
 
 	fi
 
@@ -541,8 +630,6 @@ check_audio() {
 	}
 	return 0
 }
-
-
 
 
  # Determines how fast the scenes in the video change.
@@ -643,6 +730,8 @@ set_vars() {
 
 	[ -v max_size ] || declare -g max_size=$max_size_default
 	check_mutually_exclusive_options
+	#  $1 = Type of information to gather.
+	#  $2 = name for the new global variable that will store the data.
 	gather_info 'before-encode' 'src'
 	check_times
 	#  Frame count is used as primary indicator of the expected muxing overhead.

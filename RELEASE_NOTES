@@ -1,3 +1,20 @@
+——— v 2.9.10 —————————————————————————————————————————————————————————————————
+
+1. Refactored checks for ffmpeg encoders and filters, made error messages more
+   descriptive.
+
+2. Nadeshiko will now print warnings about possible problems with font rende-
+   ring, if FFmpeg was built without freetype or fontconfig.
+
+3. Fixed an error message, that shows up when the source subtitle type is
+   unknown. (The type was reported as empty, should’ve been a MIME type.)
+
+4. “update-check” USE-flag is disabled by default in the .ebuild file. (The
+   config option for that was set to “no” by default several versions ago.)
+
+
+
+
 ——— v 2.9.9 ——————————————————————————————————————————————————————————————————
 
 1. Improved the check for ffmpeg capabilities to encode subtitles. Checking

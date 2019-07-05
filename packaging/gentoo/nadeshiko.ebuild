@@ -14,7 +14,7 @@ MERGE_TYPE="binary"
 KEYWORDS="~*"
 
 
-IUSE="+hardsub +crop +mpv +x264 +fdk-aac +vp9 +opus vorbis +update-check time-stat"
+IUSE="+hardsub +crop +mpv +x264 +fdk-aac +vp9 +opus vorbis update-check time-stat"
 
 RDEPEND="
 	>=app-shells/bash-4.4

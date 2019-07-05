@@ -1105,15 +1105,12 @@ gather_info_subtitle_codec() {
 			'SSA subtitles')
 				;&
 			'ASS subtitles')
-				# source[s_format]='ASS/SSA'
 				source_s[codec]='ass'
 				;;
 			'WebVTT subtitles')
-				# source[s_format]='SubRip/WebVTT'
 				source_s[codec]='webvtt'
 				;;
 			'SubRip subtitles')
-				# source[s_format]='SubRip/WebVTT'
 				source_s[codec]='subrip'
 				;;
 			#'<bitmap subtitles in general>')
@@ -1130,6 +1127,8 @@ gather_info_subtitle_codec() {
 				#;;
 			*)
 				unset source_s[codec]
+				#  Set [mimetype], so that when [codec] is not set, the main
+				#  program could output something about the file.
 				source_s[mimetype]=$subs_mimetype
 				;;
 		esac
