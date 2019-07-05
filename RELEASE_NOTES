@@ -1,3 +1,11 @@
+——— v 2.9.11 —————————————————————————————————————————————————————————————————
+
+1. Reverted back the change № 3 from the previous update. Added a note
+   to the code.
+
+
+
+
 ——— v 2.9.10 —————————————————————————————————————————————————————————————————
 
 1. Refactored checks for ffmpeg encoders and filters, made error messages more

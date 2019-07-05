@@ -592,7 +592,8 @@ check_subtitles() {
 		#  Unlike with a video that simply has no subtitle stream,
 		#  having one that we cannot encode is always an error.
 		[[ "${src_s[codec]}" =~ ^($known_sub_codecs_list)$ ]]  \
-			|| err "Cannot use built-in subtitles – “${src_s[mimetype]}” type is not supported. Try “nosubs”?"
+			|| err "Cannot use built-in subtitles – “${src_s[codec]}” type is not supported. Try “nosubs”?"
+		#  Sic! ---------------------------------------------^^^^^
 
 	fi
 
