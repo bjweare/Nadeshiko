@@ -1,3 +1,13 @@
+——— v 2.9.12 —————————————————————————————————————————————————————————————————
+                                                          Nadeshiko-mpv 2.4.10
+
+Fixed a minor bug at the stage of viewing the encoded file. It displayed an
+error “Unknown verbosity output…”, when the post-view is enabled. Did no harm
+unless logging was disabled.
+
+
+
+
 ——— v 2.9.11 —————————————————————————————————————————————————————————————————
 
 1. Reverted back the change № 3 from the previous update. Added a note

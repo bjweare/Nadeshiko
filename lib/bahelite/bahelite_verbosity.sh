@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_VERBOSITY_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_VERBOSITY_VER='1.1'
+declare -grx BAHELITE_MODULE_VERBOSITY_VER='1.1.1'
 
 
 
@@ -78,7 +78,7 @@ __get_verbosity() {
 	local output="$1" mode="$2"
 	bahelite_verify_verbosity_level
 	case "$output" in
-		log)
+		log|logging)
 			case "$mode" in
 				'bahelite')
 					echo "${VERBOSITY_LEVEL:0:1}"
