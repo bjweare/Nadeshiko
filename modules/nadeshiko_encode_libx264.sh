@@ -26,7 +26,7 @@ encode-libx264() {
 
 		FFREPORT=file=$LOGDIR/ffmpeg-pass$pass.log:level=32  \
 		$ffmpeg -y -hide_banner  -v error  -nostdin  \
-				"${ffmpeg_input_options[@]}"  \
+		        "${ffmpeg_input_options[@]}"  \
 		            -ss "${start[ts]}"  \
 		            -to "${stop[ts]}"  \
 		        "${ffmpeg_input_files[@]}"  \

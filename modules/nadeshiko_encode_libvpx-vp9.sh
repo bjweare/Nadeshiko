@@ -159,15 +159,15 @@ encode-libvpx-vp9() {
 		        "${ffmpeg_colorspace[@]}"  \
 		        "${map_string[@]}"  \
 		        "${vf_string[@]}"  \
-		        ${libvpx_vp9_max_q:+-qmax $libvpx_vp9_max_q}  \
-		        ${libvpx_vp9_min_q:+-qmin $libvpx_vp9_min_q}  \
-		            ${libvpx_vp9_cq_level:+-crf $libvpx_vp9_cq_level}  \
-		        -aq-mode $libvpx_vp9_aq_mode  \
 		        -c:v $ffmpeg_vcodec  \
 		            -pix_fmt $libvpx_vp9_pix_fmt  \
 		            -b:v $vbitrate  \
 		                -minrate $minrate  \
 		                -maxrate $maxrate  \
+		        ${libvpx_vp9_max_q:+-qmax $libvpx_vp9_max_q}  \
+		        ${libvpx_vp9_min_q:+-qmin $libvpx_vp9_min_q}  \
+		            ${libvpx_vp9_cq_level:+-crf $libvpx_vp9_cq_level}  \
+		        -aq-mode $libvpx_vp9_aq_mode  \
 		        -g $libvpx_vp9_kf_max_dist  \
 		        -auto-alt-ref $libvpx_vp9_auto_alt_ref  \
 		            -lag-in-frames $libvpx_vp9_lag_in_frames  \
