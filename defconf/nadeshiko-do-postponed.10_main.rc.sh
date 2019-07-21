@@ -1,5 +1,8 @@
 #  nadeshiko-do-postponed.rc.sh
 #
+#  Main configuration file for nadeshiko-do-postponed.sh. Copied as an example
+#  to user’s configuration directory from defconf/.
+#
 #  RC file uses bash syntax:
 #    key=value
 #  Quotes can be omitted, if the value is a string without spaces.

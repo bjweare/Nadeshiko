@@ -8,6 +8,16 @@
 #  For licence see nadeshiko.sh
 
 
+ # The part of the code in this file is not organised perfecly, because
+#  the fitting algorithm is still being shaped. There are plans to add new
+#  features and maybe remove some in the future, what calls for reshaping
+#  some parts. The algorithm was already reshaped a couple of times, when
+#  there appeared necessity and the promised stability was clear. Premature
+#  reshaping may lead to wasting time on what may become dead ends in the code
+#  and lead to unnecessarily entangled structure, so keeping it not perfect,
+#  but as small as possible and shaped as well as it is objectively neces-
+#  sary at the moment, is preferable.
+
 
  # Calculates the maximum amount of video bitrate, that fits
 #  into max_size. Works only on $vbitrate and $abitrate, hence

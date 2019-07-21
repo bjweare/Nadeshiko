@@ -1,7 +1,8 @@
 #  nadeshiko.rc.sh
 #
-#  Main configuration file. Codec-specific options reside in the “defconf”
-#  directory
+#  Main configuration file for nadeshiko.sh. Copied as an example to user’s
+#  configuration directory from defconf/, where resides the rest of the
+#  default configuration, i.e. codec-specific files.
 #
 #  RC file uses bash syntax:
 #    key=value

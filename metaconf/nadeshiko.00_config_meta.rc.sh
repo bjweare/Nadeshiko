@@ -1,9 +1,13 @@
 #  nadeshiko.00_config_meta.rc.sh
 #
-#  This initial piece of configuration predefines types for regular and
-#  associative arrays. This allows to keep the actual definitions minimal
-#  for the end users – who might forget to copy the definitions to their
-#  config files or type -a instead of -A.
+#  This initial piece of configuration preemptively declares the types for
+#    regular and associative arrays. This allows the configs to be simpler
+#    for the end users, who don’t need to type “declare”, and thus will not
+#    confuse ‘declare -a’ with ‘declare -A’.
+#  Meta configuration files also set predefines for the libraries and modules.
+#    What has to be set for Bahelite is set in the main meta configuration
+#    file, i.e. in this file. Other specific things, especially module-specific
+#    ones, are placed each in their own meta configuration file.
 
 
 

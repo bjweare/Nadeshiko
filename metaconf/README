@@ -7,8 +7,8 @@
 — These pieces of configuration contain declarations, that tell *how* the
 rest of the configuration options should be read. This includes:
 
-1. All “declare” statements. They lift the burden of specifying them from the
-   end users of the application.
+1. All “declare” statements. They lift the burden to specify them in the
+   “common” configuration files (non-meta, i.e. defconf/ and ~/.config/…).
 2. Generic post-processing like specifying which variables belong to the
    pseudo-boolean type. This allows to keep them as yes/no (on/off, true/false,
    enabled/disabled etc…) in the config, while using simpler notation in the

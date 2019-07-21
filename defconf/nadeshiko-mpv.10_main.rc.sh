@@ -1,5 +1,8 @@
 #  nadeshiko-mpv.rc.sh
 #
+#  Main configuration file for nadeshiko-mpv.sh. Copied as an example
+#  to user’s configuration directory from defconf/.
+#
 #  RC file uses bash syntax:
 #    key=value
 #  Quotes can be omitted, if the value is a string without spaces.
