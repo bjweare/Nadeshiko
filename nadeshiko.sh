@@ -54,7 +54,7 @@ prepare_confdir
 place_examplerc 'nadeshiko.10_main.rc.sh'
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
-declare -r version='2.9.12'
+declare -r version='2.9.13'
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 
  # Minimal libav libraries versions
@@ -176,7 +176,7 @@ info-ns "Encoded successfully."
 new_file_name=${new_file_name//\$/\\\$}
 info "${new_file_name##*/}"
 [ -v time_stat ] && print_stats
-which xclip &>/dev/null && {
+which xclip &>/dev/null && [ -v DISPLAY ] && {
 	echo -n "$new_file_name" | xclip
 	info 'Copied path to clipboard.'
 }

@@ -21,7 +21,7 @@ parse_args() {
 	            new_filename_user_prefix  max_size  vbitrate  abitrate  \
 	            scene_complexity  dryrun  \
 	            do_not_report_ffmpeg_progress_to_console
-	local args=("$@") arg pid
+	local args=("$@")  arg  pid
 
 	for arg in "${args[@]}"; do
 		if [[ "$arg" = @(-h|--help) ]]; then
@@ -145,13 +145,22 @@ parse_args() {
 			do_not_report_ffmpeg_progress_to_console=t
 
 		elif [ -f "$arg" ]; then
-			if [[ "$(mimetype -L -b "$arg")" =~ ^video/ ]]; then
-				src[path]="$arg"
-			else
+			[[ "$(mimetype -L -b "$arg")" =~ ^video/ ]]  \
+				&& src[path]="$arg"
+
+			[[ "$arg" =~ \.(TS|ts)$ ]]  && {
+				#  .ts (old MPEG transport stream) cannot be recognised proper-
+				#  ly and file has to be used. (“mimetype -MLb” also doesn’t
+				#  work, reports file as application/x-font-tex-tfm.)
+				[[ "$(file -L -b  "$arg")" =~ MPEG\ transport\ stream ]]  \
+					&& src[path]="$arg"
+			}
+
+			[ -v 'src[path]' ]  || {
 				redmsg "Not a video file:
 				        ${arg##*/}"
 				err "Passed file is not a video."
-			fi
+			}
 
 		elif [ -d "$arg" ]; then
 			if [ -w "$arg" ]; then

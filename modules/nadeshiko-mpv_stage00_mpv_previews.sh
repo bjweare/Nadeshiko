@@ -61,6 +61,17 @@ pause_and_leave_fullscreen() {
 
 play_preview() {
 	[ -v show_preview ] || return 0
+	#  Avoiding the bug with old .ts files (MPEG transport stream), in which
+	#  positioning doesn’t work because of an error:
+	#  [ffmpeg/video] h264: reference picture missing during reorder
+	#  mpv with a preview would hang without even showing a window.
+	if	[[ "$path" =~ \.(TS|ts) ]]  \
+		&& [[ "$(file -L -b "$path")" = MPEG\ transport\ stream ]]
+	then
+		warn-ns 'Skipping preview: positioning in .ts files is bugged.'
+		sleep  3  # For the user to have time to read the message.
+		return 0
+	fi
 	local  temp_sock="$(mktemp -u)"  sub_file  sid  audio_file  aid  vf_crop
 	check_needed_vars  'sub-file'
 	pause_and_leave_fullscreen

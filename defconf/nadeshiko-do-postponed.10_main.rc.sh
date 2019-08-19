@@ -41,3 +41,13 @@
 #  Default: all
 #
 nadeshiko_desktop_notifications='all'
+
+
+ # Forces the specified verbosity level for the encoding backend.
+#    If set, then the value of $nadeshiko_desktop_notifications is ignored.
+#  This variable is handy only for debugging problems, the value “403” increa-
+#    ses the verbosity so as to allow  “set±x”  commands within nadeshiko code
+#    to work. Verbosity levels are described on the wiki:
+#    https://github.com/deterenkelt/Nadeshiko/wiki/Hacking-the-code
+#
+#nadeshiko_verbosity_level=403

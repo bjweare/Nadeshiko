@@ -31,7 +31,7 @@ set_defconfdir 'nadeshiko'
 prepare_confdir 'nadeshiko'
 place_examplerc 'nadeshiko-do-postponed.10_main.rc.sh'
 
-declare -r version="2.3.6"
+declare -r version="2.3.7"
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -123,9 +123,11 @@ process_dir() {
 		msg+="ID ${__bri}$job_id${__s}…  "
 		infon "$msg"
 
+		: ${nadeshiko_verbosity_level:=30$nadeshiko_desktop_notifications}
+
 		if	env  \
 				LOGDIR="$job_logdir"  \
-				VERBOSITY_LEVEL=30$nadeshiko_desktop_notifications  \
+				VERBOSITY_LEVEL=$nadeshiko_verbosity_level  \
 				MSG_INDENTATION_LEVEL="$MSG_INDENTATION_LEVEL"  \
 				${nice_cmd:-} ${taskset_cmd:-} "$jobfile"
 
@@ -170,7 +172,7 @@ run_jobs() {
 }
 
 
- # Return true, if there are jobs, return false, if there are no jobs to do.
+ # Counts jobs and sets counters.
 #
 collect_jobs() {
 	if [ -d "$postponed_commands_dir" ]; then
@@ -244,6 +246,7 @@ if [ -v DISPLAY ]; then
 		exit 0
 	fi
 else
+	collect_jobs
 	run_jobs
 fi
 
