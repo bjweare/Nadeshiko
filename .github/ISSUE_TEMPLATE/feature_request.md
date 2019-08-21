@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about:
+about: ""
 ---
 
 ### I wish…
