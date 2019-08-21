@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: ""
+about: "​­​"
 ---
 
 ### What Nadeshiko was supposed to do
