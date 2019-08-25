@@ -192,8 +192,16 @@ libvpx_vp9_pass2_cpu_used=0
 #   populate the buffer with a copy of the previous golden frame, when this
 #   frame is updated, or with a copy of a frame derived from some point
 #   of time in the future.”
+#
 #  “Use of --auto-alt-ref can substantially improve quality in many
-#   situations (though there are still a few where it may hurt).” > 2016
+#    situations (though there are still a few where it may hurt).” (2016)
+#  Research made to compare encodes with auto-alt-ref 1 and 6 revealed that
+#    there will be no drastic change for short videos (< 5 seconds), be they
+#    dynamic of static, however, longer videos suffer less artefacts with
+#    a greater number of reference frames. On the wiki: https://git.io/fjAsM
+#  Old devices – 2015/16 and before – have issue playing VP9-encoded videos,
+#    if the number of reference frames used was greater than 1.
+#
 #               0 – disabled.
 #  libvpx-1.7:  1 – enabled.
 #  libvpx-1.8:  1–6 – enabled with a specific number of ref frames(?)
@@ -202,9 +210,20 @@ libvpx_vp9_pass2_cpu_used=0
 libvpx_vp9_auto_alt_ref=6
 
 
+ # Compatibility for mobile devices
+#  As VP9 decoder on smarphones often doesn’t support playback of videos,
+#    that were encoded with “--auto-alt-ref 6”, setting this option would
+#    order to use less reference frames for short videos.
+#  The value is the duration of video, in seconds, below which auto-alt-ref=1
+#    will be used instead of auto-alt-ref=6.
+#  Default value: 30
+#
+libvpx_vp9_allow_autoaltref6_only_for_videos_longer_than_sec=30
+
+
  # Upper limit on the number of frames into the future,
 #  that the encoder can look for --auto-alt-ref.
-#  0–25. 25 is the default. 16 is recommended by webmproject.org.
+#  0–25. 25 is the default. 16 is recommended by webmproject.org (2016).
 #
 libvpx_vp9_lag_in_frames=25
 

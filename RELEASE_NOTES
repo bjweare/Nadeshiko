@@ -1,3 +1,37 @@
+——— v 2.9.14 —————————————————————————————————————————————————————————————————
+                                                          Nadeshiko-mpv 2.4.12
+
+1. An additional fix for the bug with .ts (MPEG transport stream files).
+
+2. It was discovered, that mobile devices cannot play VP9-encoded videos,
+   if they were encoded with `-auto-alt-ref 6`.
+
+   The benefits of using higher values for `-auto-alt-ref` option were set out
+   in the [research](https://git.io/fjAsM) on the wiki.
+
+   To solve the issue, a compromise was taken up: when the clip is short,
+   `-auto-alt-ref` should be set to `1` (low, compatible); and when the video
+   is long (when enabling more reference frames makes big sense), then the
+   option will have `6` set. The duration, that serves as a border is set
+   to 30 seconds. This will allow to exchange short videos online without
+   problems. Longer videos (30+ seconds) are rarely shared, and they also
+   stutter on low capacity bandwidth, so if anybody would like to see it,
+   they would probably download it to watch later on their PC or laptop.
+
+   The new configuration option, that sets border duration is
+   `libvpx_vp9_allow_autoaltref6_only_for_videos_longer_than_sec`.
+
+   You may check how capable is your phone, by playing these two small
+   (200 KiB in total) videos:
+     A. encoded with `-auto-alt-ref 6`: [doesn’t play](https://git.io/fjAG2);
+     B. encoded with `-auto-alt-ref 1`: [plays](https://git.io/fjAGa).
+
+   Full-fledged platforms – PCs and laptops – are not affected, and should
+   play both videos well, as long as you update your software.
+
+
+
+
 ——— v 2.9.13 —————————————————————————————————————————————————————————————————
                                                           Nadeshiko-mpv 2.4.11
                                                  Nadeshiko-do-postponed  2.3.7

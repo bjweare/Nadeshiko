@@ -66,7 +66,7 @@ play_preview() {
 	#  [ffmpeg/video] h264: reference picture missing during reorder
 	#  mpv with a preview would hang without even showing a window.
 	if	[[ "$path" =~ \.(TS|ts) ]]  \
-		&& [[ "$(file -L -b "$path")" = MPEG\ transport\ stream ]]
+		&& [[ "$(file -L -b "$path")" =~ MPEG\ transport\ stream ]]
 	then
 		warn-ns 'Skipping preview: positioning in .ts files is bugged.'
 		sleep  3  # For the user to have time to read the message.

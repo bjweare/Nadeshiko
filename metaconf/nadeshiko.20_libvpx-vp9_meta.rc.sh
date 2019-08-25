@@ -37,6 +37,7 @@ RCFILE_CHECKVALUE_VARS+=(
 	[libvpx_vp9_overshoot_pct]='int_in_range_with_unit_or_without_it  0  1000  %'
 	[libvpx_vp9_undershoot_pct]='int_in_range_with_unit_or_without_it  0  1000  %'
 	[libvpx_vp9_bias_pct]='int_in_range_with_unit_or_without_it  0  100  %'
+	[libvpx_vp9_allow_autoaltref6_only_for_videos_longer_than_sec]='int_in_range 0 99999'
 )
 
 RCFILE_REPLACEVALUE_VARS+=(

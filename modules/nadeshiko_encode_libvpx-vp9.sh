@@ -96,17 +96,30 @@ calc_vbr_range() {
 
 libvpx18_check() {
 	declare -g libvpx_vp9_auto_alt_ref
+	local min_duration_to_allow_altref6=$libvpx_vp9_allow_autoaltref6_only_for_videos_longer_than_sec
 
-	#  1. Checking ffmpeg version
+	 # 1. Compatibility with mobile devices.
+	#
+	(( min_duration_to_allow_altref6 != 0 ))  && {
+	   (( duration[total_s] < min_duration_to_allow_altref6 ))  && {
+		   	info "Video clip is shorter than $min_duration_to_allow_altref6 sec.
+		   	      Dropping -auto-alt-ref to 1 for compatibility."
+			libvpx_vp9_auto_alt_ref=1
+	   }
+	   return 0
+	}
+
+	#  2. Checking ffmpeg version
 	if	compare_versions "$libavcodec_ver" '<' '58.39.100'  \
 		&& (( libvpx_vp9_auto_alt_ref > 1 ))
 	then
 		warn 'Libavcodec version is lower than 58.39.100!
 		      Dropping -auto-alt-ref to 1.'
 		libvpx_vp9_auto_alt_ref=1
+		return 0
 	fi
 
-	#  2. Checking vpxenc version
+	#  3. Checking vpxenc version
 	local vpxenc_version=$(
 		vpxenc --help | sed -rn 's/.*WebM\sProject\sVP9\sEncoder\sv([0-9]+\.[0-9]+(\.[0-9]+|))\s.*/\1/p'
 	)
