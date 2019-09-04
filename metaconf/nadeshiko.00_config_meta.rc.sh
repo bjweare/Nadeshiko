@@ -12,6 +12,7 @@
 
 
 declare -gA  ffmpeg_muxers
+declare -gA  ffmpeg_missing
 declare -gA  bitres_profile_360p
 declare -gA  bitres_profile_480p
 declare -gA  bitres_profile_576p

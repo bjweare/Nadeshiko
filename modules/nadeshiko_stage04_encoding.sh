@@ -88,6 +88,7 @@ assemble_vf_string() {
 	extract_fonts() {
 		[ -v fonts_are_already_extracted ] && return 0
 		declare -g  font_list  fonts_are_already_extracted
+		local font
 		info "Extracting fonts…"
 		milinc
 		[ -d "$TMPDIR/fonts" ] || mkdir "$TMPDIR/fonts"
@@ -110,6 +111,21 @@ assemble_vf_string() {
 			font_list=$(
 				find "$TMPDIR/fonts" \( -iname "*.otf" -o -iname "*.ttf" \)
 			)
+			for font in ${font_list[@]}; do
+				if	   [[ "$font" =~ \.[Oo][Tt][Ff]$ ]]   \
+					&& [ -v ffmpeg_missing[fontconfig] ]  \
+					&& [ ! -v forgive[otf]  ]
+				then
+					redmsg 'Video uses .otf fonts, but FFmpeg was built without fontconfig
+					        and will not be able to render subtitles with their native fonts.'
+					redmsg 'Please install the missing fonconfig support for FFmpeg.
+					        Alternatively (if you’re in a hurry and you don’t care,
+					        what mess may happen in the subtitle rendering), you may re-run
+					        nadeshiko with “forgive=otf” flag to bypass this error.'
+					err 'FFmpeg is not able to render OTF fonts.
+					     See the log for details.'
+				fi
+			done
 		else
 			info 'Video has no attachments.'
 		fi

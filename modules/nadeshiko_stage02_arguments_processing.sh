@@ -14,7 +14,7 @@
 #  $@ – see show_help()
 #
 parse_args() {
-	declare -gA src  src_c  src_v  src_a  src_s
+	declare -gA src  src_c  src_v  src_a  src_s  forgive
 	declare -g  subs  subs_explicitly_requested  \
 	            audio  audio_explicitly_requested  \
 	            kilo  scale  crop  where_to_place_new_file="$PWD"  \
@@ -187,6 +187,9 @@ parse_args() {
 		elif [ "$arg" = dryrun ]; then
 			dryrun=t
 
+		elif [[ "$arg" =~ ^forgive=(otf)$ ]]; then
+			forgive+=( [otf]=yes )
+
 		else
 			err "“$arg”: parameter unrecognised."
 		fi
@@ -224,6 +227,10 @@ check_basic_util_support() {
 		#  To determine the mime types of video and subtitle files
 		#  correctly, “file” command is not sufficient.
 		mimetype
+
+		#  However, only “file” reports correctly the MIME type
+		#  for MPEG transport stream files of the old format.
+		file
 
 		#  For the floating point calculations, that are necessary
 		#  e.g. in determining scene_complexity.
@@ -383,6 +390,7 @@ check_subtitle_filter_support() {
 		      = "${ffmpeg_version_output/enable-fontconfig/}"  ]
 		then
 			warn "FFmpeg was built without fontconfig!"
+			ffmpeg_missing+=( [fontconfig]=yes )
 			font_rendering_problems=t
 		fi
 
@@ -390,12 +398,14 @@ check_subtitle_filter_support() {
 		      = "${ffmpeg_version_output/enable-libfreetype/}"  ]
 		then
 			warn "FFmpeg was built without freetype!"
+			ffmpeg_missing+=( [freetype]=yes )
 			font_rendering_problems=t
 		fi
 
 		[ -v font_rendering_problems ]  \
 			&& warn "Without freetype and fontconfig libraries FFmpeg won’t be able to use
-			         OpenType font features like kerning and ligatures or render text at all!"
+			         OpenType fonts (.otf), features like kerning and ligatures will be
+			         missing, and the text may be not rendered at all!"
 	}
 
 	[ -v quit_with_error ]  \

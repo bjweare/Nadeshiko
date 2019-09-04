@@ -26,6 +26,7 @@ RDEPEND="
 	>=media-video/ffmpeg-4.0[encode,threads,bluray]
 	media-video/mediainfo
 	dev-perl/File-MimeInfo
+	sys-apps/file
 	sys-devel/bc
 	app-text/xmlstarlet
 

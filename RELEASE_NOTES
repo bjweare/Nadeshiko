@@ -1,3 +1,20 @@
+——— v 2.9.15 —————————————————————————————————————————————————————————————————
+
+1. Improved handling of OpenType fonts in subtitles: when the source video has
+   built-in OTF fonts, FFmpeg must be built with fontconfig support, otherwise
+   it won’t see and use OTF fonts. Nadeshiko will now quit with an error in
+   this case to prevent an unpleasant result after encoding.
+
+   To bypass this error and render subtitles anyway, a new command line
+   parameter `forgive=otf` is introduced for Nadeshiko. (With Nadeshiko-mpv
+   this key may be added into a postponed job file.)
+
+2. Added `file` to dependency list for the correct recognition of the MPEG
+   Transport Stream files of the old format.
+
+
+
+
 ——— v 2.9.14 —————————————————————————————————————————————————————————————————
                                                           Nadeshiko-mpv 2.4.12
 
