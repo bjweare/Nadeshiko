@@ -10,7 +10,12 @@
 
 
 print_encoding_info() {
-	local  encinfo  vbr_c  abr_c  sc_c  scale_text
+	local  encinfo
+	local  vbr_c
+	local  abr_c
+	local  sc_c
+	local  scale_text
+
 	#  Bright (bold) white for command line overrides.
 	#  Yellow for automatic scaling.
 	encoding_info="Encoding with "
@@ -50,9 +55,18 @@ print_encoding_info() {
 #  as they are.
 #
 assemble_vf_string() {
-	declare -g vf_string
-	local  filter_list  overlay_subs_w  overlay_subs_h  xcorr=0  ycorr=0  \
-	       font_list  forced_style  key  tr_id  subtitle_filter
+	declare -g  vf_string
+
+	local filter_list
+	local overlay_subs_w
+	local overlay_subs_h
+	local xcorr=0
+	local ycorr=0
+	local font_list
+	local forced_style
+	local key
+	local tr_id
+	local subtitle_filter
 
 	 # In case the requested subtitles are built-in and in ASS/SSA format,
 	#  they have to be extracted. This function extracts the ${src_s[track_id]}
@@ -61,7 +75,8 @@ assemble_vf_string() {
 	#
 	extract_subs() {
 		[ -v subtitles_are_already_extracted ] && return 0
-		declare -g src_s  subtitles_are_already_extracted
+		declare -g  src_s
+		declare -g  subtitles_are_already_extracted
 		info "Extracting subtitles…"
 		src_s[external_file]="$TMPDIR/subs.ass"
 		# NB: -map uses 0:s:<subtitle_track_id> syntax here.
@@ -87,8 +102,11 @@ assemble_vf_string() {
 
 	extract_fonts() {
 		[ -v fonts_are_already_extracted ] && return 0
-		declare -g  font_list  fonts_are_already_extracted
+		declare -g  font_list
+		declare -g  fonts_are_already_extracted
+
 		local font
+
 		info "Extracting fonts…"
 		milinc
 		[ -d "$TMPDIR/fonts" ] || mkdir "$TMPDIR/fonts"
@@ -198,7 +216,8 @@ assemble_vf_string() {
 					#  are builtin.
 					if [ -v src_s[external_file]  ]; then
 						src_s[symlink_to_ext_subs]="$TMPDIR/extsubs.${src_s[external_file]##*\.}"
-						ln -s "${src_s[external_file]}" "${src_s[symlink_to_ext_subs]}"
+						[ -v overshot_times ]  \
+							|| ln -s "${src_s[external_file]}" "${src_s[symlink_to_ext_subs]}"
 						filter_list+="filename=${src_s[symlink_to_ext_subs]}"
 
 					elif [ -v src_s[track_id]  ]; then
@@ -265,6 +284,7 @@ assemble_vf_string() {
 map_streams() {
 	declare -g map_string=()
 	local map_audio=()
+
 	[ -v audio ] && {
 		if [ -v src_a[external_file]  ]; then
 			map_audio=( -map 1:a:0 )
@@ -278,9 +298,15 @@ map_streams() {
 
 
 set_file_name_and_video_title() {
-	declare -g  new_file_name  video_title
-	local  scale_type_tag  filename  filename_with_user_prefix  \
-	       filename_without_user_prefix  timestamps  tags
+	declare -g  new_file_name
+	declare -g  video_title
+
+	local scale_type_tag
+	local filename
+	local filename_with_user_prefix
+	local filename_without_user_prefix
+	local timestamps
+	local tags
 
 	filename="${src[path]%.*}"
 	filename=${filename##*/}
@@ -289,15 +315,17 @@ set_file_name_and_video_title() {
 	filename_without_user_prefix="$filename"
 	filename_without_user_prefix=${filename_without_user_prefix## }
 	[ -v new_filename_user_prefix ]  \
-		&& declare -n filename='filename_with_user_prefix' \
-		|| declare -n filename='filename_without_user_prefix'
+		&& local -n filename='filename_with_user_prefix' \
+		|| local -n filename='filename_without_user_prefix'
 
 	timestamps=" ${start[ts]}–${stop[ts]}"
 
 	[ -v scale ] && {
 		#  FS – forced scale, AS – automatic scale
 		#  (including the scale= from .rc.sh).
-		[ -v forced_scale ] && scale_type_tag="FS" || scale_type_tag="AS"
+		[ -v forced_scale ]  \
+			&& scale_type_tag="FS"   \
+			|| scale_type_tag="AS"
 		tags=" [${scale}p][$scale_type_tag]"
 	}
 
@@ -305,7 +333,8 @@ set_file_name_and_video_title() {
 	new_file_name="$where_to_place_new_file/$new_file_name"
 
 	video_title="${src_c[title]:-}"
-	[ "${src_c[title]:-}" ] || video_title="$filename_without_user_prefix"
+	[ "${src_c[title]:-}" ]  \
+		|| video_title="$filename_without_user_prefix"
 	video_title+=".$timestamps${tags:-}"
 	[ -v create_windows_friendly_filenames ]  \
 		&& new_file_name="$(remove_windows_unfriendly_chars "$new_file_name")"
@@ -318,13 +347,21 @@ set_file_name_and_video_title() {
 #
 launch_a_progressbar_for_ffmpeg() {
 	[ -v ffmpeg_progressbar ] || return 0
-	declare -g  ffmpeg_progress_log="$TMPDIR/ffmpeg_progress.log"  \
-	            progressbar_pid  frame_count
-	# ^ ffmpeg_progress_log must be defined before the check on whether
-	#   console output should be prevented.
+	#  ffmpeg_progress_log must be defined before the check on whether
+	#  console output should be prevented.
+	declare -g  ffmpeg_progress_log="$TMPDIR/ffmpeg_progress.log"
+	declare -g  progressbar_pid
+	declare -g  frame_count
+
+	#  Must be checked AFTER $ffmpeg_progress_log is set!
 	[ -v do_not_report_ffmpeg_progress_to_console ] && return 0
-	local progress_status  frame_no  elapsed_time
+
+	local  progress_status
+	local  frame_no
+	local  elapsed_time
+
 	export frame_count
+
 	mkfifo "$ffmpeg_progress_log"
 	#  Turning the cursor invisible
 	tput civis
@@ -515,8 +552,10 @@ stop_the_progressbar_for_ffmpeg() {
 
 
 encode() {
-	local audio_opts  acodec_options
+	local audio_opts
+	local acodec_options
 	local ffmpeg_input_files=( -i "${src[path]}" )
+
 	#  External audio goes as a separate input file, subtitles go within the
 	#  string passed as a parameter to -filter_complex
 	if [ -v src_a[external_file]  ]; then
@@ -574,8 +613,14 @@ encode() {
 
 
 print_stats() {
-	local stats  pass1_s    pass2_s    pass1_and_pass2_s \
-	             pass1_hms  pass2_hms  pass1_and_pass2_hms
+	local stats
+	local pass1_s
+	local pass1_hms
+	local pass2_s
+	local pass2_hms
+	local pass1_and_pass2_s
+	local pass1_and_pass2_hms
+
 	read -d '' pass1_s pass2_s < <( cat "$LOGDIR/time_output"; echo -e '\0' )
 	pass1_s=${pass1_s%.*}  pass2_s=${pass2_s%.*}
 	[[ "$pass1_s" =~ ^[0-9]+$ && "$pass2_s" =~ ^[0-9]+$ ]] || {
@@ -604,14 +649,16 @@ print_stats() {
 #  - if ratio is more than 1/5, consider the file unencodable and quit.
 #
 on_size_overshoot() {
-	declare -g  muxing_overhead_antiovershoot  \
-	            new_file_size_B  \
-	            max_size_B  \
-	            min_esp_unit  \
-	            esp_unit
+	declare -g  muxing_overhead_antiovershoot
+	declare -g  new_file_size_B
+	declare -g  max_size_B
+	declare -g  min_esp_unit
+	declare -g  esp_unit
+	declare -g  overshot_times
 
-	local filesize_overshoot  previous_muxing_overhead_antiovershoot  \
-	      muxing_overhead_antiovershoot_in_esp
+	local  filesize_overshoot
+	local  previous_muxing_overhead_antiovershoot
+	local  muxing_overhead_antiovershoot_in_esp
 
 	filesize_overshoot=$((  ( new_file_size_B - max_size_B ) * 8  ))
 

@@ -387,9 +387,16 @@ libvpx_vp9_row_mt=1
 #libvpx_vp9_token_parts
 
 
- # Place for user-specified ffmpeg options
-#  These will be applied ONLY when libvpx is used as an encoder.
-#  Array of strings!  I.e. =(-key value  -other-key "value with spaces")
+ # Place for user-specified output ffmpeg options
+#  These options are added to the end of the encoding line after the the
+#  common output options, but before the mandatory ones. So the options
+#  specified here can override most of the output parameters, except those,
+#  that control -pass 1, -pass 2, -sn, and the output file name. Mandatory
+#  options are defined in the particular encoding module. Normally there’s
+#  nothing that needs to be added. These arrays simply provide a possibility
+#  to add custom ffmpeg options for specific cases (if you need extra filters,
+#  mapping, control of the container format, metadata – such things).
+#  Array of strings!  e.g. =(-key value  -other-key "value with spaces")
 #
 libvpx_vp9_pass1_extra_options=()
 libvpx_vp9_pass2_extra_options=()

@@ -24,8 +24,11 @@ log2() {
 #  would make use only of two tile columns (1 or 2 threads per each).
 #
 calc_adaptive_tile_columns() {
-	declare -g  libvpx_vp9_tile_columns  libvpx_vp9_threads
-	local tile_column_min_width=256  scaled_width
+	declare -g  libvpx_vp9_tile_columns
+	declare -g  libvpx_vp9_threads
+	local  tile_column_min_width=256
+	local  scaled_width
+
 	[ -v libvpx_vp9_adaptive_tile_columns ] && {
 		if [ -v scale ]; then
 			if [  -v src_v[resolution]  ]; then
@@ -43,22 +46,23 @@ calc_adaptive_tile_columns() {
 			libvpx_vp9_tile_columns=$((    src_v[width]
 			                             / tile_column_min_width  ))
 		fi
-		# Videos with a width smaller than $tile_column_min_width
-		# as well as cropped ones will result in 0 tile-columns
-		# and log2(0) will return -1, while it should still return 0,
-		# because at least one tile-column must be present, as 2⁰ = 1.
+		#  Videos with a width smaller than $tile_column_min_width
+		#  as well as cropped ones will result in 0 tile-columns
+		#  and log2(0) will return -1, while it should still return 0,
+		#  because at least one tile-column must be present, as 2⁰ = 1.
 		[ $libvpx_vp9_tile_columns -eq 0 ] && libvpx_vp9_tile_columns=1
-		# tile-columns should be a log2(actual number of tile-columns)
+		#  tile-columns should be a log2(actual number of tile-columns)
 		libvpx_vp9_tile_columns=$(log2 $libvpx_vp9_tile_columns)
 		# if [ $libvpx_vp9_tile_columns -le 3 ]; then
-			# For resolutions under 2160p docs on Google Devs advise to use
-			# 2× threads as tile-columns.
+			#  For resolutions under 2160p docs on Google Devs advise to use
+			#  2× threads as tile-columns.
 			libvpx_vp9_threads=$(( 2**(libvpx_vp9_tile_columns+1)  ))
 		# else
-			# And for 2160p they somehow get 16 tile-columns,
-			# with --tile-columns 4 (sic!), even though in this case –
-			# the only such case – the width, which is 3840 px, cannot
-			# accomodate 16×256 tile-columns. Considering this a mistake.
+			#  And for 2160p they somehow get 16 tile-columns,
+			#  with --tile-columns 4 (sic!), even though in this case –
+			#  the only such case – the width, which is 3840 px, cannot
+			#  accomodate 16×256 tile-columns. Considering this a mistake,
+			#  hence commenting out the condition.
 		# 	libvpx_vp9_threads=$((   2**libvpx_vp9_tile_columns
 		# 	                       + 2**(libvpx_vp9_tile_columns-1)  ))
 		# fi
@@ -68,7 +72,9 @@ calc_adaptive_tile_columns() {
 
 
 set_quantiser_min_max() {
-	declare -g  libvpx_vp9_min_q  libvpx_vp9_max_q
+	declare -g  libvpx_vp9_min_q
+	declare -g  libvpx_vp9_max_q
+
 	if  [ ! -v libvpx_vp9_cq_level ]  \
 		&& [ ! -v libvpx_vp9_min_q ]  \
 		&& [ ! -v libvpx_vp9_max_q ]
@@ -95,8 +101,8 @@ calc_vbr_range() {
 
 
 libvpx18_check() {
-	declare -g libvpx_vp9_auto_alt_ref
-	local min_duration_to_allow_altref6=$libvpx_vp9_allow_autoaltref6_only_for_videos_longer_than_sec
+	declare -g  libvpx_vp9_auto_alt_ref
+	local  min_duration_to_allow_altref6=$libvpx_vp9_allow_autoaltref6_only_for_videos_longer_than_sec
 
 	 # 1. Compatibility with mobile devices.
 	#
@@ -143,7 +149,9 @@ libvpx18_check() {
 
 
 encode-libvpx-vp9() {
-	local  minrate maxrate
+	local  minrate
+	local  maxrate
+
 	calc_adaptive_tile_columns
 	set_quantiser_min_max
 	calc_vbr_range
@@ -154,53 +162,68 @@ encode-libvpx-vp9() {
 		local pass1_params=( -pass 1 -sn -an -f $ffmpeg_muxer /dev/null )
 		local pass2_params=( -pass 2 -sn ${audio_opts[@]} "$new_file_name" )
 		local ffmpeg_caught_an_error
-		declare -n ffmpeg_command_end=pass${pass}_params
-		declare -n deadline=libvpx_vp9_pass${pass}_deadline
-		declare -n cpu_used=libvpx_vp9_pass${pass}_cpu_used
-		declare -n extra_options=libvpx_vp9_pass${pass}_extra_options
+		local -a ffmpeg_all_options=()
+		local -n deadline=libvpx_vp9_pass${pass}_deadline
+		local -n cpu_used=libvpx_vp9_pass${pass}_cpu_used
+		local -n extra_options=libvpx_vp9_pass${pass}_output_options
+		local -n mandatory_options=pass${pass}_params
+
 		info "PASS $pass"
+
+		 # Sets ffmpeg_progress_log, so must be called before
+		#  setting ffmpeg_all_options.
+		#
 		launch_a_progressbar_for_ffmpeg
 
-		FFREPORT=file=$LOGDIR/ffmpeg-pass$pass.log:level=32  \
-		$ffmpeg -y -v error  -nostdin  \
-		            -ss "${start[ts]}"  \
-		            -to "${stop[ts]}"  \
-		        "${ffmpeg_input_options[@]}"  \
-		        "${ffmpeg_input_files[@]}"  \
-		        "${ffmpeg_color_primaries[@]}"  \
-		        "${ffmpeg_color_trc[@]}"  \
-		        "${ffmpeg_colorspace[@]}"  \
-		        "${map_string[@]}"  \
-		        "${vf_string[@]}"  \
-		        -c:v $ffmpeg_vcodec  \
-		            -pix_fmt $libvpx_vp9_pix_fmt  \
-		            -b:v $vbitrate  \
-		                -minrate $minrate  \
-		                -maxrate $maxrate  \
-		        ${libvpx_vp9_max_q:+-qmax $libvpx_vp9_max_q}  \
-		        ${libvpx_vp9_min_q:+-qmin $libvpx_vp9_min_q}  \
-		            ${libvpx_vp9_cq_level:+-crf $libvpx_vp9_cq_level}  \
-		        -aq-mode $libvpx_vp9_aq_mode  \
-		        -g $libvpx_vp9_kf_max_dist  \
-		        -auto-alt-ref $libvpx_vp9_auto_alt_ref  \
-		            -lag-in-frames $libvpx_vp9_lag_in_frames  \
-		        -frame-parallel $libvpx_vp9_frame_parallel  \
-		        -tile-columns $libvpx_vp9_tile_columns  \
-		        -threads $libvpx_vp9_threads  \
-		        -row-mt $libvpx_vp9_row_mt  \
-		        ${libvpx_vp9_bias_pct:+-qcomp $libvpx_vp9_bias_pct}  \
-		            -overshoot-pct $libvpx_vp9_overshoot_pct  \
-		            -undershoot-pct $libvpx_vp9_undershoot_pct  \
-		        -deadline $deadline  \
-		            -cpu-used $cpu_used  \
-		        -tune-content $libvpx_vp9_tune_content  \
-		        ${libvpx_vp9_tune:+-tune $libvpx_vp9_tune}  \
-		        "${extra_options[@]}"  \
-		        ${ffmpeg_progressbar:+-progress "$ffmpeg_progress_log"}  \
-		        -map_metadata -1  -map_chapters -1  \
-		        -metadata title="$video_title"  \
-		        -metadata comment="Converted with Nadeshiko v$version"  \
-		        "${ffmpeg_command_end[@]}"  \
+		 # Do not use addition to this array! This syntax, i.e.
+		#      arr+=( new_item )
+		#  messes up the order of the elements. Use only assignment.
+		#
+		ffmpeg_all_options=(
+			-y  -hide_banner  -v error  -nostdin
+			"${ffmpeg_input_options[@]}"
+			-ss "${start[ts]}"
+			-to "${stop[ts]}"
+			"${ffmpeg_input_files[@]}"
+			"${ffmpeg_color_primaries[@]}"
+			"${ffmpeg_color_trc[@]}"
+			"${ffmpeg_colorspace[@]}"
+			"${map_string[@]}"
+			"${vf_string[@]}"
+			-c:v $ffmpeg_vcodec
+				-pix_fmt $libvpx_vp9_pix_fmt
+				-b:v $vbitrate
+					-minrate $minrate
+					-maxrate $maxrate
+			${libvpx_vp9_max_q:+-qmax $libvpx_vp9_max_q}
+			${libvpx_vp9_min_q:+-qmin $libvpx_vp9_min_q}
+				${libvpx_vp9_cq_level:+-crf $libvpx_vp9_cq_level}
+			-aq-mode $libvpx_vp9_aq_mode
+			-g $libvpx_vp9_kf_max_dist
+			-auto-alt-ref $libvpx_vp9_auto_alt_ref
+				-lag-in-frames $libvpx_vp9_lag_in_frames
+			-frame-parallel $libvpx_vp9_frame_parallel
+			-tile-columns $libvpx_vp9_tile_columns
+			-threads $libvpx_vp9_threads
+			-row-mt $libvpx_vp9_row_mt
+			${libvpx_vp9_bias_pct:+-qcomp $libvpx_vp9_bias_pct}
+			-overshoot-pct $libvpx_vp9_overshoot_pct
+			-undershoot-pct $libvpx_vp9_undershoot_pct
+			-deadline $deadline
+			-cpu-used $cpu_used
+			-tune-content $libvpx_vp9_tune_content
+			${libvpx_vp9_tune:+-tune $libvpx_vp9_tune}
+			"${extra_options[@]}"
+			${ffmpeg_progressbar:+-progress "$ffmpeg_progress_log"}
+			-map_metadata -1
+			-map_chapters -1
+			-metadata title="$video_title"
+			-metadata comment="Converted with Nadeshiko v$version"
+			"${mandatory_options[@]}"
+		)
+
+		FFREPORT=file=$LOGDIR/ffmpeg-pass$pass.log:level=32
+		$ffmpeg "${ffmpeg_all_options[@]}"  \
 			|| ffmpeg_caught_an_error=t
 
 		stop_the_progressbar_for_ffmpeg

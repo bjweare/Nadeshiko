@@ -1,13 +1,35 @@
+——— v 2.9.16 —————————————————————————————————————————————————————————————————
+
+1. Fixed a bug on reencoding after an overshoot. If the video had to be
+   encoded with external subtitles, there was an error on copying them
+   to the temporary directory: file already was there. Now it works.
+
+2. Refactored parts of the encoding modules, updated commentaries for the
+   pass extra options, so it would be clear, what they can override and
+   what they can’t.
+
+3. Added support for the ffmpeg builds, which refer to fonconfig as to
+   “libfontconfig” (not just “fontconfig”) in the -version output.
+   This falsely triggered an error about missing fontconfig support.
+   A check on freetype was also updated in advance.
+
+There is a new research article on the wiki!
+[Avoiding overshoot in VP9](https://git.io/JesPb)
+
+
+
+
 ——— v 2.9.15 —————————————————————————————————————————————————————————————————
 
 1. Improved handling of OpenType fonts in subtitles: when the source video has
    built-in OTF fonts, FFmpeg must be built with fontconfig support, otherwise
-   it won’t see and use OTF fonts. Nadeshiko will now quit with an error in
-   this case to prevent an unpleasant result after encoding.
+   it won’t see and use OTF fonts. Nadeshiko will now consider this a critical
+   error and quit with a descriptive message to the console/log.
 
-   To bypass this error and render subtitles anyway, a new command line
-   parameter `forgive=otf` is introduced for Nadeshiko. (With Nadeshiko-mpv
-   this key may be added into a postponed job file.)
+   In case when you have no internet connection and cannot install FFmpeg
+   libraries, a new Nadeshiko command line parameter `forgive=otf` will help
+   to bypass the error and encode anyway. (With Nadeshiko-mpv this key may be
+   added into a postponed job file.)
 
 2. Added `file` to dependency list for the correct recognition of the MPEG
    Transport Stream files of the old format.

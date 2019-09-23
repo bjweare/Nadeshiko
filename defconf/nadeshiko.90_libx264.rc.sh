@@ -126,9 +126,16 @@ libx264_level='4.2'
 libx264_keyint=50
 
 
- # Place for user-specified ffmpeg options
-#  These will be applied ONLY when used with libx264 as an encoder.
-#  Array of strings!  I.e. =(-key value  -other-key "value with spaces")
+ # Place for user-specified output ffmpeg options
+#  These options are added to the end of the encoding line after the the
+#  common output options, but before the mandatory ones. So the options
+#  specified here can override most of the output parameters, except those,
+#  that control -pass 1, -pass 2, -sn, and the output file name. Mandatory
+#  options are defined in the particular encoding module. Normally there’s
+#  nothing that needs to be added. These arrays simply provide a possibility
+#  to add custom ffmpeg options for specific cases (if you need extra filters,
+#  mapping, control of the container format, metadata – such things).
+#  Array of strings!  e.g. =(-key value  -other-key "value with spaces")
 #
 libx264_pass1_extra_options=()
 libx264_pass2_extra_options=()

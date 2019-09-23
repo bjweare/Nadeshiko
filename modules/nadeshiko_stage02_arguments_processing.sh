@@ -386,16 +386,21 @@ check_subtitle_filter_support() {
 	#  that the OpenType features are supported.
 	#
 	[[ "$subtitle_filter" =~ ^(ass|subtitles)$ ]] && {
-		if [    "${ffmpeg_version_output}"  \
-		      = "${ffmpeg_version_output/enable-fontconfig/}"  ]
+		#
+		#  ffmpeg with libavutil-56.30.100 has --enable-fontconfig
+		#  ffmpeg with libavutil-56.31.100 has --enable-libfontconfig
+		#
+		if [[ "${ffmpeg_version_output}"  =~  .*--enable-(lib|)fontconfig.* ]]
 		then
 			warn "FFmpeg was built without fontconfig!"
 			ffmpeg_missing+=( [fontconfig]=yes )
 			font_rendering_problems=t
 		fi
-
-		if [    "${ffmpeg_version_output}"  \
-		      = "${ffmpeg_version_output/enable-libfreetype/}"  ]
+		#
+		#  Fixed so as to conform to the issue with fontconfig above. Actual
+		#  differences in (lib)freetype weren’t spotted, but anticipated.
+		#
+		if [[  "${ffmpeg_version_output}"  =~ .*--enable-(lib|)freetype.* ]]
 		then
 			warn "FFmpeg was built without freetype!"
 			ffmpeg_missing+=( [freetype]=yes )

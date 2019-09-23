@@ -27,10 +27,15 @@
 #           1 otherwise.
 #
 recalc_space() {
-	#  used in unset_our_options() ↓
-	declare -g space_for_video_track
-	local vidres  audio_info  padding_per_duration  duration_secs  \
-	      old_duration_secs  audio_track_expected_overhead  audio_track_size
+	declare -g space_for_video_track   #  used in unset_our_options()
+
+	local vidres
+	local audio_info
+	local padding_per_duration
+	local duration_secs
+	local old_duration_secs
+	local audio_track_expected_overhead
+	local audio_track_size
 
 	milinc
 
@@ -118,7 +123,7 @@ recalc_muxing_overhead() {
 	done
 
 	#  ESP is an equivalent of one second of playback (A+V). Used in predic-
-	#  ting muxing overhead. See “Tests. Muxing overhead” on the wiki.
+	#  ting muxing overhead. See “Muxing overhead” on the wiki.
 	esp_unit=$vbitrate
 	[ -v audio ] && let "esp_unit += $abitrate, 1"
 	info "Reserving $esp_to_reserve ESP  (1 ESP = $(pretty "$esp_unit"))"
@@ -237,14 +242,16 @@ apply_correction() {
 #  and it is vbitrate, that’s checked against max_fitting_vbitrate.
 #
 set_bitres_profile() {
-	declare -g  bitres_profile  \
-	            vbitrate  \
-	            abitrate  \
-	            autocorrected_scale  \
-	            autocorrected_vbitrate  \
-	            autocorrected_abitrate  \
-	            acodec_profile
-	local res="$1"  extra_colour
+	declare -g  bitres_profile
+	declare -g  vbitrate
+	declare -g  abitrate
+	declare -g  autocorrected_scale
+	declare -g  autocorrected_vbitrate
+	declare -g  autocorrected_abitrate
+	declare -g  acodec_profile
+
+	local res="$1"
+	local extra_colour
 
 	info "${res}p: loading profile"
 	milinc
@@ -308,17 +315,33 @@ set_bitres_profile() {
  # Switches off flags in our_options array for the current conditions.
 #
 unset_our_options() {
-	local cur_video_track_size  max_video_track_size  track_size_difference  \
-	      total_playback_minutes  allowed_margin
+	local  cur_video_track_size
+	local  max_video_track_size
+	local  track_size_difference
+	local  total_playback_minutes
+	local  allowed_margin
+
 	#  Avoid an eternal cycle when the horrible happens.
 	(( space_for_video_track < 0 )) && {
 		unset our_options[seek_maxfit_here]  \
 		      our_options[lower_resolution]
 	}
-	[ -v forced_vbitrate ] && unset our_options[seek_maxfit_here]
-	#  Properly downscaling crop resolution isn’t implemented.
-	[ -v crop ] && unset our_options[lower_resolution]
-	[ -v forced_scale ] && unset our_options[lower_resolution]
+
+	[ -v forced_vbitrate ]  \
+		&& unset our_options[seek_maxfit_here]
+
+	 # Disallow scaling when crop is requested.
+	#  Cropped videos are very specific in the regard of distributing
+	#  bitrate, so the generic recommendations are not applicable to them.
+	#  Allowing to go down a resolution lower, when a clip is to be cropped,
+	#  would require a big number of tests.
+	#
+	[ -v crop ]  \
+		&& unset our_options[lower_resolution]
+
+	[ -v forced_scale ]  \
+		&& unset our_options[lower_resolution]
+
 	#  If the scene is dynamic, the video bitrate is locked on desired.
 	[ -v vbitrate_locked_on_desired ] && {
 		#  Allow marginal deviations
@@ -337,7 +360,7 @@ unset_our_options() {
 		total_playback_minutes=$(( ${duration[h]}*60 + ${duration[m]} ))
 
 		(( total_playback_minutes == 0 )) && total_playback_minutes=1
-		allowed_margin=$((   2 * max_fitting_vbitrate
+		allowed_margin=$((   2*max_fitting_vbitrate
 		                   * total_playback_minutes    ))
 
 		(( track_size_difference > allowed_margin  ))  \
@@ -351,21 +374,21 @@ unset_our_options() {
 #  what it is to be encoded with by the bitres profile setting.
 #
 is_it_sensible_to_use_better_abitrate() {
-	local acodec_name_as_formats_varname  \
-	      acodec_name  \
-	      known_formats  \
-	      known_format  \
-	      delimeter  \
-	      format_per_se  \
-	      format_profile_per_se  \
-	      format_matches  \
-	      source_audio_format_is_unknown  \
-	      source_audio_stereo_equiv_bitrate  \
-	      source_acodec_profiles  \
-	      source_acodec_default_profile  \
-	      trying_a_higher_audio_profile_makes_sense  \
-	      audio_profile  \
-	      top_acodec_profile
+	local  acodec_name_as_formats_varname
+	local  acodec_name
+	local  known_formats
+	local  known_format
+	local  delimeter
+	local  format_per_se
+	local  format_profile_per_se
+	local  format_matches
+	local  source_audio_format_is_unknown
+	local  source_audio_stereo_equiv_bitrate
+	local  source_acodec_profiles
+	local  source_acodec_default_profile
+	local  trying_a_higher_audio_profile_makes_sense
+	local  audio_profile
+	local  top_acodec_profile
 
 	[ -v src_a[format]  ] || {
 		denied 'Audio track format is missing in the source metadata.'
@@ -608,7 +631,7 @@ try_to_fit_better_abitrate() {
 #
 fit_bitrate_to_filesize() {
 	declare -g  deserves_a_headpat  max_size_B  max_size_bits  vbitrate  scale
-	# As we may re-run, let’s operate on a local copy.
+	#  As we may re-run, let’s operate on a local copy.
 	local  closest_lowres_index=$closest_lowres_index  cannot_fit
 
 	info "Calculating, how we fit… "
@@ -665,7 +688,6 @@ fit_bitrate_to_filesize() {
 				    && max_fitting_vbitrate <= desired_vbitrate  ))
 			then
 				vbitrate=$max_fitting_vbitrate
-				# renew_vbitrate=t
 				recalc_space
 			else
 				unset our_options[seek_maxfit_here]
@@ -695,7 +717,6 @@ fit_bitrate_to_filesize() {
 				let 'closest_lowres_index++,  1'
 				#  New resolution – new minimal and desired bounds.
 				our_options[seek_maxfit_here]=t
-				# renew_vbitrate=t
 				recalc_space
 			else
 				#  Lower resolutions are depleted.
@@ -716,7 +737,8 @@ fit_bitrate_to_filesize() {
 
 	 # Detecting automatic downscale
 	#  $scale is remembered and in case when an overshoot happens,
-	#    the bitres profile in $scale will become $starting_bitres_profile.
+	#    $starting_bitres_profile should be assigned the bitres profile
+	#    from $scale.
 	#  That the video deserves a headpat must be remembered too,
 	#    see the comment below.
 	#
