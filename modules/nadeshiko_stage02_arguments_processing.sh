@@ -390,22 +390,20 @@ check_subtitle_filter_support() {
 		#  ffmpeg with libavutil-56.30.100 has --enable-fontconfig
 		#  ffmpeg with libavutil-56.31.100 has --enable-libfontconfig
 		#
-		if [[ "${ffmpeg_version_output}"  =~  .*--enable-(lib|)fontconfig.* ]]
-		then
+		[[ "${ffmpeg_version_output}"  =~  .*--enable-(lib|)fontconfig.* ]]  || {
 			warn "FFmpeg was built without fontconfig!"
 			ffmpeg_missing+=( [fontconfig]=yes )
 			font_rendering_problems=t
-		fi
+		}
 		#
 		#  Fixed so as to conform to the issue with fontconfig above. Actual
 		#  differences in (lib)freetype weren’t spotted, but anticipated.
 		#
-		if [[  "${ffmpeg_version_output}"  =~ .*--enable-(lib|)freetype.* ]]
-		then
+		[[  "${ffmpeg_version_output}"  =~ .*--enable-(lib|)freetype.* ]]  || {
 			warn "FFmpeg was built without freetype!"
 			ffmpeg_missing+=( [freetype]=yes )
 			font_rendering_problems=t
-		fi
+		}
 
 		[ -v font_rendering_problems ]  \
 			&& warn "Without freetype and fontconfig libraries FFmpeg won’t be able to use

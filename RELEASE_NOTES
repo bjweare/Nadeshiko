@@ -1,3 +1,10 @@
+——— v 2.9.17 —————————————————————————————————————————————————————————————————
+
+1. A small bugfix to invert the check updated in 2.9.16.
+
+
+
+
 ——— v 2.9.16 —————————————————————————————————————————————————————————————————
 
 1. Fixed a bug on reencoding after an overshoot. If the video had to be
