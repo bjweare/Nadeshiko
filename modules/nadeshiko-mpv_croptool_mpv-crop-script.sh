@@ -147,15 +147,25 @@ run_croptool_installer() {
 
 
 run_crop_tool() {
-	unset       croptool_resp_cancelled  croptool_resp_failed \
-	            croptool_resp_width  croptool_resp_height  \
-	            croptool_resp_x  croptool_resp_y
-	declare -g  croptool_resp_cancelled  croptool_resp_failed \
-	            croptool_resp_width  croptool_resp_height  \
-	            croptool_resp_x  croptool_resp_y \
-	            phantom_mpv_delay
+	unset  croptool_resp_cancelled
+	unset  croptool_resp_failed
+	unset  croptool_resp_width
+	unset  croptool_resp_height
+	unset  croptool_resp_x
+	unset  croptool_resp_y
+
+	declare -g  croptool_resp_cancelled
+	declare -g  croptool_resp_failed
+	declare -g  croptool_resp_width
+	declare -g  croptool_resp_height
+	declare -g  croptool_resp_x
+	declare -g  croptool_resp_y
+	declare -g  phantom_mpv_delay
+
 	: ${phantom_mpv_delay:=0}
-	local       s  mpv_processes_number
+
+	local  s
+	local  mpv_processes_number
 
 	set_prop 'fullscreen' 'yes'
 	get_props 'cursor-autohide' \
@@ -208,7 +218,7 @@ run_crop_tool() {
 			# pkill -PIPE --session 0 --pgroup 0  -f inotifywait
 			break
 		}
-	done < <(inotifywait -q --format %f  -e create  "$TMPDIR") ||:
+	done < <(inotifywait -q --format %f  -e create  "$TMPDIR") || true
 	#                       ^ not using --monitor here, somehow it gulps
 	#                         SIGPIPE and doesn’t quit.
 	set_prop 'fullscreen' 'no'

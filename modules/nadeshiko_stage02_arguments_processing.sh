@@ -298,7 +298,9 @@ check_basic_util_support() {
 
 check_video_encoder_support() {
 	local encoder_info
-	#  It is confirmed, that when a codec is not supported, ffmpeg returns
+	#  A check with “ffmpeg -h encoder=<name>” produces a more stable result
+	#  than “ffmpeg -codecs | grep …” that was used before. It is confirmed,
+	#  that when a codec is not supported, ffmpeg returns
 	#      “Codec '<name>' is not recognized by FFmpeg”.
 	#  (FFmpeg N-94168-g0f39ef4db2, 5 July 2019)
 	encoder_info=$(
@@ -782,21 +784,22 @@ set_vars() {
 	#    to not do accidental upscale. It is also needed for knowing,
 	#    with which resolution to start scaling down, if needed.
 	#
-	[  -v src_v[resolution]  ] || err "Couldn’t determine source video resolution."
+	[  -v src_v[resolution]  ]  \
+		|| err "Couldn’t determine source video resolution."
 
 
 	#  Since the values in our bitrate–resolution profiles are given
 	#  for 16:9 aspect ratio, 4:3 video and special ones like 1920×820
 	#  would require less bitrate, as there’s less pixels.
 
-	if     [ -v src_v[aspect_ratio]  ]  \
-		&& [ -v src_v[is_16to9]  ]  \
+	if     [ -v src_v[aspect_ratio]      ]  \
+		&& [ -v src_v[is_16to9]          ]  \
 		&& [ "${src_v[is_16to9]}" = 'no' ]
 	then
 		needs_bitrate_correction_by_origres=t
 	fi
 
-	[  -v src_v[resolution]  ] && {
+	[  -v src_v[resolution]  ]  && {
 		#  Videos with nonstandard resolutions must be associated
 		#    with a higher profile.
 		#  [ -v doesn’t work here, somehow O_o
@@ -904,17 +907,17 @@ display_settings() {
 	info "$ffmpeg_vcodec + $ffmpeg_acodec → $container"
 	# Highlight only overrides of the defaults.
 	# The defaults are defined in $rc_file.
-	[ -v rc_default_subs -a -v subs ] \
-		&& sub_hl="${__g}" \
+	[ -v rc_default_subs -a -v subs ]  \
+		&& sub_hl="${__g}"  \
 		|| sub_hl="${__bri}"
 	[ -v subs ] \
-		&& info "Subtitles are ${sub_hl}ON${__s}." \
+		&& info "Subtitles are ${sub_hl}ON${__s}."  \
 		|| info "Subtitles are ${sub_hl}OFF${__s}."
-	[ -v rc_default_audio -a -v audio ] \
-		&& audio_hl="${__g}" \
+	[ -v rc_default_audio -a -v audio ]  \
+		&& audio_hl="${__g}"  \
 		|| audio_hl="${__bri}"
-	[ -v audio ] \
-		&& info "Audio is ${audio_hl}ON${__s}." \
+	[ -v audio ]  \
+		&& info "Audio is ${audio_hl}ON${__s}."  \
 		|| info "Audio is ${audio_hl}OFF${__s}."
 	[ -v scale ] && {
 		[ "${rc_default_scale:-}" != "${scale:-}" ] && scale_hl=${__bri}
@@ -924,8 +927,8 @@ display_settings() {
 		crop_string="${__bri}$crop_w×$crop_h${__s}, X:$crop_x, Y:$crop_y"
 		info "Cropping to: $crop_string."
 	}
-	[ "$max_size" = "$max_size_default" ] \
-		&& info "Size to fit into: $max_size (kilo=$kilo)." \
+	[ "$max_size" = "$max_size_default" ]  \
+		&& info "Size to fit into: $max_size (kilo=$kilo)."  \
 		|| info "Size to fit into: ${__bri}$max_size${__s} (kilo=$kilo)."
 	info "Slice duration: ${duration[ts_short_no_ms]} (exactly ${duration[total_s_ms]})."
 
@@ -975,16 +978,16 @@ display_settings() {
 	mildec
 
 	local -n vcodec_pix_fmt=${ffmpeg_vcodec//-/_}_pix_fmt
-	[ "$vcodec_pix_fmt" != "yuv420p" ] \
+	[ "$vcodec_pix_fmt" != "yuv420p" ]  \
 		&& info "Encoding to pixel format “${__bri}$vcodec_pix_fmt${__s}”."
-	[ -v ffmpeg_colorspace ] \
+	[ -v ffmpeg_colorspace ]  \
 		&& info "Converting to colourspace “${__bri}$ffmpeg_colorspace${__s}”."
-	[    -v needs_bitrate_correction_by_origres \
+	[    -v needs_bitrate_correction_by_origres  \
 	  -o -v needs_bitrate_correction_by_cropres ] && {
 	  	infon 'Bitrate corrections to be applied: '
-		[ -v needs_bitrate_correction_by_origres ] \
+		[ -v needs_bitrate_correction_by_origres ]  \
 			&& echo -en "by ${__y}${__bri}orig_res${__s} "
-		[ -v needs_bitrate_correction_by_cropres ] \
+		[ -v needs_bitrate_correction_by_cropres ]  \
 			&& echo -en "by ${__y}${__bri}crop_res${__s} "
 		echo
 	}
