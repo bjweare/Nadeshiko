@@ -244,7 +244,7 @@ unset  sed_version  grep_version  getopt_version  yes_version
 
                         #  Initial settings  #
 
-BAHELITE_VERSION="2.21.2"
+BAHELITE_VERSION="2.21.3"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}

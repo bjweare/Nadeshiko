@@ -17,7 +17,7 @@ bahelite_load_module 'versioning' || return $?
 bahelite_load_module 'directories' || return $?
 bahelite_load_module 'misc' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_RCFILE_VER='3.0'
+declare -grx BAHELITE_MODULE_RCFILE_VER='3.0.1'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -86,7 +86,7 @@ declare -gAx RCFILE_REPLACEVALUE_VARS=()
 #        not for its own RC file, but for some other main script’s RC file.)
 #
 is_a_valid_rcfile_name() {
-	local fname="${1##*/}" script_name=${2:-$MYNAME_NOEXT}
+	local fname="$1" script_name=${2:-$MYNAME_NOEXT}
 	if [ -v RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME ]; then
 		#  Here placing $script_name in the pattern would be dangerous
 		[ "${fname#$script_name}" = "$fname" ] && return 1
@@ -143,41 +143,43 @@ set_rcfile_from_args() {
 
 	[ -v CONFDIR ] || err 'CONFDIR must be set!'
 
-	local  temp_args=( "$@" )  i  args_to_unset=()  arg  next_arg  \
-	       number_of_deleted_args=0  rc_fname  arg_for_display
+	local  i
+	local  temp_args=( "$@" )
+	local  args_to_unset=()
+	local  arg
+	local  nextarg
+	local  arg_nopath
+	local  nextarg_nopath
+	local  number_of_deleted_args=0
+	local  rc_fname
 
 	for ((i=0; i<${#temp_args[*]}; i++)); do
-		unset -n  arg  next_arg || true  # Sic!
+		unset -n  arg  nextarg || true  # Sic!
+		unset  arg_nopath  nextarg_nopath || true
 		declare -n arg="temp_args[$i]"
-		(( i < (${#temp_args[*]}-1) )) \
-			&& declare -n next_arg="temp_args[$i+1]"
-
-		is_a_valid_rcfile_name "$arg" && {
-			[ -r "$CONFDIR/$arg" ] && {
-				RCFILE="$CONFDIR/$arg"
-				args_to_unset+=(  $(( i - number_of_deleted_args++ ))  )
-				continue
-			} || ierr 'rc: no such rc file' "$arg"
+		arg_nopath=${arg##*/}
+		(( i < (${#temp_args[*]}-1) ))  && {
+			declare -n nextarg="temp_args[$i+1]"
+			nextarg_nopath="${nextarg##*/}"
 		}
-
 
 		[[ "$arg" =~ ^--rc(-|)file$ ]] && {
 			if  (( i < (${#temp_args[*]}-1) ));  then
-				if  is_a_valid_rcfile_name "$next_arg";  then
-					if  [ -r "$CONFDIR/$next_arg" ];  then
-						RCFILE="$CONFDIR/$next_arg"
+				if  is_a_valid_rcfile_name "$nextarg_nopath";  then
+					if  [ -r "$CONFDIR/$nextarg_nopath" ];  then
+						RCFILE="$CONFDIR/$nextarg_nopath"
 						args_to_unset+=(  $((   i - number_of_deleted_args   ))
 						                  $(( i+1 - number_of_deleted_args++ ))  )
 						let '++i,  1'
 						continue
 					else
-						ierr 'rc: no such rc file' "$next_arg"
+						ierr 'rc: no such rc file' "$nextarg_nopath"
 					fi
 				else
-					ierr 'rc: wrong filename for --rc-file' "$next_arg"
+					ierr 'rc: wrong filename for --rc-file' "$nextarg_nopath"
 				fi
 			else
-				ierr 'rc: --rc-file needs an arg'
+				ierr 'rc: --rc-file needs an argument'
 			fi
 		}
 
@@ -187,6 +189,7 @@ set_rcfile_from_args() {
 			|| [[ "$arg" =~ ^--rc(-|)file=\"(.+)\"$ ]]
 		then
 			rc_fname="${BASH_REMATCH[2]}"
+			rc_fname="${rc_fname##*/}"
 			if  is_a_valid_rcfile_name "$rc_fname";  then
 				[ -r "$CONFDIR/$rc_fname" ] && {
 					RCFILE="$CONFDIR/$rc_fname"
@@ -194,12 +197,22 @@ set_rcfile_from_args() {
 					continue
 				} ||  ierr 'rc: no such rc file' "$rc_fname"
 			else
-				arg_for_display
-				arg_for_display=${arg#--rc-file}
-				arg_for_display=${arg_for_display#--rcfile}
-				ierr 'rc: wrong filename for --rc-file' "$arg_for_display"
+				ierr 'rc: wrong filename for --rc-file' "$rc_fname"
 			fi
 		fi
+
+
+		 # The check on RC file path per se must be the last check,
+		#  as cutting the directories also removes “--rcfile=” in the
+		#  beginning.
+		#
+		is_a_valid_rcfile_name "$arg_nopath" && {
+			[ -r "$CONFDIR/$arg_nopath" ] && {
+				RCFILE="$CONFDIR/$arg_nopath"
+				args_to_unset+=(  $(( i - number_of_deleted_args++ ))  )
+				continue
+			} || ierr 'rc: no such rc file' "$arg_nopath"
+		}
 
 	done
 
