@@ -182,10 +182,12 @@ check_needed_vars() {
  # Processes arguments passed via command line
 #
 parse_args() {
-	declare -g  postpone quick_run
-	local args=("$@") arg
+	declare -g  postpone
+	declare -g  quick_run
 
-	for arg in "${args[@]}"; do
+	local  arg
+
+	for arg in "${ARGS[@]}"; do
 		if [[ "$arg" =~ ^(-h|--help)$ ]]; then
 			show_help
 
@@ -221,7 +223,6 @@ else
 	find -type f -mmin +60  -delete
 fi
 
-set_rcfile_from_args "$@"
 read_rcfile
 post_read_rcfile
 REQUIRED_UTILS+=(
@@ -234,7 +235,7 @@ REQUIRED_UTILS+=(
 )
 check_required_utils
 declare -r xml='xmlstarlet'  # for lib/xml_and_python_functions.sh
-parse_args "${NEW_ARGS[@]}"
+parse_args
 info "Nadeshiko-mpv v$version"
 print_verbosity_level
 

@@ -203,8 +203,10 @@ collect_jobs() {
 }
 
 
-set_rcfile_from_args "$@"
-builtin set -- "${NEW_ARGS[@]}"
+
+cd "$TMPDIR"
+read_rcfile
+post_read_rcfile
 if (( $# == 0 )); then
 	: "All is OK, proceeding to execution."
 elif (( $# == 1 )) && [[ "$1" =~ ^(-v|--version)$ ]]; then
@@ -214,9 +216,6 @@ else
 	err "Wrong arguments: $@"
 fi
 
-cd "$TMPDIR"
-read_rcfile
-post_read_rcfile
 check_required_utils
 declare -r xml='xmlstarlet'   # for lib/xml_and_python_functions.sh
 info "Nadeshiko-do-postponed v$version"

@@ -17,7 +17,7 @@ bahelite_load_module 'versioning' || return $?
 bahelite_load_module 'directories' || return $?
 bahelite_load_module 'misc' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_RCFILE_VER='3.0.1'
+declare -grx BAHELITE_MODULE_RCFILE_VER='3.0.2'
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -86,7 +86,7 @@ declare -gAx RCFILE_REPLACEVALUE_VARS=()
 #        not for its own RC file, but for some other main script’s RC file.)
 #
 is_a_valid_rcfile_name() {
-	local fname="$1" script_name=${2:-$MYNAME_NOEXT}
+	local fname="${1##*/}" script_name=${2:-$MYNAME_NOEXT}
 	if [ -v RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME ]; then
 		#  Here placing $script_name in the pattern would be dangerous
 		[ "${fname#$script_name}" = "$fname" ] && return 1
@@ -132,26 +132,25 @@ is_a_valid_rcfile_name() {
 #      with an “=” sign instead of a space.
 #  Arguments:
 #    $1..n – positional arguments for the main script, i.e. "$@".
-#  Sets:
-#    $NEW_ARGS – the new array containing $@ without the options, that set
-#                a custom RC file.
+#  Changes:
+#    $ARGS – will contain $@ without the options, that set a custom RC file.
 #
-set_rcfile_from_args() {
+__set_rcfile_from_args() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	declare -gx  RCFILE  NEW_ARGS
-	[ $# -eq 0 ] &&	{ NEW_ARGS=(); return 0; }
+	declare -gx  RCFILE  ARGS
+	[ $# -eq 0 ] &&	return 0
 
 	[ -v CONFDIR ] || err 'CONFDIR must be set!'
 
-	local  i
-	local  temp_args=( "$@" )
-	local  args_to_unset=()
-	local  arg
-	local  nextarg
-	local  arg_nopath
-	local  nextarg_nopath
-	local  number_of_deleted_args=0
-	local  rc_fname
+	local     i
+	local -a  temp_args=( "$@" )
+	local -a  args_to_unset=()
+	local     arg
+	local     nextarg
+	local     arg_nopath
+	local     nextarg_nopath
+	local     number_of_deleted_args=0
+	local     rc_fname
 
 	for ((i=0; i<${#temp_args[*]}; i++)); do
 		unset -n  arg  nextarg || true  # Sic!
@@ -221,12 +220,12 @@ set_rcfile_from_args() {
 		unset temp_args[$i]
 	done
 
-	NEW_ARGS=( "${temp_args[@]}" )
+	ARGS=( "${temp_args[@]}" )
 	[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-		info "rc: $FUNCNAME: setting NEW_ARGS."
+		info "rc: $FUNCNAME: setting ARGS."
 		milinc
-		for ((i=0; i<${#NEW_ARGS[@]}; i++)) do
-			echo "${__mi}NEW_ARGS[$i] = ${NEW_ARGS[i]}"
+		for ((i=0; i<${#ARGS[@]}; i++)) do
+			echo "${__mi}ARGS[$i] = ${ARGS[i]}"
 		done
 		mildec
 	}
@@ -414,6 +413,7 @@ __postprocess_rc_variables() {
 
 	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
 		&& info "Checking values of the RC variables."
+	milinc
 
 	for varname in "${!RCFILE_CHECKVALUE_VARS[@]}"; do
 		if [ -v "$varname" ]; then
@@ -498,6 +498,8 @@ __postprocess_rc_variables() {
 		fi
 	done
 
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && info 'Done.'
+	mildec
 	return 0
 }
 #  No export: read_rcfile’s subroutine, which is an init stage function.
@@ -532,8 +534,8 @@ read_rcfile() {
 			&& info "rc: $FUNCNAME: DEFCONFDIR is not set – not reading default RC files."
 	fi
 
+	__set_rcfile_from_args "${ARGS[@]}"
 	__read_confdir
-
 	__postprocess_rc_variables
 
 	return 0

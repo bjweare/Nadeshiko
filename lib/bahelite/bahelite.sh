@@ -244,7 +244,7 @@ unset  sed_version  grep_version  getopt_version  yes_version
 
                         #  Initial settings  #
 
-BAHELITE_VERSION="2.21.3"
+BAHELITE_VERSION="2.21.4"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}
@@ -267,7 +267,22 @@ BAHELITE_VERSION="2.21.3"
 }
 
 CMDLINE="$0 $@"
+
+ # ARGS array is for the common use, and it may undergo changes, as the
+#  main script would find necessary. A common change would happen when
+#  the main script calls read_rcfile() from the rcfile module. It will read
+#  a config file name (argument that ends on “.rc.sh”) and set it to the
+#  RCFILE variable, then delete this item from the argument list.
+#
 ARGS=("$@")
+
+ # ORIG_ARGS is set once and for all, it will always have the list
+#  of arguments as they were passed to the program. It should be relied
+#  upon instead of ARGS, when the arguments need to be shown as the user
+#  provided them, witheout any (pre)processing.
+#
+declare -rax ORIG_ARGS=("$@")
+
 if [ -v TERM_COLS  -a  -v TERM_LINES ]; then
 	declare -x TERM_COLS
 	declare -x TERM_LINES
@@ -308,7 +323,7 @@ TMPDIR=$(mktemp --tmpdir=${TMPDIR:-/tmp/}  -d ${MYNAME%*.sh}.XXXXXXXXXX  )
 (( BASH_SUBSHELL > 0 )) && BAHELITE_DONT_CLEAR_TMPDIR=t
 
 declare -rx  MYNAME  MYNAME_NOEXT  MYNAME_AS_IN_DOLLARZERO  MYPATH  MYDIR  \
-             MY_DISPLAY_NAME  BAHELITE_VERSION  BAHELITE_DIR  CMDLINE  ARGS  \
+             MY_DISPLAY_NAME  BAHELITE_VERSION  BAHELITE_DIR  CMDLINE  \
              TMPDIR  BAHELITE_LOCAL_TMPDIR  ORIG_BASHPID  ORIG_PPID
 
 

@@ -14,7 +14,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MISC_VER='1.14'
+declare -grx BAHELITE_MODULE_MISC_VER='1.14.1'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # (procps) Single process check.
@@ -340,9 +340,9 @@ single_process_check() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	local our_processes        total_processes \
 	      our_processes_count  total_processes_count  our_command
-	[ ${#ARGS[*]} -eq 0 ]  \
+	[ ${#ORIG_ARGS[*]} -eq 0 ]  \
 		&& our_command="bash $MYNAME_AS_IN_DOLLARZERO"  \
-		|| our_command="bash $MYNAME_AS_IN_DOLLARZERO ${ARGS[@]}"
+		|| our_command="bash $MYNAME_AS_IN_DOLLARZERO ${ORIG_ARGS[@]}"
 	our_processes=$(
 		pgrep -u $USER -afx "$our_command" --session 0 --pgroup 0
 	)

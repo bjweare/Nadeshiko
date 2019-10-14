@@ -15,7 +15,7 @@
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
 bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_LOGGING_VER='1.7.4'
+declare -grx BAHELITE_MODULE_LOGGING_VER='1.7.5'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date   #  (coreutils) to add date to $LOGPATH file name and to the log itself.
 #	ls     #  (coreutils)
@@ -131,8 +131,8 @@ start_logging() {
 		&& echo -n  >"$LOGPATH"
 	echo "${__mi}Log started at $(LC_TIME=C date)."  >>"$LOGPATH"
 	echo "${__mi}Command line: $CMDLINE" >>"$LOGPATH"
-	for ((i=0; i<${#ARGS[@]}; i++)) do
-		echo "${__mi}ARGS[$i] = ${ARGS[i]}" >>"$LOGPATH"
+	for ((i=0; i<${#ORIG_ARGS[@]}; i++)) do
+		echo "${__mi}ORIG_ARGS[$i] = ${ORIG_ARGS[i]}" >>"$LOGPATH"
 	done
 
 	#  Toggling ondebug trap, as (((under certain circumstances))) it happens

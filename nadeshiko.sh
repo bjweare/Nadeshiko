@@ -142,14 +142,13 @@ on_exit() {
 
 
 #  Stage 1
-set_rcfile_from_args "$@"
 read_rcfile
 post_read_rcfile
 
 #  Stage 2
 info "Nadeshiko v$version"
 print_verbosity_level
-parse_args "${NEW_ARGS[@]}"
+parse_args
 #  Checking video first, for set_vars() will run scene complexity test.
 check_basic_util_support
 set_vars

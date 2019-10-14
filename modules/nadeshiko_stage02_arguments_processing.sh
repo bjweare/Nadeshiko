@@ -14,16 +14,31 @@
 #  $@ – see show_help()
 #
 parse_args() {
-	declare -gA src  src_c  src_v  src_a  src_s  forgive
-	declare -g  subs  subs_explicitly_requested  \
-	            audio  audio_explicitly_requested  \
-	            kilo  scale  crop  where_to_place_new_file="$PWD"  \
-	            new_filename_user_prefix  max_size  vbitrate  abitrate  \
-	            scene_complexity  dryrun  \
-	            do_not_report_ffmpeg_progress_to_console
-	local args=("$@")  arg  pid
+	declare -gA  src
+	declare -gA  src_c
+	declare -gA  src_v
+	declare -gA  src_a
+	declare -gA  src_s
+	declare -gA  forgive
+	declare -g   subs
+	declare -g   subs_explicitly_requested
+	declare -g   audio
+	declare -g   audio_explicitly_requested
+	declare -g   kilo
+	declare -g   scale
+	declare -g   crop
+	declare -g   where_to_place_new_file="$PWD"
+	declare -g   new_filename_user_prefix
+	declare -g   max_size
+	declare -g   vbitrate
+	declare -g   abitrate
+	declare -g   scene_complexity  dryrun
+	declare -g   do_not_report_ffmpeg_progress_to_console
 
-	for arg in "${args[@]}"; do
+	local  arg
+	local  pid
+
+	for arg in "${ARGS[@]}"; do
 		if [[ "$arg" = @(-h|--help) ]]; then
 			show_help
 
