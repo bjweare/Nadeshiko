@@ -34,10 +34,10 @@ mpv_sockets=(
 
 
  # Postponed encoding
-#  “yes”: When encoding is accepted, saves the command as a job file
-#           to be run later with Nadeshiko-do-postponed.
+#  “yes”: When encoding parameters are accepted, saves the command
+#         as a job file to be run later with Nadeshiko-do-postponed.
 #         Force-enables the “Encode later” checkbox in the GUI.
-#  “no”: When encoding is accepted, launches it immediately.
+#  “no”: When encoding parameters are accepted, starts to encode immediately.
 #  Default value: no
 #
 postpone=no

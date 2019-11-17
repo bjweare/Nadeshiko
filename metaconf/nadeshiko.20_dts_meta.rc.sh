@@ -9,13 +9,13 @@
 #    does the source video bitrate provide and whether certain bitrate
 #    bumps would make sence, when Nadeshiko will re-encode the video.
 #  Type: array.
-#  Item example: "<Format>[<delimeter><Format profile>]".
+#  Item example: "<Format>[<delimiter><Format profile>]".
 #    The values for Format and Format profile are those reported by mediainfo.
-#    The delimeter, if used, must be specified via the variable
-#    acodec_delimeter_for_name_as_formats_AUDIOCODECNAME.
+#    The delimiter, if used, must be specified via the variable
+#    acodec_delimiter_for_name_as_formats_AUDIOCODECNAME.
 #
 acodec_name_as_formats_dts=(
 	'DTS:96/24'
 )
 
-acodec_delimeter_for_name_as_formats_dts=':'
+acodec_delimiter_for_name_as_formats_dts=':'

@@ -229,11 +229,12 @@ libvpx_vp9_lag_in_frames=25
 
 
  # Maximum interval between key frames (ffmpeg -g).
-#  “It is recommended to allow up to 240 frames of video between keyframes…”
-#  99999 is recommended by webmproject.org, so you couldn’t have keyframes.
-#  ― Ah, so that’s why webms take less space… Humu humu.
+#  Webmproject.org recommends to use “-g 9999” (2016)
+#  VP9 docs on developers.google.com recommend “-g 240” (2017)
+#  Whichever you would pass to ffmpeg, the resulting webm would have a key
+#  frame on each 95±5th frame.
 #
-libvpx_vp9_kf_max_dist=99999
+libvpx_vp9_kf_max_dist=9999
 
 
  # Isn’t implemented in libvpx-vp9.

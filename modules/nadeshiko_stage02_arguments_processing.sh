@@ -11,7 +11,6 @@
 
  # Assigns start time, stop time, source video file
 #  and other stuff from command line parameters.
-#  $@ – see show_help()
 #
 parse_args() {
 	declare -gA  src
@@ -32,7 +31,8 @@ parse_args() {
 	declare -g   max_size
 	declare -g   vbitrate
 	declare -g   abitrate
-	declare -g   scene_complexity  dryrun
+	declare -g   scene_complexity
+	declare -g   dryrun
 	declare -g   do_not_report_ffmpeg_progress_to_console
 
 	local  arg
@@ -219,11 +219,17 @@ parse_args() {
 #  user’s encoders.
 #
 check_basic_util_support() {
-	declare -g REQUIRED_UTILS  REQUIRED_UTILS_HINTS
+	declare -g REQUIRED_UTILS
+	declare -g  REQUIRED_UTILS_HINTS
 	#  Encoding modules may need to know versions of ffmpeg or its libraries.
-	declare -g  ffmpeg_version_output  ffmpeg_ver  \
-	            libavutil_ver  libavcodec_ver  libavformat_ver
+	declare -g  ffmpeg_version_output
+	declare -g  ffmpeg_ver
+	declare -g  libavutil_ver
+	declare -g  libavcodec_ver
+	declare -g  libavformat_ver
+
 	local  ffmpeg="$ffmpeg -hide_banner"
+
 	REQUIRED_UTILS+=(
 		#  For encoding. 3.4.2+ recommended.
 		ffmpeg
@@ -459,7 +465,9 @@ check_encoder_support() {
 
 
 check_misc_util_support() {
-	declare -g REQUIRED_UTILS  REQUIRED_UTILS_HINTS
+	declare -g REQUIRED_UTILS
+	declare -g REQUIRED_UTILS_HINTS
+
 	local arg
 
 	for arg in "$@"; do
@@ -496,9 +504,14 @@ check_misc_util_support() {
 
 
 check_muxing_set() {
-	declare -g ffmpeg_muxer container
-	local i  combination  combination_passes  muxer_info  \
-	      ffmpeg="$ffmpeg -hide_banner"
+	declare -g ffmpeg_muxer
+	declare -g container
+
+	local  combination
+	local  combination_passes
+	local  muxer_info
+	local  ffmpeg="$ffmpeg -hide_banner"
+	local  i
 
 	[ "$container" = auto ] && {
 		for combination in "${muxing_sets[@]}"; do
@@ -588,8 +601,13 @@ check_times() {
 
 
 check_subtitles() {
-	declare -g subs_need_extraction  subs_need_conversion  prepped_ext_subs
-	local  codec_name  known_sub_codecs_list  ext_subtitle_type
+	declare -g  subs_need_extraction
+	declare -g  subs_need_conversion
+	declare -g  prepped_ext_subs
+
+	local  codec_name
+	local  known_sub_codecs_list
+	local  ext_subtitle_type
 
 	known_sub_codecs_list=$(IFS='|'; echo "${known_sub_codecs[*]}")
 
@@ -694,9 +712,15 @@ check_audio() {
 #    scene_complexity to either “static” or “dynamic”.
 #
 determine_scene_complexity() {
-	declare -g  scene_complexity  scene_complexity_assumed
-	local video="$1" start_time="$2" stop_time="$3" \
-	      duration_total_s="$4" total_scenes is_dynamic
+	declare -g  scene_complexity
+	declare -g  scene_complexity_assumed
+
+	local  video="$1"
+	local  start_time="$2"
+	local  stop_time="$3"
+	local  duration_total_s="$4"
+	local  total_scenes
+	local  is_dynamic
 
 	total_scenes=$(
 		FFREPORT=file=$LOGDIR/ffmpeg-scene-complexity.log:level=32 \
@@ -754,9 +778,11 @@ determine_scene_complexity() {
 #    later by display_settings().
 #
 set_vars() {
-	declare -g orig_vcodec_format  orig_acodec_format  \
+	declare -g  orig_vcodec_format
+	declare -g  orig_acodec_format
 	           # source_video_container=$(mimetype -L -b -d "${src[path]}")
-	local  i  output_framerate
+	local  output_framerate
+	local  i
 
 	check_muxing_set
 
@@ -910,8 +936,15 @@ set_vars() {
 #  has been made yet.
 #
 display_settings() {
-	local sub_hl  audio_hl  crop_string  sub_hl  audio_hl  \
-	      src_var  src_varval  key
+	local  sub_hl
+	local  audio_hl
+	local  crop_string
+	local  sub_hl
+	local  audio_hl
+	local  src_var
+	local  src_varval
+	local  key
+
 	# The colours for all the output should be:
 	# - default colour for default/computed/retrieved data;
 	# - bright white colour indicates command line overrides;

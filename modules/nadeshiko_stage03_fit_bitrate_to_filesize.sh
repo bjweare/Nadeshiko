@@ -23,8 +23,6 @@
 #  into max_size. Works only on $vbitrate and $abitrate, hence
 #  no bitrate corrections, except for 100k decrement, should be
 #  used here.
-#  Returns: 0 if we found an appropriate video bitrate;
-#           1 otherwise.
 #
 recalc_space() {
 	declare -g space_for_video_track   #  used in unset_our_options()
@@ -38,19 +36,6 @@ recalc_space() {
 	local audio_track_size
 
 	milinc
-
-	[ -v audio ] && audio_info=" / $(pretty "$abitrate")"
-	if [ -v scale ]; then
-		#  Forced scale
-		vidres="${scale}p"
-	elif [ -v crop ]; then
-		vidres="Cropped"
-	elif (( current_bitres_profile != starting_bitres_profile )); then
-		#  Going lowres
-		vidres="${current_bitres_profile}p"
-	else
-		vidres='Native'
-	fi
 
 	if [ -v audio ]; then
 		recalc_acodec_size_deviation
@@ -68,6 +53,19 @@ recalc_space() {
 	max_fitting_vbitrate=$((    space_for_video_track
 	                          / duration[total_s]      ))
 
+
+	[ -v audio ] && audio_info=" / $(pretty "$abitrate")"
+	if [ -v scale ]; then
+		#  Forced scale
+		vidres="${scale}p"
+	elif [ -v crop ]; then
+		vidres="Cropped"
+	elif (( current_bitres_profile != starting_bitres_profile )); then
+		#  Going lowres
+		vidres="${current_bitres_profile}p"
+	else
+		vidres='Native'
+	fi
 	infon "Trying $(pretty "$vbitrate")${audio_info:-} @${vidres}.  "
 	echo "Have space for $(pretty "$max_fitting_vbitrate")${audio_info:-}."
 
@@ -77,7 +75,6 @@ recalc_space() {
 	&& (( max_fitting_vbitrate > src_v[bitrate] )) && {
 		info "Can fit original ${srv_v[bitrate]} kbps!"
 		vbitrate=${src_v[bitrate]}
-		return 0
 	}
 
 	mildec
@@ -378,7 +375,7 @@ is_it_sensible_to_use_better_abitrate() {
 	local  acodec_name
 	local  known_formats
 	local  known_format
-	local  delimeter
+	local  delimiter
 	local  format_per_se
 	local  format_profile_per_se
 	local  format_matches
@@ -407,17 +404,17 @@ is_it_sensible_to_use_better_abitrate() {
 	for acodec_name_as_formats_varname in ${!acodec_name_as_formats*}; do
 		#  Remembering acodec’s name for the later check on bitrate.
 		acodec_name=${acodec_name_as_formats_varname#*formats_}
-		unset -n format_profile_delimeter
+		unset -n format_profile_delimiter
 		local -n known_formats=$acodec_name_as_formats_varname
-		[ -v ${acodec_name_as_formats_varname/acodec_/acodec_delimeter_for_} ]  && {
-			#  Delimeter between format and format profile, e.g. colon
+		[ -v ${acodec_name_as_formats_varname/acodec_/acodec_delimiter_for_} ]  && {
+			#  Delimiter between format and format profile, e.g. colon
 			#  in “AAC:LC”. Format profile may or may not be present.
-			local -n delimeter=${acodec_name_as_formats_varname/acodec_/acodec_delimeter_for_}
+			local -n delimiter=${acodec_name_as_formats_varname/acodec_/acodec_delimiter_for_}
 		}
 		#  This evaluates per each known acodec
 		for known_format in "${known_formats[@]}"; do
-			format_per_se="${known_format%${delimeter:-no delim}*}"
-			format_profile_per_se="${known_format#*${delimeter:-no delim}}"
+			format_per_se="${known_format%${delimiter:-no delim}*}"
+			format_profile_per_se="${known_format#*${delimiter:-no delim}}"
 			[[ "${src_a[format]}" = "$format_per_se" ]] && {
 				#  If at least format did already match, then let’s see, if
 				#  there’s also format profile to be compared…
@@ -429,7 +426,7 @@ is_it_sensible_to_use_better_abitrate() {
 					unset format_profile_per_se
 					break 2
 				else
-					#  And if there is a delimeter, we need to check it too.
+					#  And if there is a delimiter, we need to check it too.
 					[ -v src_a[format_profile]  ] || {
 						denied 'The audio track in the source must have had a format profile,
 						        but it wasn’t present and therefore cannot be checked.'

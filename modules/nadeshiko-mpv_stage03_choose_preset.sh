@@ -97,7 +97,7 @@ if_predictor_runs_for_this_size() {
 #    files (rc files, presets) and executes Nadeshiko in dry run mode
 #    several times to get information about how the video clip would
 #    (or would not) fit at the possible maximum file size from the preset.
-#  $1 – nadeshiko config in CONFDIR to use.
+#  $1  – nadeshiko config in CONFDIR to use.
 # [$2] – scene_complexity to assume (for the second run and further).
 #
 prepare_preset_options() {
@@ -109,8 +109,9 @@ prepare_preset_options() {
 
 	info "Preset: $nadeshiko_preset"
 	milinc
-	#  Unsetting RCFILE, or we’ll read it by mistake.
-	#  (We’re in a subshell, so the real RCFILE will stay untouched.)
+	#  Unsetting RCFILE, or we’ll read Nadeshiko-mpv’s own file by mistake.
+	#  (We’re in a subshell, so we can unset it safely, the real RCFILE in the
+	#  main shell will stay untouched.)
 	unset RCFILE || true
 	read_rcfile 'nadeshiko'
 
