@@ -480,7 +480,7 @@ check_misc_util_support() {
 				)
 				;;
 			check_for_updates)
-				. "$LIBDIR/bahelite/bahelite_github.sh"
+				bahelite_load_module 'github'
 				;;
 			ffmpeg_progressbar)
 				REQUIRED_UTILS+=(

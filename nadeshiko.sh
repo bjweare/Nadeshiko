@@ -16,10 +16,12 @@
 
 set -feEuT
 shopt -s extglob
-BAHELITE_CHERRYPICK_MODULES=(
-	error_handling
-	logging
-	rcfile
+BAHELITE_SCRIPT_BUNCH_NAME='nadeshiko'
+BAHELITE_LOAD_MODULES=(
+	libdir
+	modulesdir
+	logging:use_cachedir
+	rcfile:use_metaconf:use_defconf
 	misc
 )
 mypath=$(dirname "$(realpath --logical "$0")")
@@ -29,32 +31,28 @@ case "$mypath" in
 	*)
 		source "$mypath/lib/bahelite/bahelite.sh";;
 esac
-prepare_cachedir
-start_logging
+
 noglob_off
 rm -f "$LOGDIR/"ffmpeg*     \
       "$LOGDIR/"variables   \
       "$LOGDIR/time_output"
 noglob_on
-set_libdir
+
 #  For parsing ffprobe and mediainfo output into usable format.
 . "$LIBDIR/gather_file_info.sh"
 #  For manipulating timestamp forms.
 . "$LIBDIR/time_functions.sh"
-set_modulesdir
+
 noglob_off
 for module in "$MODULESDIR"/nadeshiko_*.sh ; do
 	. "$module" || err "Couldn’t source module $module."
 done
 noglob_on
 
-set_metaconfdir
-set_defconfdir
-prepare_confdir
 place_examplerc 'nadeshiko.10_main.rc.sh'
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
-declare -r version='2.9.17'
+declare -r version='2.9.18'
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 
  # Minimal libav libraries versions
@@ -142,7 +140,6 @@ on_exit() {
 
 
 #  Stage 1
-read_rcfile
 post_read_rcfile
 
 #  Stage 2

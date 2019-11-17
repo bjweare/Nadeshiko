@@ -13,11 +13,13 @@
 
 set -feEuT
 shopt -s extglob
-BAHELITE_CHERRYPICK_MODULES=(
-	error_handling
+MY_BUNCH_NAME='nadeshiko'
+BAHELITE_LOAD_MODULES=(
+	libdir
+	modulesdir
+	logging:use_cachedir
+	rcfile:use_metaconf:use_defconf
 	messages_to_desktop
-	logging
-	rcfile
 	misc
 )
 mypath=$(dirname "$(realpath --logical "$0")")
@@ -27,27 +29,21 @@ case "$mypath" in
 	*)
 		source "$mypath/lib/bahelite/bahelite.sh";;
 esac
-prepare_cachedir 'nadeshiko'
-start_logging
-set_libdir 'nadeshiko'
+
 . "$LIBDIR/mpv_ipc.sh"
 . "$LIBDIR/gather_file_info.sh"
 . "$LIBDIR/time_functions.sh"
 . "$LIBDIR/xml_and_python_functions.sh"
-set_modulesdir 'nadeshiko'
+
 noglob_off
 for module in "$MODULESDIR"/nadeshiko-mpv_*.sh ; do
 	. "$module" || err "Couldn’t source module $module."
 done
 noglob_on
 
-set_metaconfdir 'nadeshiko'
-set_defconfdir 'nadeshiko'
-prepare_confdir 'nadeshiko'
 place_examplerc 'nadeshiko-mpv.10_main.rc.sh'
 
-declare -r version="2.4.12"
-declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
+declare -r version="2.4.13"
 
 declare -r datadir="$CACHEDIR/nadeshiko-mpv_data"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
@@ -223,7 +219,6 @@ else
 	find -type f -mmin +60  -delete
 fi
 
-read_rcfile
 post_read_rcfile
 REQUIRED_UTILS+=(
 	python3      #  Dialogue windows.

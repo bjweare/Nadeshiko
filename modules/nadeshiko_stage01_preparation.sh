@@ -38,7 +38,7 @@ post_read_rcfile() {
 	[ -v desktop_notifications ] && {
 		#  Enabling it as early as possible, or the errors about wrong argu-
 		#  ments won’t have desktop notifications.
-		. "$LIBDIR/bahelite/bahelite_messages_to_desktop.sh"
+		bahelite_load_module 'messages_to_desktop'
 		check_required_utils
 	}
 

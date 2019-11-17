@@ -8,11 +8,13 @@
 
 
 set -feEuT
-BAHELITE_CHERRYPICK_MODULES=(
-	error_handling
+MY_BUNCH_NAME='nadeshiko'
+BAHELITE_LOAD_MODULES=(
+	libdir
+	modulesdir
+	logging:use_cachedir
+	rcfile:use_metaconf:use_defconf
 	messages_to_desktop
-	logging
-	rcfile
 	misc
 )
 mypath=$(dirname "$(realpath --logical "$0")")
@@ -22,17 +24,10 @@ case "$mypath" in
 	*)
 		source "$mypath/lib/bahelite/bahelite.sh";;
 esac
-prepare_cachedir 'nadeshiko'
-start_logging
-set_libdir 'nadeshiko'
-set_modulesdir 'nadeshiko'
-set_metaconfdir 'nadeshiko'
-set_defconfdir 'nadeshiko'
-prepare_confdir 'nadeshiko'
+
 place_examplerc 'nadeshiko-do-postponed.10_main.rc.sh'
 
-declare -r version="2.3.7"
-declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
+declare -r version="2.3.8"
 
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 declare -r failed_jobs_dir="$postponed_commands_dir/failed"
@@ -205,7 +200,6 @@ collect_jobs() {
 
 
 cd "$TMPDIR"
-read_rcfile
 post_read_rcfile
 if (( $# == 0 )); then
 	: "All is OK, proceeding to execution."
