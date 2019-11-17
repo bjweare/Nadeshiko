@@ -1,26 +1,36 @@
 #  Should be sourced.
 
-#  bahelite_messages.sh
+#  messages.sh
 #  Provides messages for console and desktop (if messages_to_desktop module
 #  is included too).
 #  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
-	echo "load the core module (bahelite.sh) first." >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_VER ] && return 0
-bahelite_load_module 'messages_indentation' || return $?
+bahelite_load_module 'message_indentation' || return $?
 [ -v MSG_DISABLE_COLOURS ] || {
 	bahelite_load_module 'colours' || return $?
 }
+bahelite_load_module 'error_codes' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_VER='2.9.2'
+declare -grx BAHELITE_MODULE_MESSAGES_VER='2.9.3'
 
+
+(( $# != 0 )) && {
+	echo "Bahelite module “messages” doesn’t take arguments!"  >&2
+	[ "$*" = help ]  \
+		&& return 0  \
+		|| return 4
+}
 
 
                          #  Message lists  #
@@ -710,13 +720,28 @@ __debug_msg() {
 __msg() {
 	#  Internal! There should be no xtrace_off!
 	declare -gx  BAHELITE_STIPULATED_ERROR
-	local role  message_array  colour  whole_message_in_colour  asterisk  \
-	      desktop_message  desktop_message_type  stay_on_line  output  \
-	      internal  exit_code  \
-	      f  f_count=0  already_printing_call_stack  \
-	      message=''  message_key  message_key_exists  \
-	      _message=''  message_nocolours  \
-	      term_cols=$TERM_COLS  console_or_log
+
+	local  role
+	local  message_array
+	local  colour
+	local  whole_message_in_colour
+	local  asterisk
+	local  desktop_message
+	local  desktop_message_type
+	local  stay_on_line
+	local  output
+	local  internal
+	local  exit_code
+	local  f
+	local  f_count=0
+	local  already_printing_call_stack
+	local  message=''
+	local  message_key
+	local  message_key_exists
+	local  _message=''
+	local  message_nocolours
+	local  term_cols=$TERM_COLS
+	local  console_or_log
 
 	[[ "$-" =~ .*i.* ]] || term_cols=80
 
@@ -728,17 +753,17 @@ __msg() {
 	done
 	(( f_count >= 3 )) && {
 		echo "Bahelite error: call to $FUNCNAME has went into recursion." >&2
-		[ "$(type -t bahelite_print_call_stack)" = 'function' ]  && {
+		[ "$(type -t print_call_stack)" = 'function' ]  && {
 			#  Print call stack, unless already in the middle of doing it
 			for f in "${FUNCNAME[@]}"; do
-				[ "$f" = "bahelite_print_call_stack" ]  \
+				[ "$f" = "print_call_stack" ]  \
 					&& already_printing_call_stack=t
 			done
 			[ -v already_printing_call_stack ]  \
-				|| bahelite_print_call_stack
+				|| print_call_stack
 		}
 		#  Unsetting the traps, or the recursion may happen again.
-		trap '' EXIT TERM INT HUP PIPE   ERR   DEBUG   RETURN
+		trap '' EXIT TERM INT HUP PIPE ERR DEBUG RETURN
 		#  Now the script will exit guaranteely.
 		exit 4
 	}
@@ -869,9 +894,9 @@ __msg() {
 	_message+="${__s}"
 	_message+="${colour:-}"
 	_message+="$asterisk"
-	_message+="${whole_message_in_colour:-${__stop:-}}"  # colour stop
+	_message+="${whole_message_in_colour:-${__stop:-}}"
 	_message+="$message"
-	_message+="${whole_message_in_colour:+${__stop:-}}"  # colour stop
+	_message+="${whole_message_in_colour:+${__stop:-}}"
 	#  See the description to MSG_FOLD_MESSAGES.
 	if [ -v MSG_FOLD_MESSAGES ]; then
 		message=$(echo -e ${stay_on_line:+-n} "$_message" \
@@ -962,7 +987,7 @@ export -f headermsg
 footermsg() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	divider_message "$@"
-	#  No spacing echo for the same reason, as above.
+	#  No spacing echo for the same reason as above.
 	mildec
 	return 0
 }

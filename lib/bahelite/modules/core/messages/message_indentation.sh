@@ -1,22 +1,31 @@
 #  Should be sourced.
 
-#  bahelite_messages_indentation.sh
+#  message_indentation.sh
 #  Allows to shift and remember the indentation level for output messages,
 #  especially handy in the scripts running one from within another.
 #  © deterenkelt 2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
-	echo "load the core module (bahelite.sh) first." >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
-[ -v BAHELITE_MODULE_MESSAGES_INDENTATION_VER ] && return 0
+[ -v BAHELITE_MODULE_MESSAGE_INDENTATION_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_INDENTATION_VER='1.0'
+declare -grx BAHELITE_MODULE_MESSAGE_INDENTATION_VER='1.0'
 
+
+(( $# != 0 )) && {
+	echo "Bahelite module “message_indentation” doesn’t take arguments!"  >&2
+	[ "$*" = help ]  \
+		&& return 0  \
+		|| return 4
+}
 
 
  # Checking, if it’s already set, in case one script calls another –
@@ -94,6 +103,7 @@ mildec() {
 	local count=${1:-1}  z
 	if (( MSG_INDENTATION_LEVEL == 0 )); then
 		warn "No need to decrease indentation, it’s on the minimum."
+		print_call_stack
 	else
 		for ((z=0; z<count; z++)); do
 			let '--MSG_INDENTATION_LEVEL,  1'

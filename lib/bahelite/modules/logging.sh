@@ -1,21 +1,23 @@
 #  Should be sourced.
 
-#  bahelite_logging.sh
-#  Organises logging and maintains logs in a separate folder.
+#  logging.sh
+#  Selects logging directory and writes logs.
 #  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
-	echo "load the core module (bahelite.sh) first." >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_LOGGING_VER ] && return 0
-bahelite_load_module 'directories' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_LOGGING_VER='1.7.5'
+declare -grx BAHELITE_MODULE_LOGGING_VER='1.8'
+bahelite_load_module 'check_directory' || return $?
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date   #  (coreutils) to add date to $LOGPATH file name and to the log itself.
 #	ls     #  (coreutils)
@@ -25,14 +27,52 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 )
 
 
+declare -gx BAHELITE_LOGGING_MAX_FILES=5
 
-if [ -v LOGGING_MAX_LOGFILES ]; then
-	[[ "$LOGGING_MAX_LOGFILES" =~ ^[0-9]{1,4}$ ]] \
-		|| err "LOGGING_MAX_LOGFILES should be a number,
-		        but it was set to “$LOGGING_MAX_LOGFILES”."
-else
-	declare -gx LOGGING_MAX_LOGFILES=5
-fi
+__show_usage_logging_module() {
+	cat <<-EOF  >&2
+	Bahelite module “logging” arguments:
+
+	max_files=1..99999
+	    How many log files to keep in the log directory. A number between
+	    1 and 99999. The default is 5.
+	EOF
+	return 0
+}
+
+for arg in "$@"; do
+	if  [[ "$arg" =~ ^max_files\=[0-9]{1,5}$ ]] && [ "$arg" -gt 0 ]; then
+		BAHELITE_LOGGING_MAX_FILES="$arg"
+
+	#
+	#  The usage of cachedir (~/.cache/<main script name>/logs) for logs
+	#  This module will use ~/.cache/… directory as long as no environment
+	#  variable overrides LOGDIR or LOGPATH and the cachedir is prepared.
+	#  Now for the cases, when it’s prepared (actually, almost always):
+	#    - when you don’t specify BAHELITE_LOAD_MODULES (i.e. when bahelite.sh
+	#      loads every module it can find – the full bundle includes a module
+	#      for cachedir);
+	#    - when you load a specific bunch of modules, and mention “cachedir”
+	#      among others in BAHELITE_LOAD_MODULES array;
+	#    - when you use BAHELITE_LOAD_MODULES and omit “cachedir” in the
+	#      items, but use a parameter for the logging module instead, like
+	#          BAHELITE_LOAD_MODULES=(
+	#              "logging:use_cachedir"
+	#          )
+	#
+	elif [ "$arg" = "use_cachedir" ]; then
+		bahelite_load_module 'cachedir' || return $?
+
+	elif [ "$arg" = help ]; then
+		__show_usage_logging_module
+		return 0
+
+	else
+		__show_usage_logging_module
+		return 4
+	fi
+done
+unset arg
 
 
  # Organises logging for the main script
@@ -106,13 +146,13 @@ start_logging() {
 		}
 	fi
 	[ -v LOGPATH ] || {
-		LOGNAME="${MYNAME%.*}_$(date +%Y-%m-%d_%H:%M:%S).log"
+		LOGNAME="${MYNAME_NOEXT}_$(date +%Y-%m-%d_%H:%M:%S).log"
 		LOGPATH="$LOGDIR/$LOGNAME"
 	}
 	#  Must be set at one place, because it will be used in another
 	#  function, that stops logging.
 	BAHELITE_LOGGING_TEE_CMD=(tee -ia "$LOGPATH")
-	#  Removing old logs, keeping maximum of $LOGGING_MAX_LOGFILES
+	#  Removing old logs, keeping maximum of $BAHELITE_LOGGING_MAX_FILES
 	#  of recent logs.
 	pushd "$LOGDIR" >/dev/null
 	#  Deleting leftover variable dump.
@@ -120,8 +160,8 @@ start_logging() {
 
 	bahelite_noglob_off
 	bahelite_extglob_on
-	(ls -r "${MYNAME%.*}_"+([_0-9:-]).log 2>/dev/null || true ) \
-		| tail -n+$LOGGING_MAX_LOGFILES \
+	(ls -r "${MYNAME_NOEXT}_"+([_0-9:-]).log 2>/dev/null || true ) \
+		| tail -n+$BAHELITE_LOGGING_MAX_FILES \
 		| sed -r 's/\.log$//g;  s/\"/\\"/g'  \
 		| xargs -I {} rm -fv  "{}.log" "{}.xtrace.log" &>/dev/null || true
 	bahelite_extglob_off
@@ -347,7 +387,18 @@ export -f read_lastlog
 
 
 stop_logging() {
-	local  tee_pids=()  tee_parents_pids=()
+	local  tee_pids=()
+	local  tee_parents_pids=()
+	local  use_pause
+
+	__pause_if_needed() {
+		[ -v use_pause ] || return 0
+		echo -en "\n${__bri:-}Press any key to continue${__s:-} ${__g:-}>${__s:-} "
+		read -n1
+		echo -e '\n'
+		return 0
+	}
+
 	[ -v BAHELITE_LOGGING_STARTED  -a  -v BAHELITE_LOGGING_USES_TEE ] && {
 		#  Without this the script would seemingly quit, but the bash
 		#    process will keep hanging to support the logging tee.
@@ -362,7 +413,19 @@ stop_logging() {
 
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
 			echo
+			info "Bahelite will now proceed to stop the logging processes."
+			milinc
+			[ -v BAHELITE_LOGGING_TEE_DEBUG_PAUSE ]  \
+				&& use_pause=t  \
+				|| info "Need a pause?
+				         There is a helper variable BAHELITE_LOGGING_TEE_DEBUG_PAUSE.
+				         Set it to any value before calling the main script, e.g.
+				             BAHELITE_LOGGING_TEE_DEBUG_PAUSE=t  ./my_script.sh
+				         and it will wait for a keypress between the stages of this
+				         process."
+			echo
 			declare -p ORIG_BASHPID  BASHPID  ORIG_PPID  PPID
+			echo
 			ps -o session,pgid,ppid,pid,s,args --forest -s $ORIG_PPID  || {
 				warn "Our own PPID didn’t start the process session we’re in.
 				      Are we running from another script?"
@@ -409,8 +472,7 @@ stop_logging() {
 		(( ${#tee_pids[*]} == 0 )) && return 0
 
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-			&& echo 'Sleeping 10 seconds'    \
-			&& sleep 10
+			&& __pause_if_needed
 
 		tee_parents_pids=( $(ps h -o ppid "${tee_pids[@]}" || true) )
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
@@ -419,8 +481,7 @@ stop_logging() {
 		(( ${#tee_parents_pids[*]} == ${#tee_pids[*]} )) && {
 
 			[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-				echo 'Sleeping for 10 seconds…'
-				sleep 10
+				__pause_if_needed
 				info 'Killing tees by sending HUP to their shells:'
 			}
 
@@ -471,11 +532,11 @@ stop_logging() {
 			#
 			kill -TERM "${tee_parents_pids[@]}"
 
-			[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-				echo 'Sleeping for 10 seconds…'
-				sleep 10
+			[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && {
+				__pause_if_needed
 				info 'Testing if the processes still hang there:'
 			}
+
 			#  No processes = BAD from pgrep, GOOD for us – they are closed,
 			#  as they should be. So “… || return 0”. All done.
 			pgrep --session 0  -f "${BAHELITE_LOGGING_TEE_CMD[*]}"  \
@@ -484,10 +545,27 @@ stop_logging() {
 
 
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-			echo -e '\n\nSleeping 10 seconds…'
-			sleep 10
-			warn 'Something went wrong: killing mother shells did not succeed,
-			      and we’re going to kill tees directly.'
+			echo
+			info "Normally, logging processes are already stopped at this point
+			      and $FUNCNAME() returns – the code past this point never runs.
+
+			      However, when the debugging level is raised, $FUNCNAME doesn’t
+			      close stdout and stderr file descriptors. Because of this, the
+			      code above wasn’t able to close the logging tee processes grace-
+			      fully (as it normally does). $FUNCNAME will have to resort to
+			      a less graceful solution, that’s placed between this code and
+			      the end of the function. Remember, that if the verbosity levels
+			      were set at their default values, this function would already
+			      quit. See also the comments in the body of this function."
+
+			      #  Keeping stdout and stderr open at a raised verbosity level
+			      #  is done to show as much debugging output as possible. The
+			      #  debugging of this very function would not be feasible
+			      #  without holding stdout and stderr open until the last mo-
+			      #  ment, that allows to have a clean exit from the program.
+
+			__pause_if_needed
+			mildec
 		}
 
 
@@ -515,6 +593,8 @@ stop_logging() {
 #  No export: it’s for bahelite_on_exit() function, that executes only
 #  in top level context.
 
+
+BAHELITE_POSTLOAD_JOBS+=( "start_logging:after=prepare_cachedir" )
 
 
 return 0

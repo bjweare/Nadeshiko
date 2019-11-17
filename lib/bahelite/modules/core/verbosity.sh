@@ -1,21 +1,39 @@
 #  Should be sourced.
 
-#  bahelite_verbosity.sh
-#  Facilities to control the verbosity level and presets for the console output.
+#  verbosity.sh
+#  This module provides basic functions to control the verbosity level of the
+#  program output for both Baelite and the main script. Among the three output
+#  types, for which the verbosity control is possible (console, log and desk-
+#  top), only the console verbosity is configured here, as it is the generic
+#  one. Verbosity levels for the logging facility and desktop messages are in
+#  their respective modules.
 #  © deterenkelt 2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
-	echo "load the core module (bahelite.sh) first." >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_VERBOSITY_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_VERBOSITY_VER='1.1.1'
+declare -grx BAHELITE_MODULE_VERBOSITY_VER='1.1.2'
 
+
+(( $# != 0 )) && {
+	cat <<-EOF  >&2
+	Bahelite module “verbosity” doesn’t take arguments!
+	(But you may export VERBOSITY_LEVEL variable. The details are best
+	described on the wiki. This module may change in the future.)
+	EOF
+	[ "$*" = help ]  \
+		&& return 0  \
+		|| return 4
+}
 
 
  # Removes spacing characters: “-”, “_” and “ ” from VERBOSITY_LEVEL

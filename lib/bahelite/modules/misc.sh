@@ -1,20 +1,22 @@
 #  Should be sourced.
 
-#  bahelite_misc.sh
+#  misc.sh
 #  Miscellaneous helper functions.
 #  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
-	echo "load the core module (bahelite.sh) first." >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MISC_VER='1.14.1'
+declare -grx BAHELITE_MODULE_MISC_VER='1.14.2'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # (procps) Single process check.
@@ -28,6 +30,12 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	https://gitlab.com/procps-ng/procps'
 )
 
+(( $# != 0 )) && {
+	echo "Bahelite module “misc” doesn’t take arguments!"  >&2
+	[ "$*" = help ]  \
+		&& return 0  \
+		|| return 4
+}
 
 
  # Returns 0, if variable passed by name contains a value, that can be treated
@@ -417,7 +425,7 @@ plur_sing() {
 		&& plural_ending="$2"  \
 		|| plural_ending='s'
 	[[ "$num" =~ ^[0-9]+$ ]] || {
-		bahelite_print_call_stack
+		print_call_stack
 		warn "${FUNCNAME[0]}: “$num” is not a number!"
 	}
 	#  Avoiding shell arithmetic
@@ -455,7 +463,7 @@ export -f nth
 vartype() {
 	local varname="${1:-}" varval vartype_letter
 	[ -v "$varname" ] || {
-		bahelite_print_call_stack
+		print_call_stack
 		err "misc: $FUNCNAME: “$1” must be a variable name!"
 	}
 	declare -n varval=$varname

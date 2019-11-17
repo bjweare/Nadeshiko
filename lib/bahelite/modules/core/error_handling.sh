@@ -1,6 +1,6 @@
 #  Should be sourced.
 
-#  bahelite_error_handling.sh
+#  error_handling.sh
 #  Places traps on signals ERR, EXIT group and DEBUG. Catches even those
 #    errors, that do not trigger sigerr (errexit is imperfect and doesn’t
 #    catch nounset and arithmetic errors).
@@ -12,19 +12,28 @@
 
 # Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"  >&2
-	echo "load the core module (bahelite.sh) first."  >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.6.8'
+declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.7'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
-#	mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
+	# mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
 )
 
+
+(( $# != 0 )) && {
+	echo "Bahelite module “error_handling” doesn’t take arguments!"  >&2
+	[ "$*" = help ]  \
+		&& return 0  \
+		|| return 4
+}
 
 
  # Stores values, that environment variable $LINENO takes, in an array.
@@ -337,7 +346,7 @@ bahelite_on_exit() {
 		if [[ "$command" =~ ^exit[[:space:]] ]]  &&  ((retval >= 5)); then
 			#  If it was exit that the author of the main script caught
 			#  with err() or errw()
-			bahelite_print_call_stack
+			print_call_stack
 			if	[ -v BAHELITE_STIPULATED_ERROR ] \
 				|| [ -r "$TMPDIR/BAHELITE_STIPULATED_ERROR_IN_SUBSHELL" ]
 			then
@@ -368,28 +377,24 @@ bahelite_on_exit() {
 		#  when trying to retrieve their values here. (As they are internal,
 		#  we’re grabbing them in the middle of their work.)
 		new_variables=$(
-			echo "$BAHELITE_VARLIST_AFTER_STARTUP"$'\n'"$current_varlist" \
+			echo "${BAHELITE_VARLIST_AFTER_STARTUP:-}"$'\n'"$current_varlist" \
 				| grep -v BAHELITE_BRING_BACK_ | sort | uniq -u | sort
 		)
 		for _varname in $new_variables; do
 			declare -n _varval="$_varname"
 			vardump+="${_varval@A}"$'\n'
 		done
-		echo "$vardump"  >"${LOGDIR:-$TMPDIR}/variables"
+		echo "${vardump:-}"  >"${LOGDIR:-$TMPDIR}/variables"
 	}
-
-	if    [ -d "$TMPDIR" ]  \
-	   && ! mountpoint --quiet "$TMPDIR"  \
-	   && [ ! -v BAHELITE_DONT_CLEAR_TMPDIR ]
-	then
-		#  Remove TMPDIR only after logging is done.
-		rm -rf "$TMPDIR"
-	fi
 
 	[ "$signal" != 'EXIT' ] && redmsg "Caught SIG$signal."
 
 	#  Stop logging, if started
-	[ "$(type -t stop_logging)" = 'function' ]  && stop_logging
+	[ "$(type -t stop_logging)" = 'function' ]  \
+		&& stop_logging
+
+	[ "$(type -t bahelite_delete_tmpdir)" = 'function' ]  \
+		&& bahelite_delete_tmpdir
 
 	 # ULTRAKILL. Don’t do that.
 	#
@@ -401,12 +406,41 @@ bahelite_on_exit() {
 #  harm, if would run twice.
 
 
- # Prints the stack of the function calls.
+ # Prints the stack of the function calls
 #
-bahelite_print_call_stack() {
+#  This function should have had “bahelite_” prefix, and the user’s variant
+#  would be without prefix, however, this would tremendously complicate things:
+#    - another intermediate function in the calling stack would add a bunch
+#      of checks to the code, which is already complex;
+#    - thus a user variant would never have appeared – complicates too much;
+#    - then people thinking, that they only need to create their alias to this
+#      function, and they’ll have a handy stack printer func, would make
+#      a grave mistake.
+#  So in order to avoid this, this function was presented as a user facility,
+#  thus removing the need to create aliases. This function determines, whether
+#  it’s called by the user (the author of the main script) for whatever purpo-
+#  ses they have from being called as a part of error handling, by checking
+#  the function names in the stack, so it can act as both an inner tool and
+#  a user’s facility since the version 1.7 of the “error_handling” module.
+#
+print_call_stack() {
 	echo  # in case call stack printed before a line ends.
 
-	[ -e "$TMPDIR/call_stack_printed" ] && {
+	 # Indicator or a call by the user (not due to an error). Lifts the
+	#  restriction on printing stack only once (due to the nature of subshells
+	#  it may unnecessarily be printed twice – this is confusing and Bahelite
+	#  prevents that.)
+	#
+	local flying_call=t
+	local f
+	for ((f=0; f<${#FUNCNAME[*]}; f++)); do
+		[[ "${FUNCNAME[f]}" =~ ^bahelite_on(exit|error)$ ]] && {
+			unset flying_call
+			break
+		}
+	done
+
+	[ ! -v flying_call  -a  -e "$TMPDIR/call_stack_printed" ] && {
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
 			&& info "Not printing call stack: already printed."
 		return 0
@@ -416,9 +450,13 @@ bahelite_print_call_stack() {
 	#
 	#  Skip only 3 levels (this very function, __msg and err*/abort), when
 	#  printing the call stack.
-	local  levels_to_skip  with_subshell
-	local  from_on_exit="${1:-}" real_line_number="${2:-}"   \
-	       line_number_to_print  f  i
+	local  levels_to_skip
+	local  with_subshell
+	local  from_on_exit="${1:-}"
+	local  real_line_number="${2:-}"
+	local  line_number_to_print
+	local  i
+
 	if [ -v BAHELITE_STIPULATED_ERROR ]; then
 		[ -v BAHELITE_SHOW_UP_IN_XTRACE ] \
 			&& levels_to_skip=0  \
@@ -452,10 +490,11 @@ bahelite_print_call_stack() {
 		echo -en "${__mi}${__bri:-}${FUNCNAME[f]}${__s:-}, " >&2
 		echo -e  "line $line_number_to_print in ${BASH_SOURCE[f]}" >&2
 	done
-	touch "$TMPDIR/call_stack_printed"
+	[ -v flying_call ]  \
+		|| touch "$TMPDIR/call_stack_printed"
 	return 0
 }
-export -f  bahelite_print_call_stack
+export -f  print_call_stack
 
 
 bahelite_on_error() {
@@ -510,7 +549,7 @@ bahelite_on_error() {
 	#  or completely, if the output is on top level.
 	#
 	[ "$__mi" = '  ' ] && __mi=''
-	bahelite_print_call_stack "${from_on_exit:-}" "${real_line_number:-}"
+	print_call_stack "${from_on_exit:-}" "${real_line_number:-}"
 
 	(
 		echo -en "${__mi}Command: "

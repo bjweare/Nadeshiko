@@ -1,20 +1,22 @@
 #  Should be sourced.
 
-#  bahelite_messages_to_desktop.sh
+#  messages_to_desktop.sh
 #  To send notifications to desktop with notify-send.
 #  © deterenkelt 2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
-	echo "load the core module (bahelite.sh) first." >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1.4'
+declare -grx BAHELITE_MODULE_MESSAGES_TO_DESKTOP_VER='1.1.5'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	notify-send
@@ -24,6 +26,14 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	[notify-send]='notify-send belongs to the libnotify package
 	https://developer.gnome.org/libnotify/'
 )
+
+
+(( $# != 0 )) && {
+	echo "Bahelite module “messages_to_desktop” doesn’t take arguments!"  >&2
+	[ "$*" = help ]  \
+		&& return 0  \
+		|| return 4
+}
 
 
 

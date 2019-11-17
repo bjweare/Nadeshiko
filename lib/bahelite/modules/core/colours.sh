@@ -1,22 +1,34 @@
 #  Should be sourced.
 
-#  bahelite_colours.sh
+#  colours.sh
 #  Defines character sequences, that control font colour and style
 #  in terminal. They can be used with “echo -e”.
 #  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"  >&2
-	echo "load the core module (bahelite.sh) first."  >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_COLOURS_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_COLOURS_VER='1.2'
+declare -grx BAHELITE_MODULE_COLOURS_VER='1.2.1'
 
+
+(( $# != 0 )) && {
+	cat <<-EOF  >&2
+	Bahelite module “colours” doesn’t take arguments!
+	(But you may export MSG_DISABLE_COLOURS to avoid loading this module.)
+	EOF
+	[ "$*" = help ]  \
+		&& return 0  \
+		|| return 4
+}
 
 
  # Controlling sequences
@@ -73,7 +85,10 @@ declare -grx __clearline='\r\e[K'
 strip_colors()  { strip_colours "$@"; }
 strip_colours() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
-	local c str="$1"  c_val
+	local  str="$1"
+	local  c_val
+	local  c
+
 	for c in   __k  __r  __g  __y  __b  __m  __c  __w  \
 	          __s  __o  __d  __l  __u  __i  __h  \
 	         __bri_rst  __fg_rst
@@ -84,7 +99,7 @@ strip_colours() {
 	echo -n "$str"
 
 	# Doesn’t work as good.
-	#sed -r 's/[[:cntrl:]]\[[0-9]{1,3}[mKG]//g' <<<"$1"
+	#sed -r 's/[[:cntrl:]]\[[0-9]{1,3}[mKG]//g' <<<"$str"
 	return 0
 }
 export -f strip_colours

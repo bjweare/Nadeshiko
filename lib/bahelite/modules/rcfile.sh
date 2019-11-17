@@ -1,23 +1,25 @@
 #  Should be sourced.
 
-#  bahelite_rcfile.sh
+#  rcfile.sh
 #  Functions to source an RC file and verify, that its version is compatible.
 #  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
-	echo "load the core module (bahelite.sh) first." >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_RCFILE_VER ] && return 0
-bahelite_load_module 'versioning' || return $?
-bahelite_load_module 'directories' || return $?
-bahelite_load_module 'misc' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_RCFILE_VER='3.0.2'
+declare -grx BAHELITE_MODULE_RCFILE_VER='3.1'
+bahelite_load_module 'versioning' || return $?
+bahelite_load_module 'confdir' || return $?
+bahelite_load_module 'misc' || return $?
 
 BAHELITE_ERROR_MESSAGES+=(
 	#  set_rcfile_from_args()
@@ -28,6 +30,45 @@ BAHELITE_ERROR_MESSAGES+=(
 	[rc: --rc-file needs an arg]='--rc-file needs an argument.'
 )
 
+
+__show_usage_rcfile_module() {
+	cat <<-EOF  >&2
+	Bahelite module “rcfile” arguments:
+
+	use_defconf
+	use_defconfdir
+	    Load the module to set path to the source directory DEFCONFDIR.
+
+	use_metaconf
+	use_metaconfdir
+	    Load the module to set path to the source directory METACONFDIR.
+
+
+	The options above are semantic equivalents of adding the respective
+	modules to BAHELITE_LOAD_MODULES by themselves. Specifying them as
+	options just makes the dependency more vivid to one who reads the code.
+	EOF
+	return 0
+}
+
+for arg in "$@"; do
+
+	if [[ "$arg" =~ ^use_defconf(dir|)$ ]]; then
+		bahelite_load_module 'defconfdir'  || return $?
+
+	elif [[ "$arg" =~ ^use_metaconf(dir|)$ ]]; then
+		bahelite_load_module 'metaconfdir'  || return $?
+
+	elif [ "$arg" = help ]; then
+		__show_usage_rcfile_module
+		return 0
+
+	else
+		__show_usage_rcfile_module
+		return 4
+	fi
+done
+unset arg
 
 
  # Define the format for the default RC file name
@@ -44,7 +85,9 @@ BAHELITE_ERROR_MESSAGES+=(
 #  Essentially, defining this variable permits to bundle several main scripts,
 #    that use the same configuration directories.
 #
-# declare -g RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
+declare -g RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME
+
+[ -v MY_BUNCH_NAME ]  && RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
 
  # Expand this array with config variable names to check their value: yes/no,
@@ -138,9 +181,12 @@ is_a_valid_rcfile_name() {
 __set_rcfile_from_args() {
 	bahelite_xtrace_off  &&  trap bahelite_xtrace_on RETURN
 	declare -gx  RCFILE  ARGS
-	[ $# -eq 0 ] &&	return 0
+	(( $# == 0 ))  && return 0
 
-	[ -v CONFDIR ] || err 'CONFDIR must be set!'
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && {
+		info "Setting RCFILE from ARGS"
+		milinc
+	}
 
 	local     i
 	local -a  temp_args=( "$@" )
@@ -215,20 +261,27 @@ __set_rcfile_from_args() {
 
 	done
 
-
 	for i in ${args_to_unset[*]}; do
 		unset temp_args[$i]
 	done
 
-	ARGS=( "${temp_args[@]}" )
-	[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-		info "rc: $FUNCNAME: setting ARGS."
-		milinc
-		for ((i=0; i<${#ARGS[@]}; i++)) do
-			echo "${__mi}ARGS[$i] = ${ARGS[i]}"
-		done
-		mildec
+	#  ARGS is identical to ORIG_ARGS here.
+	(( ${#temp_args[*]} != ${#ARGS[*]} )) && {
+		ARGS=( "${temp_args[@]}" )
+
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
+			info "Setting RCFILE to “$RCFILE”."
+			info "Setting new ARGS:"
+			milinc
+			for ((i=0; i<${#ARGS[@]}; i++)) do
+				msg "ARGS[$i] = ${ARGS[i]}"
+			done
+			mildec
+		}
+
 	}
+
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ] && mildec
 
 	return 0
 }
@@ -282,7 +335,14 @@ __read_metaconfdir() {  __read_metaconfdir_or_defconfdir  meta;  }
 __read_defconfdir()  {  __read_metaconfdir_or_defconfdir  def;   }
 __read_metaconfdir_or_defconfdir() {
 	#  Internal! No xtrace_off/on needed!
-	local meta_or_def="$1"  dir
+	local  meta_or_def="$1"
+	local  dir
+
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && {
+		info "Reading ${meta_or_def^^}CONFDIR:"
+		milinc
+	}
+
 	case "$meta_or_def" in
 		meta)
 			[ -v METACONFDIR ] || err 'METACONFDIR must be set!'
@@ -301,47 +361,59 @@ __read_metaconfdir_or_defconfdir() {
 	#  just no configuration files in either defconf or in metaconf.
 	#
 	if [ -v RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME ]; then
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+			&& info "Loading by glob pattern “$RCFILE_SCRIPTNAME\.*rc\.sh”."
 		conf_files=(
 			$(set +f;  \
 			  ls -1 "$dir/$RCFILE_SCRIPTNAME".*rc.sh  2>/dev/null || true)
 		)
 	else
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+			&& info "Loading by glob pattern “*rc.sh”."
 		conf_files=(
 			$(set +f;  \
 			  ls -1 "$dir/"*rc.sh  2>/dev/null || true)
 		)
 	fi
 
-	[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
-		&& info "rc: ${FUNCNAME[1]}: Found ${#conf_files[@]} config files."
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
+		&& info "Found ${#conf_files[@]} config files."
 
 	for conf_file in "${conf_files[@]}"; do
 		conf_file_path="$conf_file"
 		is_a_valid_rcfile_name "$conf_file" "$RCFILE_SCRIPTNAME" || {
 			[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-				&& warn "rc: $FUNCNAME: skipping rcfile because of inappropriate file name:
+				&& warn "skipping rcfile because of inappropriate file name:
 				         $conf_file_path"
 			continue
 		}
 		if [ -f "$conf_file_path"  -a  -r "$conf_file_path" ]; then
 			[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-				&& info "rc: $FUNCNAME: sourcing ${meta_or_def}conf file:
-				         $conf_file_path"
+				&& info "sourcing  $conf_file_path"
 			. "$conf_file_path"  \
 				|| err "Error on sourcing ${meta_or_def}conf file:
 				        $conf_file_path"
 		else
 			[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
-				&& warn "rc: $FUNCNAME: ${meta_or_def}conf path is not a readable file:
+				&& warn "${meta_or_def}conf path is not a readable file:
 				         $conf_file_path"
 		fi
 	done
+
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && {
+		mildec
+	}
 
 	return 0
 }
 #  No export: read_rcfile’s subroutine, which is an init stage function.
 
 
+ # Search CONFDIR for the default rcfile names
+#  Technically this function should be a native part of __read_confdir(),
+#  but it has to be set separately for the ease of dealing with the multiple
+#  conditions that complicate the search.
+#
 __set_rcfile_from_confdir() {
 	#  Internal! No xtrace_off/on needed!
 	declare -gx RCFILE
@@ -351,13 +423,12 @@ __set_rcfile_from_confdir() {
 	#  to a valid file, there’s no need to search.
 	if [ -v RCFILE ]; then
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-			&& info "rc: $FUNCNAME: RCFILE is set via command line:
-			         $RCFILE"
+			&& info "RCFILE is already set via command line."
 		return 0
 	else
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-			&& info "rc: $FUNCNAME: command line didn’t set RCFILE.
-			         Now searching CONFDIR…"
+			&& info "No custom RCFILE was set via command line.
+			         Now searching CONFDIR for default names…"
 	fi
 
 	[ -v CONFDIR ] || err 'CONFDIR must be set!'
@@ -393,27 +464,36 @@ __set_rcfile_from_confdir() {
 #    via the command line
 #
 __read_confdir() {
+	#  Internal! No xtrace_off/on needed!
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && {
+		info "Searching CONFDIR for an rcfile"
+		milinc
+	}
 	__set_rcfile_from_confdir
+
 	if [ -v RCFILE ]; then
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-			&& info "rc: $FUNCNAME: Sourcing RCFILE:
-			         $RCFILE"
+			&& info "Sourcing RCFILE “${RCFILE##*/}”."
 		. "$RCFILE" || err "Error while sourcing RCFILE
 		                    $RCFILE"
 	else
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ] \
-			&& info "rc: $FUNCNAME: No default RC file in $CONFDIR."
+			&& info "No default RC file found in CONFDIR."
 	fi
+
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ] && mildec
 	return 0
 }
 
 
 __postprocess_rc_variables() {
+	#  Internal! No xtrace_off/on needed!
 	local varname  varval  varval_pattern  repl  i
 
-	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-		&& info "Checking values of the RC variables."
-	milinc
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && {
+		info "Checking values of the RC variables."
+		milinc
+	}
 
 	for varname in "${!RCFILE_CHECKVALUE_VARS[@]}"; do
 		if [ -v "$varname" ]; then
@@ -494,12 +574,11 @@ __postprocess_rc_variables() {
 			}
 		else
 			[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-				&& warn "rc: $FUNCNAME: Skipping variable $varname: it isn’t set."
+				&& warn "Skipping variable $varname: it isn’t set."
 		fi
 	done
 
-	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && info 'Done.'
-	mildec
+	[ -v BAHELITE_MODULES_ARE_VERBOSE ]  && mildec
 	return 0
 }
 #  No export: read_rcfile’s subroutine, which is an init stage function.
@@ -524,14 +603,14 @@ read_rcfile() {
 		__read_metaconfdir
 	else
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-			&& info "rc: $FUNCNAME: METACONFDIR is not set – not reading meta RC files."
+			&& info "METACONFDIR is not set – not reading meta RC files."
 	fi
 
 	if [ -v DEFCONFDIR ]; then
 		__read_defconfdir
 	else
 		[ -v BAHELITE_MODULES_ARE_VERBOSE ]  \
-			&& info "rc: $FUNCNAME: DEFCONFDIR is not set – not reading default RC files."
+			&& info "DEFCONFDIR is not set – not reading default RC files."
 	fi
 
 	__set_rcfile_from_args "${ARGS[@]}"
@@ -542,6 +621,8 @@ read_rcfile() {
 }
 #  No export: init stage function.
 
+
+BAHELITE_POSTLOAD_JOBS+=( "read_rcfile:after=prepare_confdir,prepare_defconfdir,prepare_metaconfdir" )
 
 
 return 0

@@ -1,22 +1,30 @@
 #  Should be sourced.
 
-#  bahelite_set_overrides.sh
+#  util_overrides.sh
 #  Overrides for the set builtin – for internal use within Bahelite
 #  and helpers for the main script.
 #  © deterenkelt 2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"  >&2
-	echo "load the core module (bahelite.sh) first."  >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
-[ -v BAHELITE_MODULE_SET_OVERRIDES_VER ] && return 0
+[ -v BAHELITE_MODULE_UTIL_OVERRIDES_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_SET_OVERRIDES_VER='1.1.4'
+declare -grx BAHELITE_MODULE_UTIL_OVERRIDES_VER='1.2.1'
 
+(( $# != 0 )) && {
+	echo "Bahelite module “util_overrides” doesn’t take arguments!"  >&2
+	[ "$*" = help ]  \
+		&& return 0  \
+		|| return 4
+}
 
 
                             #  Internals  #
@@ -63,6 +71,28 @@ bahelite_extglob_off() {
 }
 export -f  bahelite_extglob_on  \
            bahelite_extglob_off
+
+
+ # To turn on /path/** (shopt -s globstar) temporarily.
+#
+bahelite_globstar_on() {
+	#  Internal! No xtrace_off/on needed!
+	shopt -q extglob || {
+		builtin shopt -s globstar
+		declare -gx BAHELITE_BRING_BACK_GLOBSTAR=t
+	}
+	return 0
+}
+bahelite_globstar_off() {
+	#  Internal! No xtrace_off/on needed!
+	[ -v BAHELITE_BRING_BACK_GLOBSTAR ] && {
+		unset BAHELITE_BRING_BACK_GLOBSTAR
+		builtin shopt -u globstar
+	}
+	return 0
+}
+export -f  bahelite_globstar_on  \
+           bahelite_globstar_off
 
 
  # To turn off errexit (set -e) and disable trap on ERR temporarily.
@@ -186,7 +216,7 @@ bahelite_xtrace_off() {
 		builtin set +x
 		declare -gx BAHELITE_BRING_BACK_XTRACE=${#FUNCNAME[*]}
 	fi
-# declare -gx PS4="$__bri$__y$PS4"
+	# declare -gx PS4="$__bri$__y$PS4"  #  Seems to be not necessary.
 	return 0
 }
 bahelite_xtrace_on() {

@@ -1,13 +1,15 @@
 #  Should be sourced.
 
-#  bahelite_github.sh
+#  github.sh
 #  Functions to check for the latest release page on github.com.
 #  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"  >&2
-	echo "load the core module (bahelite.sh) first."  >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
@@ -15,7 +17,7 @@
 [ -v BAHELITE_MODULE_GITHUB_VER ] && return 0
 bahelite_load_module 'versioning' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_GITHUB_VER='1.0.10'
+declare -grx BAHELITE_MODULE_GITHUB_VER='1.0.11'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 #	date      # (coreutils)
 #	stat      # (coreutils)
@@ -31,6 +33,12 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 	https://www.freedesktop.org/wiki/Software/xdg-utils/'
 )
 
+(( $# != 0 )) && {
+	echo "Bahelite module “github” doesn’t take arguments!"  >&2
+	[ "$*" = help ]  \
+		&& return 0  \
+		|| return 4
+}
 
 
  # Default interval, that check_for_new_release() will use to look
@@ -38,8 +46,6 @@ BAHELITE_INTERNALLY_REQUIRED_UTILS_HINTS+=(
 #
 [ -v GITHUB_NEW_RELEASE_CHECK_INTERVAL ]  \
 	|| declare -gx GITHUB_NEW_RELEASE_CHECK_INTERVAL=21  # each N days
-
-
 
 
  # Downloads “Releases” page of a github repo and compares the version
@@ -70,9 +76,9 @@ check_for_new_release() {
 	local timestamp_file="${CACHEDIR:-$MYDIR}/updater_timestamp"
 	[ -f "$timestamp_file" ] || touch "$timestamp_file"
 	local days_since_last_check=$((
-		(    $(date +%s)
-		   - $(stat -L --format %Y "$timestamp_file")
-		)
+		  (    $(date +%s)
+		     - $(stat -L --format %Y "$timestamp_file")
+		  )
 		/ 60
 		/ 60
 		/ 24

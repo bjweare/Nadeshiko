@@ -1,22 +1,30 @@
 #  Should be sourced.
 
-#  bahelite_versioning.sh
+#  versioning.sh
 #  Provides simple versioning in the form <major[.minor[.patch]]>.
 #  Doesn’t work with versions longer than three numbers, e.g. “1.2.3.4”!
 #  © deterenkelt 2018–2019
 
 #  Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {
-	echo "Bahelite error on loading module ${BASH_SOURCE##*/}:"
-	echo "load the core module (bahelite.sh) first." >&2
+	cat <<-EOF  >&2
+	Bahelite error on loading module ${BASH_SOURCE##*/}:
+	load the core module (bahelite.sh) first.
+	EOF
 	return 4
 }
 
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_VERSIONING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_VERSIONING_VER='2.0.3'
+declare -grx BAHELITE_MODULE_VERSIONING_VER='2.0.4'
 
+(( $# != 0 )) && {
+	echo "Bahelite module “versioning” doesn’t take arguments!"  >&2
+	[ "$*" = help ]  \
+		&& return 0  \
+		|| return 4
+}
 
 
  # Call a dialog to update version in the specified file.
