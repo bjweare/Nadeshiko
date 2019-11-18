@@ -42,6 +42,7 @@ show_version() {
 	This is free software: you are free to change and redistribute it.
 	There is no warranty, to the extent permitted by law.
 	EOF
+	return 0
 }
 
 
@@ -55,17 +56,24 @@ on_exit() {
 
 
 move_job_to_failed() {
-	local jobfile="$1" job_logdir="$2"
+	local  jobfile="$1"
+	local  job_logdir="$2"
+
 	[ -d "$failed_jobs_dir" ] || mkdir "$failed_jobs_dir"
 	mv "$jobfile"    "$failed_jobs_dir/"
 	mv "$job_logdir" "$failed_jobs_dir/"
+
 	return 0
 }
 
 
 post_read_rcfile() {
-	declare -g taskset_cpulist  taskset_cmd  niceness_level  nice_cmd  \
-	           nadeshiko_desktop_notifications
+	declare -g  taskset_cpulist
+	declare -g  taskset_cmd
+	declare -g  niceness_level
+	declare -g  nice_cmd
+	declare -g  nadeshiko_desktop_notifications
+
 	[ "${taskset_cpulist:-}" ] && {
 		[[ "$taskset_cpulist" =~ ^[0-9,-]+$ ]] \
 			|| err 'Invalid CPU list for taskset.'
@@ -92,6 +100,7 @@ post_read_rcfile() {
 		        to one of: none, error, all."
 		err "Invalid value for desktop notifications in the config."
 	fi
+
 	return 0
 }
 
@@ -99,8 +108,13 @@ post_read_rcfile() {
  # Process $postponed_commands_dir (new format)
 #
 process_dir() {
-	declare -g  processed_jobs  failed_jobs  completed_jobs
-	local  msg  no_alljobs_message_to_desktop
+	declare -g  processed_jobs
+	declare -g  failed_jobs
+	declare -g  completed_jobs
+
+	local  msg
+	local  no_alljobs_message_to_desktop
+
 	while IFS= read -r -d '' jobfile; do
 		if [[ "${jobfile##*/}" =~ \.(.{8})\.sh$ ]]; then
 			job_id="${BASH_REMATCH[1]}"
@@ -153,6 +167,7 @@ process_dir() {
 			info-ns 'All jobs processed.'
 		fi
 	}
+
 	info "Encoded: $completed_jobs
 	      Failed:  $failed_jobs
 	      Total:   $total_jobs"
@@ -199,6 +214,7 @@ collect_jobs() {
 
 
 
+info "Nadeshiko-do-postponed v$version"
 cd "$TMPDIR"
 post_read_rcfile
 if (( $# == 0 )); then
@@ -212,7 +228,7 @@ fi
 
 check_required_utils
 declare -r xml='xmlstarlet'   # for lib/xml_and_python_functions.sh
-info "Nadeshiko-do-postponed v$version"
+
 print_verbosity_level
 single_process_check
 pgrep -u $USER -af "bash.*nadeshiko.sh" &>/dev/null  \
@@ -228,7 +244,7 @@ failed_jobs=0
 processed_jobs=0
 
 if [ -v DISPLAY ]; then
-	. "$MODULESDIR/nadeshiko-do-postponed_dialogues_${dialog:=gtk}.sh"
+	. "$MODULESDIR/nadeshiko-do-postponed/dialogues_${dialog:=gtk}.sh"
 	collect_jobs
 	show_dialogue_launch_jobs "$jobs_to_run" "$failed_jobs"
 	IFS=$'\n' read -r -d ''  resp_action  < <(echo -e "$dialog_output\0")

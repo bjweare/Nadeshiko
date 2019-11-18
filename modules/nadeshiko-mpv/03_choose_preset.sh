@@ -1,6 +1,6 @@
 #  Should be sourced.
 
-#  nadeshiko-mpv_stage03_choose_preset.sh
+#  03_choose_preset.sh
 #  Nadeshiko-mpv module that allows to choose the desired file size and
 #  the video codec based on the preset files placed in CONFDIR.
 #  Runs predictor and scene complexity test.
@@ -10,9 +10,10 @@
 
 
 prepare_preset_info() {
-	local preset_info=''
+	local    preset_info=''
 	local -n vcodec_pix_fmt=${ffmpeg_vcodec//-/_}_pix_fmt
 	local -n minimal_bitrate_pct=${ffmpeg_vcodec//-/_}_minimal_bitrate_pct
+
 	#  Line 1
 	preset_info+="$ffmpeg_vcodec ($vcodec_pix_fmt) "
 	preset_info+="+ $ffmpeg_acodec → $container;"
@@ -38,17 +39,21 @@ prepare_preset_info() {
 	[ -v scene_complexity ] \
 		&& preset_info+="  (source is $scene_complexity)"
 	echo "$preset_info"
+
 	return 0
 }
 
 
  # Reads config values for max_size_normal etc, converts [kMG]
-#    suffixes to kB, MB or KiB, MiB, determines, which option
-#    is set to default
+#  suffixes to kB, MB or KiB, MiB, determines, which option
+#  is set to default
+#
 #  $1 – size code: tiny, normal etc.
+#
 prepare_size_radiobox_label() {
-	local size="$1"
-	declare -n size_val="max_size_$size"
+	local    size="$1"
+	local -n size_val="max_size_$size"
+
 	[ "$size" = unlimited ] && size_val='Unlimited'
 	if [ "$kilo" = '1000' ]; then
 		size_val=${size_val/k/ kB}
@@ -67,16 +72,22 @@ prepare_size_radiobox_label() {
 	#    default, even when the user clicks on another radiobutton.
 	[ "$max_size_default" = "$size" ] && size_val+=" – default"
 	echo "$size_val"
+
 	return 0
 }
 
 
  # Checks whether a size code is one of those, that predictor
-#    should run for, as it’s specified in the RC file. Returns 0, if
-#    size should be analysed, 1 otherwise.
+#  should run for, as it’s specified in the RC file. Returns 0, if
+#  size should be analysed, 1 otherwise.
+#
 #  $1 – size code, e.g. tiny, normal, small, unlimited, default
+#
 if_predictor_runs_for_this_size() {
-	local size="$1"  run_predictor
+	local  size="$1"
+	local  run_predictor
+	local  s
+
 	for s in "${run_predictor_only_for_sizes[@]}"; do
 		if	[ "$s" = "$size" ] \
 			|| [ "$s" = 'default'  -a  "$max_size_default" = "$size" ]
@@ -97,14 +108,23 @@ if_predictor_runs_for_this_size() {
 #    files (rc files, presets) and executes Nadeshiko in dry run mode
 #    several times to get information about how the video clip would
 #    (or would not) fit at the possible maximum file size from the preset.
+#
 #  $1  – nadeshiko config in CONFDIR to use.
 # [$2] – scene_complexity to assume (for the second run and further).
 #
 prepare_preset_options() {
-	local nadeshiko_preset="$1"  nadeshiko_preset_name="$2"  size  \
-	      scene_complexity  option_list=()  lastline_in_lastlog  \
-	      native_profile  preset_fitmark  preset_fitdesc  i  \
-	      running_preset_mpv_msg
+	local  nadeshiko_preset="$1"
+	local  nadeshiko_preset_name="$2"
+	local  size
+	local  scene_complexity
+	local  option_list=()
+	local  lastline_in_lastlog
+	local  native_profile
+	local  preset_fitmark
+	local  preset_fitdesc
+	local  running_preset_mpv_msg
+	local  i
+
 	[ "${3:-}" ] && scene_complexity="$3"
 
 	info "Preset: $nadeshiko_preset"
@@ -215,7 +235,8 @@ prepare_preset_options() {
 			VERBOSITY_LEVEL=300  \
 			"$MYDIR/nadeshiko.sh" "${nadeshiko_preset[@]}"       \
 			                      "${time1[ts]}" "${time2[ts]}"  \
-			                      "$size" "$path"                \
+			                      "$size"                        \
+			                      "$path"                        \
 			                      ${crop:+crop=$crop}            \
 			                      dryrun                         \
 			                      ${scene_complexity:+force_scene_complexity=$scene_complexity}  \
@@ -357,19 +378,29 @@ prepare_preset_options() {
 	#  W! The last element should *never* be empty, or the readarray -t
 	#    command will not see the empty line! It will discard the \n,
 	#    and there will be a lost element and a shift in the order.
-	IFS=$'\n' ; echo "${option_list[*]}"
+	IFS=$'\n'; echo "${option_list[*]}"
 	return 0
 }
 
 
 choose_preset() {
-	declare -g  mpv_pid  nadeshiko_presets  nadeshiko_preset  scene_complexity
-	local  i  param_list  preset_idx  gui_default_preset_idx  \
-	       ordered_preset_list  temp  \
-	       resp_nadeshiko_preset  preset  preset_exists  \
-	       resp_max_size  \
-	       resp_fname_pfx  \
-	       resp_postpone
+	declare -g  mpv_pid
+	declare -g  nadeshiko_presets
+	declare -g  nadeshiko_preset
+	declare -g  scene_complexity
+
+	local  param_list
+	local  preset_idx
+	local  gui_default_preset_idx
+	local  ordered_preset_list
+	local  temp
+	local  resp_nadeshiko_preset
+	local  preset
+	local  preset_exists
+	local  resp_max_size
+	local  resp_fname_pfx
+	local  resp_postpone
+	local  i
 
 	check_needed_vars
 

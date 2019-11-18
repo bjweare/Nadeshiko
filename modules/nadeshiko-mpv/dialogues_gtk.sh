@@ -1,8 +1,8 @@
 #  Should be sourced.
 
-#  nadeshiko-mpv_dialogues_gtk.sh
-#  Dialogues implemented with Python and Glade. I rate them 4.5/5.
-#  © deterenkelt 2018
+#  dialogues_gtk.sh
+#  Nadeshiko-mpv dialogues implemented with Python and Glade.
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
@@ -10,8 +10,8 @@
 
  # See also developer notes in the beginning of the glade file.
 #
-glade_file="$MODULESDIR/nadeshiko-mpv_dialogues_gtk.glade"
-py_file="$MODULESDIR/nadeshiko-mpv_dialogues_gtk.py"
+glade_file="$MODULESDIR/nadeshiko-mpv/dialogues_gtk.glade"
+py_file="$MODULESDIR/nadeshiko-mpv/dialogues_gtk.py"
 
 cp "$glade_file" "$TMPDIR"
 cp "$py_file" "$TMPDIR"
@@ -23,13 +23,20 @@ chmod +x "$py_file"
 entire_xml=$( <"$glade_file" )
 entire_py_code=$( <"$py_file" )
 
+
  # $1 – variable name, that holds the array with dialogue options.
 #
 prepare_dotglade_and_dotpy_for_sockets() {
-	local options_array_varname="$1"  items_data  items_count  \
-	      rb2_xml_copy  new_rb_xml  new_rb_id  i
-	declare -A py_code
-	declare -n items_data="$options_array_varname"
+	local  options_array_varname="$1"
+	local  items_data
+	local  items_count
+	local  rb2_xml_copy
+	local  new_rb_xml
+	local  new_rb_id
+	local  i
+
+	local -A  py_code
+	local -n  items_data="$options_array_varname"
 
 	items_count=$(( ${#items_data[@]} /3 ))
 
@@ -84,6 +91,7 @@ prepare_dotglade_and_dotpy_for_sockets() {
 	}
 
 	write_dotglade_and_dotpy_files
+
 	return 0
 }
 
@@ -100,14 +108,19 @@ prepare_dotglade_and_dotpy_for_sockets() {
 #       to True.
 #
 prepare_dotglade_and_dotpy_for_crop_and_predictor() {
-	local pick_state="$1" has_installer="$2" predictor_state="$3"  \
-	      cropw="${4:-}"  croph=${5:-}  cropx="${6:-}"  cropy="${7:-}"
-	declare -A py_code
+	local  pick_state="$1"
+	local  has_installer="$2"
+	local  predictor_state="$3"
+	local  cropw="${4:-}"
+	local  croph="${5:-}"
+	local  cropx="${6:-}"
+	local  cropy="${7:-}"
+
+	local -A  py_code
 
 	if  [ "$cropw" ] || [ "$croph" ] || [ "$cropx" ] || [ "$cropy" ];  then
 
-		(
-			[[    "$cropw" =~ ^[0-9]{1,4}$  &&  "$croph" =~ ^[0-9]{1,4}$ ]] \
+		(	   [[ "$cropw" =~ ^[0-9]{1,4}$  &&  "$croph" =~ ^[0-9]{1,4}$ ]] \
 			&& [[ "$cropx" =~ ^[0-9]{1,4}$  &&  "$cropy" =~ ^[0-9]{1,4}$ ]]
 		) \
 			|| err 'Values 3–6 should be crop width, height, X and Y or not set.'
@@ -117,23 +130,28 @@ prepare_dotglade_and_dotpy_for_crop_and_predictor() {
 		                        '//object[@id="input_cropw"]' \
 		                        'text' \
 		                        "$cropw"
+
 		add_obj_property_to_xml 'entire_xml' \
 		                        '//object[@id="input_croph"]' \
 		                        'text' \
 		                        "$croph"
+
 		add_obj_property_to_xml 'entire_xml' \
 		                        '//object[@id="input_cropx"]' \
 		                        'text' \
 		                        "$cropx"
+
 		add_obj_property_to_xml 'entire_xml' \
 		                        '//object[@id="input_cropy"]' \
 		                        'text' \
 		                        "$cropy"
+
 		#  Activating crop checkbox and showing box_cropsettings
 		add_obj_property_to_xml 'entire_xml' \
 		                        '//object[@id="cb_crop"]' \
 		                        'active' \
 		                        'True'
+
 		#  Due to the bug № 12 in Developer notes, controlling visibility
 		#  for dependent elements is delegated to python code, here only
 		#  the visibility of the main element is controlled.
@@ -144,6 +162,7 @@ prepare_dotglade_and_dotpy_for_crop_and_predictor() {
 		                        '//object[@id="cb_crop"]' \
 		                        'active' \
 		                        'False'
+
 		#  Due to the bug № 12 in Developer notes, controlling visibility
 		#  for dependent elements is delegated to python code, here only
 		#  the visibility of the main element is controlled.
@@ -205,12 +224,14 @@ prepare_dotglade_and_dotpy_for_crop_and_predictor() {
 
 #  $1 – text to display in the window, while croptool is working.
 prepare_dotglade_and_dotpy_for_cropping() {
-	declare -A py_code
+	local -A py_code
+
 	edit_attr_in_xml 'entire_xml' \
 	                 '//object[@id="gtkbox_cropping"]/child/object[@class="GtkLabel"]/property[@name="label"]' \
 	                 "$1"
 	py_code[TMPDIR CODE]="TMPDIR = '$TMPDIR'"
 	insert_blocks_in_py_code 'entire_py_code' 'py_code'
+
 	write_dotglade_and_dotpy_files
 	return 0
 }
@@ -242,13 +263,34 @@ prepare_dotglade_and_dotpy_for_cropping() {
 #          Each preset has four sizes, so items 5–9 are repeated four times.
 #
 prepare_dotglade_and_dotpy_for_presets(){
-	local varnames_of_option_arrays=("$@")  option_array  items_count="$#"  \
-	      i  grid_xmlcopy  tab_xmlcopy  current_grid  current_tab  \
-	      preset_filename  preset_displayname  preset_desc  video_desc  \
-	      rb_name  rb_stdout  rb_label  rb_active  rb_fitmark  rb_fitdesc  \
-	      label_name  label_desc  desc_tooltip  radio_buttons  rb  \
-	      rb_group_preset_name
-	declare -A py_code
+	local  varnames_of_option_arrays=("$@")
+	local  option_array
+	local  items_count="$#"
+	local  i
+	local  j
+	local  grid_xmlcopy
+	local  tab_xmlcopy
+	local  current_grid
+	local  current_tab
+	local  preset_filename
+	local  preset_displayname
+	local  preset_desc
+	local  video_desc
+	local  rb_name
+	local  rb_stdout
+	local  rb_label
+	local  rb_active
+	local  rb_fitmark
+	local  rb_fitdesc
+	local  label_name
+	local  label_desc
+	local  desc_tooltip
+	local  radio_buttons
+	local  rb
+	local  rb_group_preset_name
+
+	local -A  py_code
+
 
 	force_enable_cb_postpone() {
 		local xpath="//object[@id='cb_postpone']"
@@ -269,8 +311,8 @@ prepare_dotglade_and_dotpy_for_presets(){
 	#  $1 – index of ${varnames_of_option_arrays[*]}, i.e. which preset
 	#       (tab) we’re processing.
 	prepare_options_1to4() {
-		local i=$1
-		declare -n option_array=${varnames_of_option_arrays[i]}
+		local    i=$1
+		local -n option_array=${varnames_of_option_arrays[i]}
 		preset_filename="${option_array[0]}"
 		preset_displayname="${option_array[1]}"
 		preset_desc=$( echo -e "${option_array[2]}" )  # converting '\n'ewlines
@@ -286,8 +328,10 @@ prepare_dotglade_and_dotpy_for_presets(){
 	#       of repetitive radiobox options (i.e. as if the first 4 elements
 	#       were striped off: only four rows, each of five elements).
 	prepare_options_NtoM() {
-		local array_no=$1  offset=$2
-		declare -n option_array=${varnames_of_option_arrays[array_no]}
+		local     array_no=$1
+		local     offset=$2
+		local -n  option_array=${varnames_of_option_arrays[array_no]}
+
 		rb_stdout="${option_array[4+offset]}"
 		rb_label="${option_array[4+offset+1]}"
 		rb_active="${option_array[4+offset+2]}"
@@ -625,33 +669,34 @@ prepare_dotglade_and_dotpy_for_presets(){
 
 check_pyfile_exit_code() {
 	declare -g data_file
-	local pyfile_retval="$1"
-	if (( pyfile_retval == 0 )); then
-		return 0
-	else
-		#  Remove $data_file for functions, that passed
-		#  over Time1 and Time2 selection stage.
-		[[ "${FUNCNAME[1]}" =~ ^.*choose_socket.*$ ]] || {
-			#  In the unit test $data_file may be unset.
-			[ -v data_file ] && [ -r "$data_file" ] && rm "$data_file"
-		}
 
-		if [ $pyfile_retval -eq 1 ]; then
-			err 'Cannot run gtk dialog: Python code error.'
-		elif [ $pyfile_retval -eq 2 ]; then
-			err 'Cannot run gtk dialog: “Gtk” Python module is not available.'
-		elif [ $pyfile_retval -eq 3 ]; then
-			err 'Cannot run gtk dialog: wrong startpage= argument.'
-		elif [ $pyfile_retval -eq 4 ]; then
-			abort 'Cancelled.'
-		elif [ $pyfile_retval -eq 127 ]; then
-			err 'Cannot run gtk dialog: env couldn’t find python interpreter.'
-		elif [ $pyfile_retval -eq 137 ]; then
-			err 'Gtk dialog process was killed.'
-		else
-			err 'Cannot run gtk dialog: unknown error.'
-		fi
+	local pyfile_retval="$1"
+
+	(( pyfile_retval == 0 ))  && return 0
+
+	#  Remove $data_file for functions, that passed
+	#  over Time1 and Time2 selection stage.
+	[[ "${FUNCNAME[1]}" =~ ^.*choose_socket.*$ ]] || {
+		#  In the unit test $data_file may be unset.
+		[ -v data_file ] && [ -r "$data_file" ] && rm "$data_file"
+	}
+
+	if [ $pyfile_retval -eq 1 ]; then
+		err 'Cannot run gtk dialog: Python code error.'
+	elif [ $pyfile_retval -eq 2 ]; then
+		err 'Cannot run gtk dialog: “Gtk” Python module is not available.'
+	elif [ $pyfile_retval -eq 3 ]; then
+		err 'Cannot run gtk dialog: wrong startpage= argument.'
+	elif [ $pyfile_retval -eq 4 ]; then
+		abort 'Cancelled.'
+	elif [ $pyfile_retval -eq 127 ]; then
+		err 'Cannot run gtk dialog: env couldn’t find python interpreter.'
+	elif [ $pyfile_retval -eq 137 ]; then
+		err 'Gtk dialog process was killed.'
+	else
+		err 'Cannot run gtk dialog: unknown error.'
 	fi
+
 	return 0
 }
 
@@ -660,8 +705,10 @@ check_pyfile_exit_code() {
 #       Socket selection is a part of low-level work,
 #       hence it is done from mpv_ipc.sh.
 show_dialogue_choose_mpv_socket() {
-	declare -g dialog_output
-	local dialog_retval
+	declare -g  dialog_output
+
+	local  dialog_retval
+
 	prepare_dotglade_and_dotpy_for_sockets "$1"
 	errexit_off
 	dialog_output=$( "$py_file"  startpage=gtkbox_choose_socket )
@@ -669,13 +716,16 @@ show_dialogue_choose_mpv_socket() {
 	errexit_on
 	info "Dialog output: “$dialog_output”"
 	check_pyfile_exit_code $dialog_retval
+
 	return 0
 }
 
 
 show_dialogue_crop_and_predictor() {
-	declare -g dialog_output
-	local dialog_retval
+	declare -g  dialog_output
+
+	local  dialog_retval
+
 	prepare_dotglade_and_dotpy_for_crop_and_predictor "$@"
 	errexit_off
 	dialog_output=$( "$py_file"  startpage=gtkbox_crop_and_predictor )
@@ -683,6 +733,7 @@ show_dialogue_crop_and_predictor() {
 	errexit_on
 	info "Dialog output: “$dialog_output”"
 	check_pyfile_exit_code $dialog_retval
+
 	return 0
 }
 
@@ -701,6 +752,7 @@ show_dialogue_cropping() {
 	#  Nadeshiko-mpv closes this window automatically, when file with a proper
 	#    name (i.e. with a name containing W:H:X:Y) would be found in TMPDIR.
 	"$py_file"  startpage=gtkbox_cropping &
+
 	return 0
 }
 
@@ -708,8 +760,10 @@ show_dialogue_cropping() {
 #  $1..n – variable names, that hold arrays with dialogue options.
 #          Here
 show_dialogue_choose_preset() {
-	declare -g dialog_output
-	local dialog_retval
+	declare -g  dialog_output
+
+	local  dialog_retval
+
 	prepare_dotglade_and_dotpy_for_presets "$@"
 	errexit_off
 	dialog_output=$( "$py_file"  startpage=gtkbox_pick_size)
@@ -717,6 +771,7 @@ show_dialogue_choose_preset() {
 	errexit_on
 	info "Dialog output: “$dialog_output”"
 	check_pyfile_exit_code $dialog_retval
+
 	return 0
 }
 

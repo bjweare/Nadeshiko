@@ -1,17 +1,23 @@
 #  Should be sourced.
 
-#  nadeshiko-mpv_stage04_encoding.sh
-#  Nadeshiko-mpv module where the encode is performed at once or postponed
-#  and stored as a job file for Nadeshiko-do-postponed.
+#  04_encoding.sh
+#  Nadeshiko-mpv module where the encoding backend is called (or the encoding
+#  is postponed and stored as a job file for Nadeshiko-do-postponed).
 #  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko-mpv.sh
 
 
 encode() {
+	local  audio
+	local  subs
+	local  nadeshiko_retval
+	local  command
+	local  postponed_job_file
+	local  str
+	local  first_line_in_postponed_command=t
+
 	check_needed_vars
-	local  audio  subs  nadeshiko_retval  command  postponed_job_file  str  \
-	       first_line_in_postponed_command=t
 
 	if [ -v ffmpeg_ext_audio ]; then
 		audio="audio=$ffmpeg_ext_audio"
@@ -56,8 +62,12 @@ encode() {
 	#    just sourced from the quick_run_preset or from the defconf settings).
 	#
 	nadeshiko_command=(
-		"$MYDIR/nadeshiko.sh"  "${time1[ts]}" "${time2[ts]}" "$path"
-		                       "$audio" "$subs" ${max_size:-}
+		"$MYDIR/nadeshiko.sh"  "${time1[ts]}"
+		                       "${time2[ts]}"
+		                       "$path"
+		                       "$audio"
+		                       "$subs"
+		                       ${max_size:-}
 		                       ${crop:+crop=$crop}
 		                       "${screenshot_directory:-$working_directory}"
 		                       ${fname_pfx:+"fname_pfx=$fname_pfx"}

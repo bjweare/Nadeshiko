@@ -1,14 +1,13 @@
 #  Should be sourced.
 
-#  nadeshiko-encode-libvpx-vp9.sh
-#  Nadeshiko module for encoding with libvpx-vp9.
+#  encode_libvpx-vp9.sh
+#  Nadeshiko encoding module for libvpx-vp9.
 #  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
 #  Modules in Nadeshiko wiki:
 #  https://github.com/deterenkelt/Nadeshiko/wiki/Writing-custom-modules
-
 
 
 log2() {

@@ -1,22 +1,50 @@
 #  Should be sourced.
 
-#  nadeshiko_stage03_fit_bitrate_to_filesize.sh
-#  Nadeshiko module, that finds an appropriate bitrate and resolution
-#  for a given file size.
+#  06_fit_bitrate_to_filesize.sh
+#  Nadeshiko module, that applies a recursive heuristic algorithm to find
+#  an appropriate bitrate and resolution for the video clip, considering
+#  the requested file size.
 #  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
 
- # The part of the code in this file is not organised perfecly, because
-#  the fitting algorithm is still being shaped. There are plans to add new
-#  features and maybe remove some in the future, what calls for reshaping
-#  some parts. The algorithm was already reshaped a couple of times, when
-#  there appeared necessity and the promised stability was clear. Premature
-#  reshaping may lead to wasting time on what may become dead ends in the code
-#  and lead to unnecessarily entangled structure, so keeping it not perfect,
-#  but as small as possible and shaped as well as it is objectively neces-
-#  sary at the moment, is preferable.
+ # This is the most complex part of the entire program. It feels like the code
+#    here could be organised better, however it was already revised three
+#    times and what is below represents the clearest idea on how to maintain
+#    this all small and understandable. These two requirements are crucial,
+#    because there are parts of the code that it calls recursively. You have
+#    to hold all the nuances and execution routes in your head as you go, so
+#    making thing clear enough to hold revisions was already an achievement
+#    in itself.
+#  But don’t worry – the deeper it gets, the more thoroughly are written the
+#    comments. So at least for an understanding of how it works, the code
+#    must be quite clear. Just don’t get an idea that it would be easy to
+#    rewrite this.
+#  The last revise has revealed a limit of flexibility. So far the code fits
+#    the idea of it tightly, but if some feature – that is not known now –
+#    would be needed, it may be necessary to reimplement this module entirely
+#    in a new way. By the “unknown features” are meant post-“it fits!” opti-
+#    misations (like the vbitrate “headpats” using the gaps between profile
+#    max and min, like fitting better audio if space permits for it), for such
+#    optimisations call for a recalculation of something, that was considered
+#    already “stabilised” once the “it fits!” stage is finished.
+#  What a next revise would have to do to offer more flexibility for the code
+#    is to:
+#    - further atomise basic operations on the bitrates, down to helper utils
+#      (though their number would grow, which is bad);
+#    - separate the stages of “it fits!” and “now let’s look, how to optimise
+#      the video clip better”. The latter stage shouldn’t break anything from
+#      the former, and to achieve that, the former stage should be remade so
+#      as to create not the “finished” set of values, but rather a volatile
+#      “intermediate” set. The current code was planned and implemented with
+#      an assumption, that the optimal vbitrate and abitrate would be found in
+#      one go, so the “let’s optimise” stage is kind of hacked up on top of it.
+#      Thus that “intermediate” set of values is what the current code is to-
+#      tally lacking. The “final” set then should be defined only at the end
+#      of the “let’s optimise stage” (which is the second and the last stage,
+#      as we’re charting it now).
+#
 
 
  # Calculates the maximum amount of video bitrate, that fits
@@ -109,8 +137,13 @@ recalc_acodec_size_deviation() {
 
 
 recalc_muxing_overhead() {
-	declare -g muxing_overhead  frame_count  esp_unit
-	local frame_count_border  esp_to_reserve
+	declare -g  muxing_overhead
+	declare -g  frame_count
+	declare -g  esp_unit
+
+	local  frame_count_border
+	local  esp_to_reserve=0
+
 	info "Calculating the muxing overhead:"
 	milinc
 	#  Sic! Iterating indices from low to high
@@ -263,10 +296,6 @@ set_bitres_profile() {
 
 	[ -v forced_vbitrate ] && {
 		to_bits '*vbitrate'
-		return 0
-	}
-	[ -v forced_abitrate ] && {
-		to_bits '*abitrate'
 		return 0
 	}
 
@@ -573,7 +602,9 @@ is_it_sensible_to_use_better_abitrate() {
 #  to each codec.
 #
 do_we_have_enough_space_in_the_file() {
-	declare -g acodec_profile  abitrate
+	declare -g  acodec_profile
+	declare -g  abitrate
+
 	local acodec_profiles_high_to_low
 	local -n source_acodec_profiles=${ffmpeg_acodec}_profiles
 
@@ -792,7 +823,6 @@ fit_bitrate_to_filesize() {
 	echo
 	return 0
 }
-
 
 
 return 0

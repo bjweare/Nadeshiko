@@ -44,7 +44,7 @@ noglob_on
 . "$LIBDIR/time_functions.sh"
 
 noglob_off
-for module in "$MODULESDIR"/nadeshiko_*.sh ; do
+for module in "$MODULESDIR"/nadeshiko/*.sh ; do
 	. "$module" || err "Couldn’t source module $module."
 done
 noglob_on
@@ -95,8 +95,6 @@ show_help() {
 	                      Default presets are: normal=$max_size_normal, small=$max_size_small, tiny=$max_size_tiny.
 	    vb<number>[kMG] – force encoding with this exact video bitrate.
 	                      A suffix may be applied: vb300000, vb1200k, vb2M.
-	      ab<number>[k] – force encoding with this exact audio bitrate.
-	                      Example: ab128000, ab192k, ab88k.
 	       crop=W:H:X:Y – crop video. Cannot be used together with scaling.
 	           <folder> – place encoded file into <folder>.
 	      <config name> – alternate config file to use.
@@ -139,28 +137,17 @@ on_exit() {
 
 
 
-#  Stage 1
-post_read_rcfile
-
-#  Stage 2
 info "Nadeshiko v$version"
+post_read_rcfile
 print_verbosity_level
 parse_args
-#  Checking video first, for set_vars() will run scene complexity test.
-check_basic_util_support
-set_vars
-check_encoder_support  video  \
-                       ${audio:+audio}  \
-                       ${subs:+subs}
-check_misc_util_support  ${time_stat:+time_stat}  \
-                         ${check_for_updates:+check_for_updates}  \
-                         ${ffmpeg_progressbar:+ffmpeg_progressbar}
+run_checks
 [ -v check_for_updates ] && check_for_new_release_on_github
-display_settings
+display_assessed_parameters
 until [ -v size_fits ]; do
-	#  Stage 3
 	fit_bitrate_to_filesize
-	#  Stage 4
+	display_final_encoding_settings
+	set_common_ffmpeg_options
 	encode
 	new_file_size_B=$(stat --printf %s "$new_file_name")
 	(( new_file_size_B <= max_size_B ))  \
@@ -177,5 +164,6 @@ which xclip &>/dev/null && [ -v DISPLAY ] && {
 	info 'Copied path to clipboard.'
 }
 # [ -v pedantic ] && comme_il_faut_check "$new_file_name"  # needs update
+
 
 exit 0

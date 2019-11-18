@@ -1,21 +1,29 @@
 #  Should be sourced.
 
-#  nadeshiko_stage01_preparation.sh
-#  Nadeshiko module containing preparation stage functions.
+#  01_post_read_rcfile.sh
+#  Nadeshiko module to process the variables read from the meta, default
+#  and user’s RC file(s).
 #  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
 
+
 compose_known_res_list() {
-	local i j swap bitres_profile
+	declare -g  known_res_list
+
+	local  bitres_profile
+	local  swap
+	local  i
+	local  j
+
 	for bitres_profile in ${!bitres_profile_*}; do
 		[[ "$bitres_profile" =~ ^bitres_profile_([0-9]+)p$ ]]  \
 			&& known_res_list+=( ${BASH_REMATCH[1]} )
 	done
-	for ((i=0; i<${#known_res_list[@]}-1; i++)); do
-		for ((j=i+1; j<${#known_res_list[@]}; j++)); do
-			[ ${known_res_list[j]} -gt ${known_res_list[i]} ] && {
+	for ((i=0; i<${#known_res_list[*]}-1; i++)); do
+		for ((j=i+1; j<${#known_res_list[*]}; j++)); do
+			(( ${known_res_list[j]} > ${known_res_list[i]} )) && {
 				swap=${known_res_list[i]}
 				known_res_list[i]=${known_res_list[j]}
 				known_res_list[j]=$swap
@@ -27,10 +35,21 @@ compose_known_res_list() {
 
 
 post_read_rcfile() {
-	declare -g  muxing_sets  codec_name_as_formats   \
-	            minimal_bitrate_pct  rc_default_subs  rc_default_audio  \
-	            scale  rc_default_scale  custom_output_framerate_set
-	local  pct_varname  pct_var  vcodec=${ffmpeg_vcodec//-/_}  varname  i
+	declare -g  muxing_sets
+	declare -g  codec_name_as_formats
+	declare -g  minimal_bitrate_pct
+	declare -g  rc_default_subs
+	declare -g  rc_default_audio
+	declare -g  scale
+	declare -g  rc_default_scale
+	declare -g  custom_output_framerate_set
+	declare -g  known_res_list=()
+
+	local  pct_varname
+	local  pct_var
+	local  vcodec=${ffmpeg_vcodec//-/_}
+	local  varname
+	local  i
 
 	#  Setting up the superglobal variables for Bahelite.
 	[ -v new_release_check_interval ]  \
@@ -76,19 +95,6 @@ post_read_rcfile() {
 		done
 	done
 
-	return 0
-}
-
-
-check_for_new_release_on_github() {
-	[[ "$GITHUB_NEW_RELEASE_CHECK_INTERVAL" =~ ^[0-9]{1,4}$ ]]  \
-		|| err "Invalid updates checking interval in the RC file:
-		        “$GITHUB_NEW_RELEASE_CHECK_INTERVAL”."
-	check_for_new_release  deterenkelt  \
-	                       Nadeshiko  \
-	                       $version  \
-	                       "$release_notes_url"  \
-		|| true
 	return 0
 }
 

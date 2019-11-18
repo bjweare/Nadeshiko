@@ -1,14 +1,13 @@
 #  Should be sourced.
 
-#  nadeshiko-encode-libx264.sh
-#  Nadeshiko module for encoding with libx264.
+#  encode_libx264.sh
+#  Nadeshiko encoding module for libx264.
 #  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
 #  Modules in Nadeshiko wiki:
 #  https://github.com/deterenkelt/Nadeshiko/wiki/Writing-custom-modules
-
 
 
 encode-libx264() {
@@ -74,5 +73,6 @@ encode-libx264() {
 	pass 2
 	return 0
 }
+
 
 return 0

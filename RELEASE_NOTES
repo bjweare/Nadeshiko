@@ -1,3 +1,45 @@
+——— v 2.9.18  ————————————————————————————————————————————————————————————————
+                                                          Nadeshiko-mpv 2.4.13
+                                                 Nadeshiko-do-postponed 2.3.8
+
+1. Fixed a bug with calculation of the reserved space, that happened when
+   the video was hitting the file size limit and Nadeshiko increased bitrates
+   with “headpats”. These increases were overlooked in the calculation of the
+   reserved space, which caused Nadeshiko to re-encode the video four times
+   (https://git.io/JesPb) because of the overshooting. With the bug fixed
+   re-encoding times is reduced to 1.
+
+2. Fixed an accidentally found bug, that prevented the encode of really short
+   (just several frames long) videos, that were highly dynamic.
+   (`esp_to_reserve` was not given a default value of 0).
+
+3. Improvement: custom RC files can now be specified by the full path. This
+   makes it possible to use console autocompletion to find the config.
+
+4. Commandline option `abNNN` was removed.
+
+   It existed in the first place because there was no adaptive mechanism
+   to choose best audio that fits (within bounds of audio transparency).
+   Now that this mechanism is in place, the option lost its reason to exist.
+
+   On top of that, the deeper insight into audio encoders has revealed, that
+   not all codecs support CBR mode (e.g. libvorbis), and that a codec may need
+   additional options (libopus). Dealing with a multitude of nuances seemed
+   unreasonable, especially in the light, that there was no expression of
+   need in setting audio bitrate from the command line. Thus the option was
+   removed.
+
+   (Forcing video bitrate with `vbNNN` still works, and it won’t go anywhere
+   in the forseeable future.)
+
+5. Cleaner code in regard to the handling command line arguments thanks
+   to the Bahelite update to 2.21.4.
+
+6. A big code reorganisation and optimisation.
+
+
+
+
 ——— v 2.9.17 —————————————————————————————————————————————————————————————————
 
 1. A small bugfix to invert the check updated in 2.9.16.

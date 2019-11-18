@@ -1,6 +1,6 @@
 #  Should be sourced.
 
-#  nadeshiko-mpv_stage02_choose_crop_settings.sh
+#  02_choose_crop_settings.sh
 #  Nadeshiko-mpv module to run a dialogue window where user may pick crop
 #  coordinates or pick them interactively.
 #  © deterenkelt 2018–2019
@@ -9,9 +9,17 @@
 
 
 choose_crop_settings() {
-	declare -g predictor  crop
-	local  pick  has_croptool_installer  crop_width  crop_height  \
-	       crop_x  crop_y  resp_crop  resp_predictor
+	declare -g  predictor
+	declare -g  crop
+
+	local  pick
+	local  has_croptool_installer
+	local  crop_width
+	local  crop_height
+	local  crop_x
+	local  crop_y
+	local  resp_crop
+	local  resp_predictor
 
 	#  Module function.
 	[ "$(type -t run_crop_tool)" = 'function' ] || return 0

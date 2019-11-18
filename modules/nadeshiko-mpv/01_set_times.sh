@@ -1,9 +1,9 @@
 #  Should be sourced.
 
-#  nadeshiko-mpv_stage01_set_times.sh
-#  Nadeshiko-mpv module that queries the running mpv and gathers current
-#  options from the player, among the other, the timestamp of the position
-#  in the video.
+#  01_set_times.sh
+#  Nadeshiko-mpv module that queries the running mpv window and gathers the
+#  current options from the player. Among the others the timestamp of the
+#  position in the opened video.
 #  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko-mpv.sh

@@ -214,6 +214,7 @@ test_cursor_autohide_false() {
 #
 check_socket() {
 	local i
+
 	#  Avoid recursive processing.
 	for ((i=1; i<${#FUNCNAME[@]}; i++)); do
 		[ "${FUNCNAME[i]}" = check_socket ] && return 0
@@ -221,11 +222,19 @@ check_socket() {
 
 	debug51-info 'Checking mpv socket'
 	milinc
-	#  After the possible early return!
-	declare -gx mpv_socket
-	local sockets_that_work=()  socket_name  socket_path  sockets_occupied=() \
-	      sockets_unused=() bad_sockets=() dialog_socket_list=() \
-	      err_message  resp_mpv_socket
+
+	declare -gx mpv_socket  #  Sic! After the possible early return!
+
+	local  sockets_that_work=()
+	local  socket_name
+	local  socket_path
+	local  sockets_occupied=()
+	local  sockets_unused=()
+	local  bad_sockets=()
+	local  dialog_socket_list=()
+	local  err_message
+	local  resp_mpv_socket
+
 	(( ${#mpv_sockets[@]} == 0 ))  && err 'No sockets defined.'
 
 	 # To avoid get_prop annoying the user with “Choose a socket” 50 times
@@ -349,18 +358,26 @@ check_socket() {
 
 
 check_prop_name() {
-	local propname_to_test="$1" found
+	local  propname_to_test="$1"
+	local  found
+
 	for propname in ${!properties[@]}; do
 		[ "$propname" = "$propname_to_test" ] && found=t && break
 	done
 	[ -v found ] || err "mpv-ipc module doesn’t have this property: “$propname_to_test”."
+
 	return 0
 }
 
 
 send_command() {
-	local command="$1"  command_args  mpv_answer  data  status  \
-	      return_data_via_stdout
+	local  command="$1"
+	local  command_args
+	local  mpv_answer
+	local  data
+	local  status
+	local  return_data_via_stdout
+
 	[ "${FUNCNAME[1]}" = 'get_prop' ] && return_data_via_stdout=t
 	unset data
 	shift
@@ -426,8 +443,12 @@ send_command() {
 
 
 internal_set_prop() {
-	local propname="$1" propval="$2" orig_propname  \
-	      prop_true_test prop_false_test
+	local  propname="$1"
+	local  propval="$2"
+	local  orig_propname
+	local  prop_true_test
+	local  prop_false_test
+
 	read -d '' prop_true_test prop_false_test  \
 		< <( echo -n "${properties[$propname]}"; echo -en '\0' )
 	orig_propname=$propname
@@ -447,12 +468,15 @@ internal_set_prop() {
 		redmsg "$FUNCNAME: Unknown value for $orig_propname: “$propval”."
 		err "MPV-IPC: property value type mismatch."
 	fi
+
 	return 0
 }
 
 
 get_prop() {
-	local propname="$1"  propdata
+	local  propname="$1"
+	local  propdata
+
 	check_prop_name "$propname"
 	 # "get_property" vs "get_property_string"
 	#    The latter gives more predictable and universal results. The downside
@@ -472,6 +496,7 @@ get_prop() {
 		&& propdata=''
 	[ "$propname" = 'volume' ] && propdata=${propdata%.*}
 	internal_set_prop "$propname" "$propdata"
+
 	return 0
 }
 
@@ -486,10 +511,14 @@ get_props() {
 
 
 set_prop() {
-	local propname="$1" propval="$2" mpv_answer status
+	local  propname="$1"
+	local  propval="$2"
+	local  mpv_answer status
+
 	check_prop_name "$propname"
 	send_command 'set_property' "$propname" "$propval"
 	# a Check the answer here.
+
 	return 0
 }
 
@@ -499,7 +528,10 @@ set_prop() {
 #  properties, their values and if_true status to console.
 #
 retrieve_properties() {
-	local propname propval propval_if_true orig_propname
+	local  propname
+	local  propval
+	local  propval_if_true orig_propname
+
 	for propname in ${!properties[@]}; do
 		get_prop "$propname"
 		orig_propname=$propname
@@ -509,6 +541,7 @@ retrieve_properties() {
 		declare -n propval_if_true=${propname}_true
 		echo -e "$orig_propname\t$propval\t${propval_if_true:-f}"
 	done | column -t -s $'\t'
+
 	return 0
 }
 

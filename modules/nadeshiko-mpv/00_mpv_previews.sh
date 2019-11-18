@@ -1,8 +1,8 @@
 #  Should be sourced.
 
-#  nadeshiko-mpv_stage00_mpv_previews.sh
+#  00_mpv_previews.sh
 #  Nadeshiko-mpv module for running a separate mpv with a preview of the clip
-#  to be encoded and the encoded file.
+#  to be encoded and running playback for the encoded file.
 #  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko-mpv.sh

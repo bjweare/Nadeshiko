@@ -1,8 +1,8 @@
 #  Should be sourced.
 
-#  nadeshiko-mpv_croptool_mpv-crop-script.sh
-#  Implementation of a cropping module for Nadeshiko-mpv
-#  using mpv_crop_script.lua by TheAMM. Hacks over hacks.
+#  croptool_mpv-crop-script.sh
+#  Implementation of a cropping module for Nadeshiko-mpv, that uses
+#  mpv_crop_script.lua by TheAMM.
 #  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
@@ -26,19 +26,24 @@ is_crop_tool_available() {
 
 prepare_crop_tool() {
 	declare -g croptool_path
+
 	local new_croptool_path="$TMPDIR/${croptool_path##*/}"
+
 	cp -v  "$croptool_path" "$new_croptool_path"
 	croptool_path="$new_croptool_path"
-	cat <<-EOF >"$TMPDIR/if_croptool_fails_code.lua"
+
+	cat <<-EOF  >"$TMPDIR/if_croptool_fails_code.lua"
 	file = io.open("$TMPDIR/croptool_failed", "w")
 	file:write("mpv_crop_script couldn’t create temporary screenshot")
 	file:close()
 	EOF
-	cat <<-EOF >"$TMPDIR/if_croptool_cancels_code.lua"
+
+	cat <<-EOF  >"$TMPDIR/if_croptool_cancels_code.lua"
 	file = io.open("$TMPDIR/croptool_cancelled", "w")
 	file:write("mpv_crop_script cancelled cropping (ESC pressed)")
 	file:close()
 	EOF
+
 	sed -ri " # Change script name
 	         #  mpv_crop_script → mpv_crop_script_for_nadeshiko
 	         #
@@ -133,6 +138,7 @@ prepare_crop_tool() {
 	         /mp\.osd_message.*Crop canceled/d
 	         " \
 		"$croptool_path"
+
 	return 0
 }
 
@@ -224,6 +230,7 @@ run_crop_tool() {
 	set_prop 'fullscreen' 'no'
 	set_prop 'cursor-autohide' "$cursor_autohide"
 	set_prop 'cursor-autohide-fs-only' "$cursor_autohide_fs_only"
+
 	return 0
 }
 

@@ -18,7 +18,10 @@
 #  $3 – key name
 #
 get_ffmpeg_attribute() {
-	local  video="$1"  stype="$2"  key="$3"
+	local  video="$1"
+	local  stype="$2"
+	local  key="$3"
+
 	#  If the stream number isn’t set, assume the first one.
 	case "${stype:0:1}" in
 		v) stype_full='video';;
@@ -41,6 +44,7 @@ get_ffmpeg_attribute() {
 		| sed -n '$p'  \
 		|| err "Cannot retrieve “$stype_full” property “$key”: ffmpeg error."
 	set +o pipefail
+
 	return 0
 }
 
@@ -151,12 +155,15 @@ get_ffmpeg_attribute() {
 #    value of [track_specifier].
 #
 gather_info() {
-	local mode="$1" varname="$2"
+	local mode="$1"       # Sic! Before the declaration of globals!
+	local varname="$2"    #
+
 	declare -gA "${varname}"    # File per se properties
 	declare -gA "${varname}_c"  # Container track properties
 	declare -gA "${varname}_v"  # Video ——»——
 	declare -gA "${varname}_a"  # Audio ——»——
 	declare -gA "${varname}_s"  # Subtitles ——»——
+
 	local -n source="${varname}"
 	local -n source_c="${varname}_c"
 	local -n source_v="${varname}_v"

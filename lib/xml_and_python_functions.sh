@@ -1,15 +1,14 @@
-#  Should be sourced
+#  Should be sourced.
 
 #  xml_and_python_functions.sh
 #  Helper functions to parse and generate code in Glade XML and Python script
 #  accompanying it.
-#  © deterenkelt 2018
+#  © deterenkelt 2018–2019
 #
 #  For licence see nadeshiko.sh
 
 
- # In the code below,
-#  $xml should point to xmlstarlet binary.
+#  In the code below, $xml should point to xmlstarlet binary.
 
 
  # Cuts a part of XML from the value of one variable and assignes to another.
@@ -18,10 +17,14 @@
 #  $3 – name of the variable, to which the chunk of XML should be assigned.
 #
 put_xml_chunk_in_var() {
-	local source_varname="$1"  xpath="$2"  dest_varname="$3"
-	declare -n source_varval="$source_varname"
-	declare -n dest_varval="$dest_varname"
+	local    source_varname="$1"
+	local    xpath="$2"
+	local    dest_varname="$3"
+	local -n source_varval="$source_varname"
+	local -n dest_varval="$dest_varname"
+
 	dest_varval=$(	$xml sel -t -c "$xpath"  <<<"$source_varval" )
+
 	return 0
 }
 
@@ -35,10 +38,15 @@ put_xml_chunk_in_var() {
 #  $3 – value to set.
 #
 edit_attr_in_xml() {
-	local varname="$1"  xpath="$2"  value="$3"  xmlbuf
-	declare -n varval="$varname"
+	local    varname="$1"
+	local    xpath="$2"
+	local    value="$3"
+	local    xmlbuf
+	local -n varval="$varname"
+
 	xmlbuf="$varval"
 	varval=$( $xml ed -O  -u "$xpath"  -v "$value"  <<<"$xmlbuf" )
+
 	return 0
 }
 
@@ -48,10 +56,14 @@ edit_attr_in_xml() {
 #  $2 – xpath to delete.
 #
 delete_entity_in_xml() {
-	local varname="$1"  xpath="$2"  xmlbuf
-	declare -n varval="$varname"
+	local    varname="$1"
+	local    xpath="$2"
+	local    xmlbuf
+	local -n varval="$varname"
+
 	xmlbuf="$varval"
 	varval=$( $xml ed -O  -d "$xpath"  <<<"$xmlbuf" )
+
 	return 0
 }
 
@@ -62,8 +74,12 @@ delete_entity_in_xml() {
 #  $3 – XML to insert.
 #
 insert_one_xml_into_another() {
-	local varname="$1"  xpath="$2" xml_to_insert="$3"  xmlbuf
-	declare -n varval="$varname"
+	local    varname="$1"
+	local    xpath="$2"
+	local    xml_to_insert="$3"
+	local    xmlbuf
+	local -n varval="$varname"
+
 	#  Put a mark in the XML, that sed will replace with new XML.
 	xmlbuf="$varval"
 	varval=$( $xml ed -O  -s "$xpath"  -t elem  -n "puthere"  <<<"$xmlbuf" )
@@ -77,6 +93,7 @@ insert_one_xml_into_another() {
 		                              }"  \
 		       <<<"$xmlbuf"
 	)
+
 	return 0
 }
 
@@ -88,11 +105,17 @@ insert_one_xml_into_another() {
 #       A placeholder pattern is any text between “### PLACEHOLDER” and “###”.
 #
 insert_blocks_in_py_code() {
-	local entire_code_varname="$1"  ph_and_ins_code_varname="$2"  \
-	      entire_code  entire_code_buf  ph_and_ins_code  key  \
-	      ph_text  pycode_to_insert
-	declare -n entire_code="$entire_code_varname"
-	declare -n ph_and_ins_code="$ph_and_ins_code_varname"
+	local    entire_code_varname="$1"
+	local    ph_and_ins_code_varname="$2"
+	local    entire_code
+	local    entire_code_buf
+	local    ph_and_ins_code
+	local    key
+	local    ph_text
+	local    pycode_to_insert
+	local -n entire_code="$entire_code_varname"
+	local -n ph_and_ins_code="$ph_and_ins_code_varname"
+
 	for key in "${!ph_and_ins_code[@]}"; do
 		ph_text="$key"
 		pycode_to_insert="${ph_and_ins_code[$key]}"
@@ -107,6 +130,7 @@ insert_blocks_in_py_code() {
 				<<<"$entire_code_buf"
 		)"
 	done
+
 	return 0
 }
 
@@ -123,8 +147,13 @@ insert_blocks_in_py_code() {
 #  $4 – tag value.
 #
 add_obj_property_to_xml() {
-	local varname="$1"  xpath="$2"  attr="$3"  value="$4"  xmlbuf
-	declare -n varval="$varname"
+	local    varname="$1"
+	local    xpath="$2"
+	local    attr="$3"
+	local    value="$4"
+	local    xmlbuf
+	local -n varval="$varname"
+
 	#  First, delete property with specified attribute, if it exists.
 	xmlbuf="$varval"
 	varval=$( $xml ed -O  -d "$xpath/property[@name='$attr']"  <<<"$xmlbuf" )
@@ -136,6 +165,7 @@ add_obj_property_to_xml() {
 			             -t attr  -n 'name'  -v "$attr"  \
 			| $xml ed -O  -u "$xpath/property[@name='$attr']"  -v "$value"
 	)
+
 	return 0
 }
 
@@ -145,6 +175,7 @@ add_obj_property_to_xml() {
 #
 write_dotglade_and_dotpy_files() {
 	local first_line
+
 	#  Check, that entire_xml has proper XML header
 	read first_line <<<"$entire_xml"
 	[[ "$first_line" =~ ^\<\?xml[[:space:]]version ]] || {
@@ -155,6 +186,7 @@ write_dotglade_and_dotpy_files() {
 	sed -ri "s~(\s*builder\.add_from_file\(').*('\)\s*)~\1$glade_file\2~"  \
 	        "$py_file"
 	#  Update icon path too. (Add MY_RES_PATH? MY_ICON_PATH?)
+
 	return 0
 }
 

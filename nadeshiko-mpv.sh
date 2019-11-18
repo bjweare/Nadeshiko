@@ -36,7 +36,7 @@ esac
 . "$LIBDIR/xml_and_python_functions.sh"
 
 noglob_off
-for module in "$MODULESDIR"/nadeshiko-mpv_*.sh ; do
+for module in "$MODULESDIR"/nadeshiko-mpv/*.sh ; do
 	. "$module" || err "Couldn’t source module $module."
 done
 noglob_on
@@ -53,9 +53,9 @@ single_process_check
 
 
 on_error() {
-	local func  \
-	      pyfile="$TMPDIR/nadeshiko-mpv_dialogues_gtk.py"  \
-	      gladefile="$TMPDIR/nadeshiko-mpv_dialogues_gtk.glade"
+	local func
+	local pyfile="$TMPDIR/dialogues_gtk.py"
+	local gladefile="$TMPDIR/dialogues_gtk.glade"
 	#  Wipe the data directory, so that after a stop caused by an error
 	#  we wouldn’t read the old data, but tried to create new ones.
 	#  The data per se probably won’t break the script, but those data
@@ -207,6 +207,7 @@ parse_args() {
 
 
 
+info "Nadeshiko-mpv v$version"
 [ -d "$datadir" ] || mkdir "$datadir"
 cd "$datadir"
 
@@ -231,7 +232,6 @@ REQUIRED_UTILS+=(
 check_required_utils
 declare -r xml='xmlstarlet'  # for lib/xml_and_python_functions.sh
 parse_args
-info "Nadeshiko-mpv v$version"
 print_verbosity_level
 
  # Test, that all the entries from our properties array
