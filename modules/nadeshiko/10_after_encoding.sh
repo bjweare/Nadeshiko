@@ -88,8 +88,8 @@ on_size_overshoot() {
 		#  re-encode, that may be infuriating, when all the gigawatts eaten
 		#  would happen to be wasted to no avail.
 		#
-		redmsg "${__bri}${__y}It’s probably impossible to encode this clip to $max_size.
-		        If you think that it could be fixed, report a bug.${__s}"
+		redmsg "It’s probably impossible to encode this clip to $max_size.
+		        If you think that it could be fixed, report a bug."
 		err "${__bri}${__r}Overshot size on more than 20%.${__s}"
 	fi
 

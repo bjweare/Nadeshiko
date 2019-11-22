@@ -16,7 +16,7 @@
 
 set -feEuT
 shopt -s extglob
-BAHELITE_SCRIPT_BUNCH_NAME='nadeshiko'
+MY_BUNCH_NAME='nadeshiko'
 BAHELITE_LOAD_MODULES=(
 	libdir
 	modulesdir
@@ -52,7 +52,7 @@ noglob_on
 place_examplerc 'nadeshiko.10_main.rc.sh'
 declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
-declare -r version='2.9.18'
+declare -r version='2.9.19'
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 
  # Minimal libav libraries versions

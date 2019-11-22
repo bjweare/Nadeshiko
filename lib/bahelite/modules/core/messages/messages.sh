@@ -22,7 +22,7 @@ bahelite_load_module 'message_indentation' || return $?
 }
 bahelite_load_module 'error_codes' || return $?
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MESSAGES_VER='2.9.3'
+declare -grx BAHELITE_MODULE_MESSAGES_VER='2.9.4'
 
 
 (( $# != 0 )) && {
@@ -406,7 +406,7 @@ denied() {
 	declare -A __msg_properties=(
 		[role]='info'
 		[message_array]='INFO_MESSAGES'
-		[colour]='ERR_MESSAGE_COLOUR'
+		[colour]='INFO_MESSAGE_COLOUR'
 		[whole_message_in_colour]='no'
 		[asterisk]="× ${MSG_ASTERISK_WITH_MSGTYPE:+DENIED: }"
 		[desktop_message]='no'
@@ -460,7 +460,7 @@ errw() {
 		[message_array]='ERROR_MESSAGES'
 		[colour]='ERR_MESSAGE_COLOUR'
 		[whole_message_in_colour]='yes'
-		[asterisk]="  ${MSG_ASTERISK_WITH_MSGTYPE:+ERROR: }"
+		[asterisk]="* ${MSG_ASTERISK_WITH_MSGTYPE:+ERROR: }"
 		[desktop_message]='yes'
 		[desktop_message_type]='err'
 		[stay_on_line]='no'
@@ -770,19 +770,28 @@ __msg() {
 
 	role=${__msg_properties[role]}
 	declare -n message_array=${__msg_properties[message_array]}
+
 	[ -v MSG_DISABLE_COLOURS ]  \
 		|| declare -n colour=${__msg_properties[colour]}
+
 	[ "${__msg_properties[whole_message_in_colour]}" = 'yes' ] \
 		&& whole_message_in_colour=${__msg_properties[whole_message_in_colour]}
+
 	asterisk=${__msg_properties[asterisk]}
+
 	[ "${__msg_properties[desktop_message]}" = 'yes' ]  \
 		&& desktop_message=${__msg_properties[desktop_message]}
+
 	desktop_message_type=${__msg_properties[desktop_message_type]}
+
 	[ "${__msg_properties[stay_on_line]}" = 'yes' ]  \
 		&& stay_on_line=${__msg_properties[stay_on_line]}
+
 	output=${__msg_properties[output]}
+
 	[ "${__msg_properties[internal]}" = 'yes' ]  \
 		&& internal=${__msg_properties[internal]}
+
 	[[ "${__msg_properties[exit_code]}" =~ ^[0-9]{1,3}$ ]]  \
 		&& exit_code=${__msg_properties[exit_code]}
 
@@ -894,7 +903,7 @@ __msg() {
 	_message+="${__s}"
 	_message+="${colour:-}"
 	_message+="$asterisk"
-	_message+="${whole_message_in_colour:-${__stop:-}}"
+	[ -v whole_message_in_colour ]  || _message+="${__stop:-}"
 	_message+="$message"
 	_message+="${whole_message_in_colour:+${__stop:-}}"
 	#  See the description to MSG_FOLD_MESSAGES.
@@ -923,6 +932,7 @@ __msg() {
 
 		stderr)	if (( BASH_SUBSHELL == 0 )); then
 					echo ${stay_on_line:+-n} "$message" >&2
+
 				else
 					#  If this is the subshell, use the parent shell’s
 					#    file descriptors to send messages, because they

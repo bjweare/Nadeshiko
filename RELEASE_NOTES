@@ -1,3 +1,13 @@
+——— v 2.9.19  ————————————————————————————————————————————————————————————————
+
+1. Solved a small regression in the evaluating output `frame_count`, due to
+   which ffmpeg progressbar sometimes went crazy in v2.9.18.
+
+2. Some messages were patched in the underlying library.
+
+
+
+
 ——— v 2.9.18  ————————————————————————————————————————————————————————————————
                                                           Nadeshiko-mpv 2.4.13
                                                  Nadeshiko-do-postponed 2.3.8
@@ -5,13 +15,13 @@
 1. Fixed a bug with calculation of the reserved space, that happened when
    the video was hitting the file size limit and Nadeshiko increased bitrates
    with “headpats”. These increases were overlooked in the calculation of the
-   reserved space, which caused Nadeshiko to re-encode the video four times
-   (https://git.io/JesPb) because of the overshooting. With the bug fixed
-   re-encoding times is reduced to 1.
+   reserved space, which once caused Nadeshiko to re-encode the video four
+   times (https://git.io/JesPb) because of the overshooting. With the bug
+   fixed re-encoding times are reduced to 1.
 
 2. Fixed an accidentally found bug, that prevented the encode of really short
    (just several frames long) videos, that were highly dynamic.
-   (`esp_to_reserve` was not given a default value of 0).
+   (`esp_to_reserve` was not given the default value of 0).
 
 3. Improvement: custom RC files can now be specified by the full path. This
    makes it possible to use console autocompletion to find the config.

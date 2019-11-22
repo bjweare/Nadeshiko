@@ -143,7 +143,7 @@ check_core_dependencies
 
                         #  Global variables  #
 
-BAHELITE_VERSION="3.0"
+BAHELITE_VERSION="3.0.1"
 #  $0 == -bash if the script is sourced.
 [ -f "$0" ] && {
 	MYNAME=${0##*/}

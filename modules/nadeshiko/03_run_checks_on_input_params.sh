@@ -25,7 +25,7 @@ check_basic_util_support() {
 	declare -g  libavcodec_ver
 	declare -g  libavformat_ver
 
-	local  ffmpeg="$ffmpeg -hide_banner"
+	local ffmpeg="$ffmpeg -hide_banner"
 
 	REQUIRED_UTILS+=(
 		#  For encoding. 3.4.2+ recommended.
@@ -222,12 +222,14 @@ check_times() {
 
 
 calc_frame_count() {
+	declare -g  frame_count
 	local  output_framerate
 
-	#  Frame count is used as primary indicator of the expected muxing overhead.
+	#  Frame count is used as the primary indicator of the expected
+	#  muxing overhead.
 	output_framerate=${custom_output_framerate:-${src_v[frame_rate]}}
-	frame_count=$( echo "scale=3;  fc =    ${duration[total_s_ms]}
-	                                     * $output_framerate;
+	frame_count=$( echo "scale=3;  fc =    ${duration[total_s_ms]}  \
+	                                     * $output_framerate;       \
 	                     scale=0;  fc/1"  \
 	               | bc
 	             )
@@ -568,8 +570,11 @@ check_audio_encoder_support() {
 
 
 check_subtitle_filter_support() {
-	local encoder_info  subtitle_filter  helpmsg  font_rendering_problems  \
-	      quit_with_error
+	local  encoder_info
+	local  subtitle_filter
+	local  helpmsg
+	local  font_rendering_problems
+	local  quit_with_error
 	#
 	#  ASS filter:
 	#    - OpenType font features can be enabled only with the “ass”
@@ -657,7 +662,9 @@ check_subtitle_filter_support() {
 
 
 check_encoder_support() {
-	local  missing_components  arg
+	local  missing_components
+	local  arg
+
 	info 'Verifying, that FFmpeg supports the required V/A/S codecs…'
 	milinc
 	for arg in "$@"; do
@@ -675,6 +682,7 @@ check_encoder_support() {
 	done
 	[ -v missing_components ]  \
 		&& err "FFmpeg doesn’t support required encoders or filters."
+
 	mildec
 	return 0
 }

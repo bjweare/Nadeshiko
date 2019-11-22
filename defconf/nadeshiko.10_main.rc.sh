@@ -124,7 +124,7 @@ ffmpeg='ffmpeg'
 #
  # Input file options for encoding.
 #  Extend this array with strings, one option or key per string.
-#  Example: ffmpeg_input-options=(
+#  Example: ffmpeg_input_options=(
 #               -some_key  argument
 #               -some_other_key "argument with spaces"
 #           )

@@ -18,7 +18,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_POSTLOAD_JOBS_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_POSTLOAD_JOBS_VER='1.0'
+declare -grx BAHELITE_MODULE_POSTLOAD_JOBS_VER='1.0.1'
 
 
 #  BAHELITE_POSTLOAD_JOBS is defined in the “load_modules” module, as it has
@@ -230,20 +230,22 @@ bahelite_run_postload_jobs() {
 		fi
 	}
 
-	[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
-		info "Resolving dependencies of POSTLOAD JOBS list."
-		milinc
+	(( ${#jobs[*]} > 0 )) && {
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ] && {
+			info "Resolving dependencies of POSTLOAD JOBS list."
+			milinc
+		}
+
+		local job
+
+		for job in "${jobs[@]}"; do
+			#  Start resolving deps for each job with an empty chain.
+			execution_chain=()
+			__resovle_deps_and_run "$job"
+		done
+
+		[ -v BAHELITE_MODULES_ARE_VERBOSE ] && mildec
 	}
-
-	local job
-
-	for job in "${jobs[@]}"; do
-		#  Start resolving deps for each job with an empty chain.
-		execution_chain=()
-		__resovle_deps_and_run "$job"
-	done
-
-	[ -v BAHELITE_MODULES_ARE_VERBOSE ] && mildec
 
 	return 0
 }
