@@ -26,18 +26,17 @@
 #    for example, Nadeshiko will make a clean one, but in a lower resolution.
 #  For each resolution, desired and minimal video bitrates are calculated.
 #    Desired is the upper border, which will be tried first, then attempts
-#    will go down to the lower border, the minimal value. Steps are in 100k.
-#    If the maximum fitting bitrate wasn’t in the range of the resolution,
-#    the next will be tried.
+#    will go down to the lower border, the minimal value. If the maximum fit-
+#    ting bitrate wasn’t in the range of the resolution, the next will be
+#    tried.
 #
 #
  # The lower border when seeking for the TARGET video bitrate.
 #  Calculated as a percentage of the desired bitrate. Highly depends
 #    on CPU time, that encoder spends. If you speed up the encoding
-#    by putting laxed values in libx264_preset or libvpx_pass*_cpu_used,
-#    you should rise the percentage here.
+#    by putting laxed values in libvpx_pass*_cpu_used, you should raise
+#    the percentage here.
 #  Don’t confuse with libvpx_minrate and libvpx_maxrate.
-#  Default value: 60%
 #
 libvpx_vp9_minimal_bitrate_pct='60%'
 
@@ -95,7 +94,6 @@ bitres_profile_2160p+=(
 #    mentions in the “Supported pixel formats”.
 #  Recommended value: yuv420p or yuv444p (VP9-capable browsers usually
 #    have no troubles playing 4:4:4 chroma).
-#  Default value: 'yuv420p'
 #
 libvpx_vp9_pix_fmt='yuv420p'
 
@@ -137,7 +135,7 @@ libvpx_vp9_threads=8
 
  # When enabled, Nadeshiko calculates the values for tile-columns and threads
 #  adaptively to the video resolution as the docs on Google Devs recommend:
-#  tile-columns = log2(target video width / tile-column minimum width)
+#  tile-columns = log2(target video width ÷ tile-column minimum width)
 #  threads = 2^tile-columns × 2
 #
 libvpx_vp9_adaptive_tile_columns=yes
@@ -155,34 +153,41 @@ libvpx_vp9_frame_parallel=0
 
 
  # Encode speed / quality profiles
+#
 #  --deadline ffmpeg option specifies a profile to libvpx. Profiles are
-#    “best” – alike to libx264 “placebo” preset, although this one is
+#     “best” – alike to libx264 “placebo” preset, although this one is
 #        not as pointless. FFmpeg wiki, however, warns against that
 #        this parameter is misnamed and can produce result worse than “good”.
-#    “good” – around “slow”, “slower” and “veryslow”, the optimal range.
-#    “realtime” – fast encoding for streaming, poor quality as always.
+#     “good” – around “slow”, “slower” and “veryslow”, the optimal range.
+#     “realtime” – fast encoding for streaming, poor quality as always.
 #        “Setting --good and --cpu-used=0 will give quality that is usually
-#         very close to and even sometimes better than that obtained with
-#         --best, but the encoder will typically run about twice as fast.”
-#  --cpu-used is tweaking the profiles above. 0, 1 and 2 give best results
-#          with “best” and “good” profiles. “Values greater than 0 will in-
-#          crease encoder speed at the expense of quality. Changes in this
-#          value influences, among others, the encoder’s selection of motion
-#          estimation methods.”
-#        This is of CRITICAL importance to get better quality. (Though still
-#          in order for libvpx to use CPU, corresponding quality constraints
-#          must be set first.)
-#        −8…8 are the values for VP9 (−16…16 was allowed for VP8).
-#          “…settings 0–4 apply for… good and best, with 0 being the highest
-#          quality and 4 being the lowest. Realtime valid values are 5–8;
-#          lower numbers mean higher quality.”
-#        Using cpu_used=0 for the first pass didn’t produce any visible
-#          differences from when video is encoded with cpu_used=4.
+#        very close to and even sometimes better than that obtained with
+#        --best, but the encoder will typically run about twice as fast.”
+#
+#  --cpu-used tweaks the profiles above. 0, 1 and 2 give best results
+#        with “best” and “good” profiles. “Values greater than 0 will in-
+#        crease encoder speed at the expense of quality. Changes in this
+#        value influences, among others, the encoder’s selection of motion
+#        estimation methods.”
+#     This is of CRITICAL importance to get better quality. (Though still
+#        in order for libvpx to use CPU, corresponding quality constraints
+#        must be set first.)
+#     −8…8 are the values for VP9 (−16…16 was allowed for VP8).
+#        “…settings 0–4 apply for <…> good and best, with 0 being the highest
+#        quality and 4 being the lowest. Realtime valid values are 5–8;
+#        lower numbers mean higher quality.”
+#     Using cpu_used=0 for the first pass didn’t produce any visible
+#        differences from when video is encoded with cpu_used=4.
+#
+#  Changing values here will lower the codec efficiency (details/MiB ratio),
+#    so the value in  libvpx_vp9_minimal_bitrate_pct  (see above) will have
+#    to be increased.
 #
 libvpx_vp9_pass1_deadline=good
 libvpx_vp9_pass1_cpu_used=4
 libvpx_vp9_pass2_deadline=good
 libvpx_vp9_pass2_cpu_used=0
+
 
 
  # Frame prefetch for the buffer
@@ -202,10 +207,13 @@ libvpx_vp9_pass2_cpu_used=0
 #  Old devices – 2015/16 and before – have issue playing VP9-encoded videos,
 #    if the number of reference frames used was greater than 1.
 #
-#               0 – disabled.
-#  libvpx-1.7:  1 – enabled.
-#  libvpx-1.8:  1–6 – enabled with a specific number of ref frames(?)
-#                     ^ helps to get rid of tearing on low-bitrate videos.
+#  Codec default
+#    libvpx-1.7:   0 – disabled.
+#                  1 – enabled.
+#
+#    libvpx-1.8:   0 – disabled.
+#                  1–6 – higher values help avoid artifacts in dynamic scenes
+#                        on low-bitrate videos.
 #
 libvpx_vp9_auto_alt_ref=6
 
@@ -216,14 +224,14 @@ libvpx_vp9_auto_alt_ref=6
 #    order to use less reference frames for short videos.
 #  The value is the duration of video, in seconds, below which auto-alt-ref=1
 #    will be used instead of auto-alt-ref=6.
-#  Default value: 30
 #
 libvpx_vp9_allow_autoaltref6_only_for_videos_longer_than_sec=30
 
 
  # Upper limit on the number of frames into the future,
 #  that the encoder can look for --auto-alt-ref.
-#  0–25. 25 is the default. 16 is recommended by webmproject.org (2016).
+#  Values are in range 0–25. 25 is the codec default. 16 is recommended
+#  by webmproject.org (2016).
 #
 libvpx_vp9_lag_in_frames=25
 
@@ -248,22 +256,24 @@ libvpx_vp9_kf_max_dist=9999
 libvpx_vp9_minsection_pct=50
 libvpx_vp9_maxsection_pct=145
 
+
  # Datarate overshoot (maximum) target (%)
 #  How much deviation in size from the target bitrate is allowed.
-#  −1…1000, default is −1.
+#  −1…1000, codec default is −1.
 #
 libvpx_vp9_overshoot_pct=0
 
 
  # Datarate undershoot (minimum) target (%)
 #  How much deviation in size from the target bitrate is allowed.
-#  −1…100, default is −1.
+#  −1…100, codec default is −1.
 #
 libvpx_vp9_undershoot_pct=0
 
 
  # CBR/VBR bias (0=CBR, 100=VBR)
-#  Default is unknown. Nadeshiko doesn’t use it by default (but may apply).
+#  Codec default is unknown. Nadeshiko doesn’t use it by default
+#    (but may apply).
 #
 #libvpx_vp9_bias_pct=0
 
@@ -308,7 +318,6 @@ libvpx_vp9_aq_mode=0
 #  “0” – default type, any video
 #  “1” – screen (capture of desktop?)
 #  “2” – film (to preserve film grain?), helps to avoid excessive blurriness.
-#  Default value: 2
 #
 libvpx_vp9_tune_content=2
 
@@ -338,14 +347,13 @@ libvpx_vp9_tune_content=2
 #  vp9-bitstream-specification-v0.6-20160331-draft.pdf, section 5.19.
 #
  # Nadeshiko doesn’t use this option: FFmpeg chooses an appropriate profile
-#  automatically based on the $ffmpeg_pix_fmt option in the user’s config
-#  or in nadeshiko.10_main.rc.sh).
+#  automatically based on the  ffmpeg_pix_fmt  option).
 #
 #libvpx_vp9_profile
 
 
  # Determines maximum resolution, bitrate, ref frames etc.
-#  For 1080p should be minimum 4.0
+#  For 1080p the minimal value is 4.0
 #  https://www.webmproject.org/vp9/levels/
 #
 libvpx_vp9_level=4.1
@@ -353,8 +361,8 @@ libvpx_vp9_level=4.1
 
  # An optimisation to pass synthetic tests better.
 #  SSIM is considered closer to the human eye perception.
-#  “psnr”
-#  “ssim” (isn’t supported for VP9 in libvpx-1.8.0)
+#  Values are: “psnr” or  “ssim”
+#  SSIM is still not supported in libvpx-1.8.0.
 #  > Failed to set VP8E_SET_TUNING codec control: Invalid parameter
 #  > Option --tune=ssim is not currently supported.
 #
@@ -363,15 +371,16 @@ libvpx_vp9_level=4.1
 
  # Row based multi-threading.
 #  0 = off, 1 = on.
-#  -> non-deterministic: two encodes will not be the same.
-#  -> “rows” refers to the rows of macroblocks within a single tile-column.
-#     It doesn’t refer to -tile-rows, VP9 encoder is primarily column-based.
-#  -> “Allows use of up to 2x thread as tile columns.” ― 2017 docs
+#  Non-deterministic! two encodes will not be the same.
+#  “Rows” refer to the rows of macroblocks within a single tile-column.
+#     It shouldn’t be confused with -tile-rows. Yes, VP9 encoder is primarily
+#     column-based.
+#  “Allows use of up to 2× thread as tile columns.” ― 2017 docs
 #  “Currently, the improved MT encoder works in 1-pass/2-pass good quality
-#   mode encoding at speed 0, 1, 2, 3 and 4.”
+#     mode encoding at speed 0, 1, 2, 3 and 4.”
 #  ― https://groups.google.com/a/webmproject.org/forum/#!topic/codec-devel/oiHjgEdii2U
-#  Enabling improves encoding speed ≈1/6…2 times, and produces video
-#  with a better perceptible quality with an equal SSIM score up to thou-
+#  Enabling row-mt improves encoding speed from 1/6 up to 2 times, and produces
+#  video with a better perceptible quality and an equal SSIM score up to thou-
 #  sands. See “Tests. VP9: row-mt on and off” in the wiki for more details.
 #
 libvpx_vp9_row_mt=1

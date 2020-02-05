@@ -178,6 +178,24 @@ assemble_vf_string() {
 					overlay_subs_h=$( get_ffmpeg_attribute "${src[path]}"  \
 					                                       "s:${src_s[track_id]}"  \
 					                                       height  )
+
+					 # HDMV_PGS_SUBTITLE hack
+					#  In some bluray (rips) subtitle stream width and height
+					#    are set to “N/A”.
+					#  Nadeshiko assumes, that if the subtitle stream resolu-
+					#    tion wouldn’t match the resolution of the video stream,
+					#    then these metadata must be present. (Otherwise how
+					#    would it play?)
+					#
+					[ "$overlay_subs_w" = 'N/A' ]  \
+						&& overlay_subs_w=${src_v[width]}
+					[ "$overlay_subs_h" = 'N/A' ]  \
+						&& overlay_subs_h=${src_v[height]}
+
+
+					 # Overlay subtitle correction is implemented for DVD subs
+					#  though it may be useful for HDMV PGS too.
+					#
 					(( overlay_subs_w != src_v[width] )) && {
 						#  Need to center by X
 						(( overlay_subs_w > src_v[width] ))  \
@@ -190,6 +208,7 @@ assemble_vf_string() {
 							&& ycorr="-(overlay_h-main_h)/2"  \
 							|| ycorr="(main_h-overlay_h)/2"
 					}
+
 					#  Breaks syntax highlight, if put inside as is.
 					local tr_id=${src_s[track_id]}
 					filter_list+="[0:v][0:s:$tr_id]overlay=$xcorr:$ycorr"
@@ -216,6 +235,18 @@ assemble_vf_string() {
 						#  on a silver plate to ffmpeg as a separate file.
 						#  REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE—
 						[ -v src_s[track_id]  ]  && extract_subs
+						#  Issue #21 on github.
+						#  If the subtitles are in ASS/SSA format and have
+						#  fonts embedded as text, ffmpeg was able to render them
+						#  with “subtitles” filter, but now it does not.
+						# if	[ "$subtitle_filter" = 'ass' ]  \
+						# 	&& grep -Ei '^\s*\[Fonts\]\s*$' "${src_s[external_file]}"
+						# then
+						# 	warn 'Selected ASS/SSA subtitles have embedded fonts, so the “ass” filter
+						# 	      cannot be used. The “subtitles” filter has to be used to render custom
+						# 	      fonts, but it doesn’t have full support of fontconfig features.'
+						# 	subtitle_filter='subtitles'
+						# fi
 					fi
 					filter_list+="$subtitle_filter="
 

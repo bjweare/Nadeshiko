@@ -43,7 +43,7 @@ noglob_on
 
 place_examplerc 'nadeshiko-mpv.10_main.rc.sh'
 
-declare -r version="2.4.13"
+declare -r version="2.4.14"
 
 declare -r datadir="$CACHEDIR/nadeshiko-mpv_data"
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"

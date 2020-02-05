@@ -27,7 +27,7 @@ esac
 
 place_examplerc 'nadeshiko-do-postponed.10_main.rc.sh'
 
-declare -r version="2.3.8"
+declare -r version="2.3.9"
 
 declare -r postponed_commands_dir="$CACHEDIR/postponed_commands_dir"
 declare -r failed_jobs_dir="$postponed_commands_dir/failed"
@@ -61,6 +61,9 @@ move_job_to_failed() {
 
 	[ -d "$failed_jobs_dir" ] || mkdir "$failed_jobs_dir"
 	mv "$jobfile"    "$failed_jobs_dir/"
+	#  When user takes the .sh job from the “failed” subdirectory, its log
+	#  folder will remain there. It should be preventively removed.
+	rm -rf "$failed_jobs_dir/${job_logdir##*/}"
 	mv "$job_logdir" "$failed_jobs_dir/"
 
 	return 0
@@ -143,7 +146,7 @@ process_dir() {
 		then
 			let '++completed_jobs,  1'
 			echo -e "${__g}${__bri}Complete${__s} "
-			rm -rf "$jobfile" "$job_logdir"
+			rm -rf "$jobfile" "$job_logdir" "$failed_jobs_dir/${job_logdir##*/}"
 
 		else
 			echo -e "${__r}${__bri}Fail.${__s}"
@@ -158,6 +161,9 @@ process_dir() {
 		let '++processed_jobs,  1'
 
 	done < <( find "$postponed_commands_dir"  -maxdepth 1  -type f  -print0 )
+
+	rmdir "$failed_jobs_dir" 2>/dev/null || true
+
 	(( processed_jobs > 0 )) && {
 		(( processed_jobs == 1  &&  nadeshiko_desktop_notifications == 3 ))  \
 			&& no_alljobs_message_to_desktop=t

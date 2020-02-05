@@ -34,10 +34,8 @@
  # The lower border when seeking for the TARGET video bitrate.
 #  Calculated as a percentage of the desired bitrate. Highly depends
 #    on CPU time, that encoder spends. If you speed up the encoding
-#    by putting laxed values in libx264_preset or libvpx_pass*_cpu_used,
-#    you should rise the percentage here.
-#  Don’t confuse with libvpx_minrate and libvpx_maxrate.
-#  Default value: 60
+#    by putting laxed values in libx264_preset, you should raise the
+#    percentage here.
 #
 libx264_minimal_bitrate_pct='60%'
 
@@ -78,7 +76,6 @@ bitres_profile_2160p+=(
 #    mentions in the “Supported pixel formats”.
 #  Recommended value: yuv420p (browsers poorly support higher chroma
 #    and do not support 10bit colour).
-#  Default value: 'yuv420p'
 #
 libx264_pix_fmt='yuv420p'
 
@@ -121,7 +118,6 @@ libx264_level='4.2'
 #    given filesize, the more keyframes it needs. 25–50.
 #  - only if you encode large videos (entire episodes or films), and do not
 #    limit the file size, keyframes may be relaxed. 450–500.
-#  Default value: 50
 #
 libx264_keyint=50
 

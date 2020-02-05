@@ -87,6 +87,7 @@ encode() {
 		#  Nadeshiko-mpv postponed job file
 		#  ${postponed_job_file##*/}
 		#  This file is to be run with nadeshiko-do-postponed.sh
+		#  (But can be launched as a standalone script too.)
 
 
 		EOF
@@ -99,7 +100,6 @@ encode() {
 				printf '\t%q  \\\n' "$str" >>"$postponed_job_file"
 			fi
 		done
-		echo >>"$postponed_job_file"
 		rm "$data_file"
 		if [ -e "/proc/${mpv_pid:-not exists}" ]; then
 			send_command  show-text \

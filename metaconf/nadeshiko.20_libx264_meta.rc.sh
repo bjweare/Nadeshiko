@@ -30,8 +30,8 @@ libx264_muxing_sets=(
 	'mp4 libmp3lame'
 	'mp4 eac3'
 	'mp4 ac3'
-	#  'mp4 libx264 libopus'  # libopus in mp4 is still experimental
-	#                         # and browsers can’t play opus in mp4 anyway
+	#  'mp4 libopus'  # libopus in mp4 is still experimental
+	#                 # and browsers can’t play opus in mp4 anyway
 	#  No mkv, because browsers download it instead of playing.
 )
 

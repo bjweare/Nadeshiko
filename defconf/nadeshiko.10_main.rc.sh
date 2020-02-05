@@ -19,20 +19,17 @@
  # Checking for updates
 #  From time to time Nadeshiko may check for updates (40 kilobytes)
 #  and display a message, if a new release would be available.
-#  Default value: no
 #
 check_for_updates=no
 
 
  # Interval in days to check for updates
 #  Doesn’t do anything, if check_for_updates is set to “no”.
-#  Default value: 21
 #
 new_release_check_interval=21
 
 
  # Whether to send notifications to desktop.
-#  Default value: yes
 #
 desktop_notifications=yes
 
@@ -42,44 +39,38 @@ desktop_notifications=yes
 #  [kMG] suffixes use powers of 2, unless kilo is set to 1000.
 #
 #
- # Normal size. Command line option to force this maximum size: “normal”.
-#  Default value: 20M
+#  Normal size. Command line option to force this maximum size: “normal”.
 #
 max_size_normal=20M
 #
 #
- # Small size. Command line option to force this maximum size: “small”.
-#  Default value: 10M
+#  Small size. Command line option to force this maximum size: “small”.
 #
 max_size_small=10M
 #
 #
- # Tiny size. Command line option to force this maximum size: “tiny”.
-#  Default value: 2M
+#  Tiny size. Command line option to force this maximum size: “tiny”.
 #
 max_size_tiny=2M
 #
 #
- # Unlimited size. For manual control and experiments. Intended to be used
+#  Unlimited size. For manual control and experiments. Intended to be used
 #  along with vbNNNN, abNNNN and XXXp. Command line option to force this
 #  maximum size: “unlimited”.
-#  Default value: 99999M
 #
 max_size_unlimited=99999M
 #
 #
- # Which of the max_size_* options to use by default.
+#  Which of the max_size_* options to use by default.
 #  One of: tiny, small, normal, unlimited
-#  Default value: normal
 #
 max_size_default=normal
 #
 #
- # Multiplier for “k” “M” “G” suffixes in max_size_*. Can be 1024 or 1000.
+#  Multiplier for “k” “M” “G” suffixes in max_size_*. Can be 1024 or 1000.
 #  Change this to 1000, if the server, that you often upload to, uses SI units
 #    and complains about exceeded maximum file size.
 #  For a one time override pass “si” or “k=1000” via command line.
-#  Default value: 1024
 #
 kilo=1024
 
@@ -89,13 +80,11 @@ kilo=1024
 #  - the container is built exactly with the settings;
 #  - the encoded file is compatible with most devices.
 #  Only for libx264. Prints messages only to console.
-#  Default value: off
 #
 pedantic=off
 
 
  # Whether to show the time spent on encoding.
-#  Default value: off
 #
 time_stat=off
 
@@ -106,7 +95,6 @@ time_stat=off
 #  renaming it (in Windows™ a colon is an invalid character for a file name).
 #  If you’re dualbooting, then enabling this option will allow to launch
 #  the videos from the drive.
-#  Default value: no
 #
 create_windows_friendly_filenames=no
 
@@ -117,23 +105,21 @@ create_windows_friendly_filenames=no
  # Calling name for the FFmpeg binary.
 #  To direct nadeshiko to a custom path, where ffmpeg is installed, specify
 #  the absolute path here.
-#  Default value: 'ffmpeg'
 #
 ffmpeg='ffmpeg'
 #
 #
- # Input file options for encoding.
+#  Input file options for encoding.
 #  Extend this array with strings, one option or key per string.
 #  Example: ffmpeg_input_options=(
 #               -some_key  argument
 #               -some_other_key "argument with spaces"
 #           )
-#  Default value: an empty array
 #
 ffmpeg_input_options=()
 #
 #
- # Input colourspace options
+#  Input colourspace options
 #  FFmpeg usually sets it appropriately, so the only time, when it might need
 #    to be set by hand is when ffmpeg for some reason cannot define the colour-
 #    space right. Mind, that some codecs (libvpx-vp9, I am looking at you) may
@@ -159,7 +145,6 @@ ffmpeg_input_options=()
 #  “libx264” – good quality, fast, options are well-known.
 #  “libvpx-vp9” – better picture quality, better efficiency in frames per MiB,
 #                 but slower and its behaviour is less predictable.
-#  Default value: 'libvpx-vp9'
 #
 ffmpeg_vcodec='libvpx-vp9'
 
@@ -176,7 +161,6 @@ ffmpeg_vcodec='libvpx-vp9'
 #         aac      MP4     Still good, but worse than libvorbis and worse than
 #                          libfdk_aac on bitrates <128k.
 #  libmp3lame      MP4     Less efficient than all abovementioned.
-#  Default value: 'libopus'
 #
 ffmpeg_acodec='libopus'
 
@@ -185,7 +169,6 @@ ffmpeg_acodec='libopus'
 #  “mp4” – use for libx264.
 #  “webm” – use for libvpx-vp9.
 #  “auto” – pick appropriate container based on the chosen set of A/V codecs.
-#  Default value: auto
 #
 container=auto
 
@@ -193,7 +176,6 @@ container=auto
  # Default action for hardcoding subtitles
 #  “yes” – hardcode (burn subtitles into video frames)
 #  “no” – do not add any type of subtitles.
-#  Default value: yes
 #
 subs=yes
 
@@ -201,7 +183,6 @@ subs=yes
  # Default action for re-encoding audio track and adding it to the clip
 #  “yes” – add an audio track
 #  “no” – do not add any audio tracks
-#  Default value: yes
 #
 audio=yes
 
@@ -268,7 +249,6 @@ ffmpeg_subtitle_fallback_style=(
  # Whether Nadeshiko should draw a progressbar for ffmpeg, when it does
 #    pass 1 and pass 2.
 #  Possible values: on, off.
-#  Default value: on
 #
 ffmpeg_progressbar=on
 
@@ -280,7 +260,6 @@ ffmpeg_progressbar=on
 #    resolution – Nadeshiko will be able to choose a smaller profile, if it
 #    will be necessary to fit the duration.
 #  Possible values are 2160p, 1440p, 1080p, 720p, 576p, 480p, 360p and “no”.
-#  Default value: no
 #
 scale=no
 
@@ -291,7 +270,6 @@ scale=no
 #    ratio happens to be equal or higher – the clip will count as static.
 #  Dynamic clips lock bitrate-resolution range on desired values –
 #    high motion calls for the top bitrate.
-#  Default value: 2.5
 #
 video_sps_threshold=2.5
 
@@ -304,7 +282,6 @@ video_sps_threshold=2.5
 #    would be spent on this exact cropped part, if the entire frame would be
 #    encoded. This is probably why the demand for bitrate of the cropped
 #    part draws close to the demand of the entire frame.
-#  Default value: yes
 #
 crop_uses_profile_vbitrate=yes
 
@@ -317,7 +294,6 @@ crop_uses_profile_vbitrate=yes
 #    fore the “absolute minimum” is a space required by the minimal bitrate
 #    in the lowermost bitrate-resolution profile (currently this is 60% of
 #    276k @360p for VP9, which is equivalent to 166k)
-#  Default value: "166k"
 #
 min_esp_unit=166k
 

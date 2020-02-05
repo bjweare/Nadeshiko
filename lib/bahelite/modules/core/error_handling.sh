@@ -22,7 +22,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_ERROR_HANDLING_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.7'
+declare -grx BAHELITE_MODULE_ERROR_HANDLING_VER='1.7.1'
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	# mountpoint   # (coreutils) Prevent clearing TMPDIR, if it’s a mountpoint.
 )
@@ -293,7 +293,7 @@ bahelite_on_exit() {
 	trap ''  DEBUG  EXIT  TERM  INT  HUP  PIPE  ERR  RETURN
 
 	local command="$1"  retval="$2"  stored_lnos="$3"  signal="$4"  \
-	      current_varlist  _varname  _varval  new_variables  vardump
+	      current_varlist  new_variables  variables_not_to_print
 	mildrop
 
 	 # Normally, when a subshell exits, trap on EXIT is called is the main
@@ -369,22 +369,50 @@ bahelite_on_exit() {
 	[ "$(type -t on_exit)" = 'function' ] && on_exit
 
 	[ -v BAHELITE_DUMP_VARIABLES ] && {
-		current_varlist=$(
-			compgen -A variable  \
-				| grep -vE 'BAHELITE_VARLIST_(BEFORE|AFTER)_STARTUP'
+		current_varlist=$(compgen -A variable)
+
+		 # Pattern list for the variables that shouldn’t be logged
+		#
+		variables_not_to_print=(
+
+			'BAHELITE_(EXIT|ERROR)_PROCESSED'
+
+			# May be unset
+			#
+			'BAHELITE_BRING_BACK_.*'
+
+			#  Only BAHELITE_VARLIST_AFTER_STARTUP is removed, for the
+			#  output is going to get uniq’ed, and AFTER_STARTUP variable
+			#  would be present only once, while BEFORE_STARTUP will be there
+			#  twice and thus removed automatically by “uniq -u”.
+			#
+			'BAHELITE_VARLIST_AFTER_STARTUP'
+
+			#  Any module that was loaded after Bahelite finished startup
+			#  (this is common for optional modules), will declare its pre-
+			#  sence after BAHELITE_VARLIST_BEFORE_STARTUP is set, thus some
+			#  presence declaration variables will not be auto-nullified.
+			#
+			'BAHELITE_MODULE_.*_VER'
+
+			#  Obviously we have it set if variables are going to be printed.
+			#
+			BAHELITE_DUMP_VARIABLES
+
+			#  This very list too.
+			#
+			variables_not_to_print
+
 		)
-		#  BAHELITE_BRING_BACK_* variables may be unset and cause an error
-		#  when trying to retrieve their values here. (As they are internal,
-		#  we’re grabbing them in the middle of their work.)
-		new_variables=$(
-			echo "${BAHELITE_VARLIST_AFTER_STARTUP:-}"$'\n'"$current_varlist" \
-				| grep -v BAHELITE_BRING_BACK_ | sort | uniq -u | sort
+
+		new_variables=(
+			$(
+				echo "${BAHELITE_VARLIST_AFTER_STARTUP:-}"$'\n'"$current_varlist" \
+				    | grep -vE "($(IFS='|'; echo "${variables_not_to_print[*]}"))"  \
+				    | sort | uniq -u | sort
+			)
 		)
-		for _varname in $new_variables; do
-			declare -n _varval="$_varname"
-			vardump+="${_varval@A}"$'\n'
-		done
-		echo "${vardump:-}"  >"${LOGDIR:-$TMPDIR}/variables"
+		declare -p "${new_variables[@]}"  >"${LOGDIR:-$TMPDIR}/variables"
 	}
 
 	[ "$signal" != 'EXIT' ] && redmsg "Caught SIG$signal."

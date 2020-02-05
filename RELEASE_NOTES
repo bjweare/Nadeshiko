@@ -1,3 +1,53 @@
+——— v 2.9.20  ————————————————————————————————————————————————————————————————
+                                                          Nadeshiko-mpv 2.4.14
+                                                 Nadeshiko-do-postponed 2.3.9
+
+1. Fixed a bug with bluray content, when HDMV PGS subtitles didn’t have
+   set width and height in the stream metadata (no assumed to be equal
+   to the resolution of the video stream).
+
+2. Issue #21 partially solved with an override. If Nadeshiko detects, that
+   the selected subtitles are in ASS/SSA format and have built-in fonts,
+   it will change the hardsubbing filter from “ass” to “subtitles” and display
+   a warning in the console output.
+
+3. Fixed a small issue in Nadeshiko-do-postponed related to the logs of failed
+   jobs. Before, if a user moved the .sh file of a job from “failed” directory
+   back to “postponed_commands_dir”, the old log directory would remain in
+   “failed”. When the job would be executed once more – and fail again, then
+   the new log directory would have to be moved into “failed”, where a directo-
+   ry already exists. This resulted in files being copied selectively and cre-
+   ating confusion, as there was two directories for one job.
+
+   Now the old log directory is preventively removed when Nadeshiko-do-postpo-
+   ned needs to move log directory to “failed”.
+
+4. When Nadeshiko-do-postponed successfully completes a job, it removes not
+   only the log directory in “postponed_commands_dir” (besides the .sh job
+   file), but also the log directory that might remain in “failed” subdirec-
+   tory from a previous encode.
+
+5. Nadeshiko-mpv adds a mention to postponed jobs, that they can be run
+   standalone.
+
+6. When Nadeshiko-do-postponed completes all jobs, it will check if the
+   subdirectory “failed” is empty, and if it is, then it will be removed.
+
+7. Updates to option descriptions
+
+   - shortened them by removing default values (files in defconf/ are
+     an example by themselves, mentioning defaults there was a measure
+     of providing defaults when there was no defconf and config files
+     were supposed to be edited in place);
+   - updated option descriptions for libvpx-vp9 codec;
+   - cleared libx264_muxing_sets example from the presence of libx264 codec
+     itself (now the codec shouldn’t be mentioned there);
+
+8. Fixed incompleteness of variable dumps, when an error happens.
+
+
+
+
 ——— v 2.9.19  ————————————————————————————————————————————————————————————————
 
 1. Solved a small regression in the evaluating output `frame_count`, due to
