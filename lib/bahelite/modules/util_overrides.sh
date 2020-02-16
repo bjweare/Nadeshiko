@@ -416,10 +416,11 @@ env() {
 		)
 		${!BAHELITE_*}  ${!MSG_*}  LOGPATH  LOGDIR  TMPDIR
 	)
-			#  Other variables for removal, that could be set before Bahelite
-		#  startup procedure, hence may not appear in the VARLIST_BEFORE_STARTUP
-		#  variable, that actually collects variables at the time of startup.
-		#
+
+	#  Other variables for removal, that could be set before Bahelite
+	#  startup procedure, hence may not appear in the VARLIST_BEFORE_STARTUP
+	#  variable, that actually collects variables at the time of startup.
+	#
 	bahelite_functrace_off
 
 	command env $(sed -r 's/\S+/-u &/g' <<<"${new_vars[*]}")  \

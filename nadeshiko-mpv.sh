@@ -2,7 +2,7 @@
 
 #  nadeshiko-mpv.sh
 #  Wrapper for Nadeshiko to provide IPC with mpv.
-#  © deterenkelt 2018–2019
+#  © deterenkelt 2018–2020
 #
 #  For licence see nadeshiko.sh
 #

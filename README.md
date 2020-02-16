@@ -166,5 +166,5 @@ Read about [which codec is best at what](https://github.com/deterenkelt/Nadeshik
 </p>
 
 <p align="center">
-<i>Nadeshiko uses ffmpeg (which in its turn includes libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass…), mediainfo, mpv_crop_script by TheAMM, GNU grep, GNU sed and GNU time.<br><br>Let’s be grateful to them for their hard work.</i>
+<i>Nadeshiko uses FFmpeg (which in its turn uses libx264, libvpx, libopus, libvorbis, libfdk_aac, aac, libass…), mediainfo, mpv_crop_script by TheAMM, GNU grep, GNU sed and GNU time.<br><br>Let’s be grateful to them for their hard work.</i>
 </p>

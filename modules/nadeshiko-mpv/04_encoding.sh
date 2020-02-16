@@ -3,7 +3,7 @@
 #  04_encoding.sh
 #  Nadeshiko-mpv module where the encoding backend is called (or the encoding
 #  is postponed and stored as a job file for Nadeshiko-do-postponed).
-#  © deterenkelt 2018–2019
+#  © deterenkelt 2018–2020
 #
 #  For licence see nadeshiko-mpv.sh
 

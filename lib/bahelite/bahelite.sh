@@ -2,7 +2,7 @@
 
 #  bahelite.sh
 #  Bash helper library for Linux to create more robust shell scripts.
-#  © deterenkelt 2018–2019
+#  © deterenkelt 2018–2020
 #  https://github.com/deterenkelt/Bahelite
 #
 #  This work is based on the Bash Helper Library for Large Scripts,

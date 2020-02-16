@@ -614,6 +614,7 @@ do_we_have_enough_space_in_the_file() {
 	old_acodec_profile=$acodec_profile
 
 	for acodec_profile in $acodec_profiles_high_to_low; do
+		(( acodec_profile < old_acodec_profile )) && break
 		abitrate=$((acodec_profile * 1000))
 		recalc_acodec_size_deviation
 		recalc_muxing_overhead

@@ -40,6 +40,7 @@ __show_usage_logging_module() {
 	return 0
 }
 
+
 for arg in "$@"; do
 	if  [[ "$arg" =~ ^max_files\=[0-9]{1,5}$ ]] && [ "$arg" -gt 0 ]; then
 		BAHELITE_LOGGING_MAX_FILES="$arg"

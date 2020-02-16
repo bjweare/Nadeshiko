@@ -2,7 +2,7 @@
 
 #  nadeshiko-do-postponed.sh
 #  Wrapper for Nadeshiko to encode postponed files.
-#  © deterenkelt 2018–2019
+#  © deterenkelt 2018–2020
 #
 #  For licence see nadeshiko.sh
 

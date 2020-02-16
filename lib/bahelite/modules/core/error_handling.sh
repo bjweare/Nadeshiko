@@ -8,7 +8,8 @@
 #    all highlighted distinctively.
 #  Each trap calls user subroutine, if it’s defined (subroutine should
 #    have the same name sans the “bahelite_” prefix).
-#  © deterenkelt 2018–2019
+#  © deterenkelt 2018–2020
+
 
 # Require bahelite.sh to be sourced first.
 [ -v BAHELITE_VERSION ] || {

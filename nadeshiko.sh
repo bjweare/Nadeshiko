@@ -2,7 +2,7 @@
 
 #  nadeshiko.sh
 #  A Linux tool to cut small videos with ffmpeg.
-#  © deterenkelt 2018–2019
+#  © deterenkelt 2018–2020
 
  # This program is free software; you can redistribute it and/or modify it
 #    under the terms of the GNU General Public License as published
@@ -50,9 +50,8 @@ done
 noglob_on
 
 place_examplerc 'nadeshiko.10_main.rc.sh'
-declare -gr RCFILE_REQUIRE_SCRIPT_NAME_IN_RCFILE_NAME=t
 
-declare -r version='2.9.20'
+declare -r version='2.9.22'
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 
  # Minimal libav libraries versions

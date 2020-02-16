@@ -5,7 +5,7 @@
 #  ffmpeg command line options: input, output, video, audio, filtering
 #  (to burn subtitles into video), stream mapping. Everything is prepared for
 #  the codec-specific encoding module to grab the parameters and run ffmpeg.
-#  © deterenkelt 2018–2019
+#  © deterenkelt 2018–2020
 #
 #  For licence see nadeshiko.sh
 
@@ -155,6 +155,14 @@ assemble_vf_string() {
 			info 'Video has no attachments.'
 		fi
 
+		if	[ "$subtitle_filter" = 'ass' ]  \
+			&& [ -v src_s[external_file] ]  \
+			&& grep -qEi '^\s*\[Fonts\]\s*$' "${src_s[external_file]}"
+		then
+			. "$LIBDIR/dump_attachments_from_ass_subs.sh"
+			ass_dump_fonts "${src_s[external_file]}" "$TMPDIR/fonts"
+		fi
+
 		mildec
 		#  Saving time on re-encodes.
 		fonts_are_already_extracted=t
@@ -235,18 +243,6 @@ assemble_vf_string() {
 						#  on a silver plate to ffmpeg as a separate file.
 						#  REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE—
 						[ -v src_s[track_id]  ]  && extract_subs
-						#  Issue #21 on github.
-						#  If the subtitles are in ASS/SSA format and have
-						#  fonts embedded as text, ffmpeg was able to render them
-						#  with “subtitles” filter, but now it does not.
-						# if	[ "$subtitle_filter" = 'ass' ]  \
-						# 	&& grep -Ei '^\s*\[Fonts\]\s*$' "${src_s[external_file]}"
-						# then
-						# 	warn 'Selected ASS/SSA subtitles have embedded fonts, so the “ass” filter
-						# 	      cannot be used. The “subtitles” filter has to be used to render custom
-						# 	      fonts, but it doesn’t have full support of fontconfig features.'
-						# 	subtitle_filter='subtitles'
-						# fi
 					fi
 					filter_list+="$subtitle_filter="
 

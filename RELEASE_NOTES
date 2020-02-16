@@ -1,9 +1,35 @@
+——— v 2.9.22  ————————————————————————————————————————————————————————————————
+
+1. Fastfix for the borked update in v2.9.21: not all files were committed.
+
+
+
+
+——— v 2.9.21  ————————————————————————————————————————————————————————————————
+
+1. Solved #21. This update adds an attachment decoder for ASS subtitles.
+   (Thank you, Aegisub guys, whose code served as a reference.)
+
+   GNU parallel was added as a recommended dependency to speed up the
+   decoding and dumping of the files.
+
+2. Solved a rare issue, when on overshooting the algorithm picking better
+   audio bitrate would end up choosing even lower audio bitrate.
+
+   Now the profiles for selected audio codec, that are lower than appropriate
+   for the current resolution, would be discarded.
+
+3. Removed leftover code, updated copyright information.
+
+
+
+
 ——— v 2.9.20  ————————————————————————————————————————————————————————————————
                                                           Nadeshiko-mpv 2.4.14
                                                  Nadeshiko-do-postponed 2.3.9
 
 1. Fixed a bug with bluray content, when HDMV PGS subtitles didn’t have
-   set width and height in the stream metadata (no assumed to be equal
+   set width and height in the stream metadata (now assumed to be equal
    to the resolution of the video stream).
 
 2. Issue #21 partially solved with an override. If Nadeshiko detects, that
