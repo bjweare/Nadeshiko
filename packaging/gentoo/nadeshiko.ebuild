@@ -1,5 +1,5 @@
 #  nadeshiko-${PV}.ebuild
-#  © deterenkelt 2019
+#  © deterenkelt 2019–2020
 #  Distributed under the terms of the GNU General Public License v3
 
 EAPI="7"
@@ -32,6 +32,7 @@ RDEPEND="
 
 	hardsub? (
 		>=media-video/ffmpeg-4.0[iconv,libass,truetype,fontconfig]
+		media-libs/libass[fontconfig,harfbuzz]
 	)
 
 	crop? (

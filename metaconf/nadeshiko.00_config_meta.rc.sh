@@ -37,6 +37,7 @@ RCFILE_CHECKVALUE_VARS+=(
 	[max_size_unlimited]='int_in_range_with_unit 1 99999 [kMG]$'
 	[max_size_default]='^(tiny|small|normal|unlimited)$'
 	[kilo]='^(1000|1024)$'
+	[extra_fonts_dir]='dirpath'
 	[pedantic]='bool'
 	[time_stat]='bool'
 	[create_windows_friendly_filenames]='bool'

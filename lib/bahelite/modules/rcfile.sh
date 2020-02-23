@@ -16,7 +16,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_RCFILE_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_RCFILE_VER='3.1'
+declare -grx BAHELITE_MODULE_RCFILE_VER='3.2'
 bahelite_load_module 'versioning' || return $?
 bahelite_load_module 'confdir' || return $?
 bahelite_load_module 'misc' || return $?
@@ -550,6 +550,14 @@ __postprocess_rc_variables() {
 
 				float_in_range_with_unit_or_without_it\ *)
 					is_float_in_range_with_unit_or_without_it $varname ${varval_pattern#* }
+					;;
+
+				filepath)
+					is_a_readable_file $varname
+					;;
+
+				dirpath)
+					is_a_readable_dir $varname
 					;;
 
 				*)

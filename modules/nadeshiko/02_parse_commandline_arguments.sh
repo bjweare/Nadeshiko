@@ -161,12 +161,19 @@ parse_args() {
 			[[ "$(mimetype -L -b "$arg")" =~ ^video/ ]]  \
 				&& src[path]="$arg"
 
-			[[ "$arg" =~ \.(TS|ts)$ ]]  && {
-				#  .ts (old MPEG transport stream) cannot be recognised proper-
-				#  ly and file has to be used. (“mimetype -MLb” also doesn’t
-				#  work, reports file as application/x-font-tex-tfm.)
-				[[ "$(file -L -b  "$arg")" =~ MPEG\ transport\ stream ]]  \
-					&& src[path]="$arg"
+			#  There are two reasons to check for MPEG TS
+			#  1. To force a keyframe at 0:00.000 during encoding and to
+			#     put -ss and -to as *output* options. This is to avoid
+			#     garbage-looking artefacts at the beginning.
+			#  2. .ts (old MPEG transport stream) files cannot be recognised
+			#     properly with mimetype (“mimetype -MLb” also doesn’t work,
+			#     reports files as application/x-font-tex-tfm), so to recognise
+			#     these input files as video, “file” is necessary to use.
+			#     For that purpose, “file” is faster than mediainfo or ffprobe.
+			#
+			[[ "$(file -L -b  "$arg")" =~ MPEG\ transport\ stream ]] && {
+				src_c[is_transport_stream]=t
+				src[path]="$arg"
 			}
 
 			[ -v 'src[path]' ]  || {

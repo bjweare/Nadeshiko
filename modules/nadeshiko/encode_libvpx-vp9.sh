@@ -181,9 +181,24 @@ encode-libvpx-vp9() {
 		ffmpeg_all_options=(
 			-y  -hide_banner  -v error  -nostdin
 			"${ffmpeg_input_options[@]}"
-			-ss "${start[ts]}"
-			-to "${stop[ts]}"
-			"${ffmpeg_input_files[@]}"
+		)
+
+		if [ -v src_c[is_transport_stream] ]; then
+			ffmpeg_all_options+=(
+				"${ffmpeg_input_files[@]}"
+				-ss "${start[ts]}"
+				-to "${stop[ts]}"
+				-force_key_frames 00:00:00.000
+			)
+		else
+			ffmpeg_all_options+=(
+				-ss "${start[ts]}"
+				-to "${stop[ts]}"
+				"${ffmpeg_input_files[@]}"
+			)
+		fi
+
+		ffmpeg_all_options+=(
 			"${ffmpeg_color_primaries[@]}"
 			"${ffmpeg_color_trc[@]}"
 			"${ffmpeg_colorspace[@]}"

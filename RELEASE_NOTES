@@ -1,3 +1,37 @@
+——— v 2.10  ——————————————————————————————————————————————————————————————————
+
+1. New config option `extra_fonts_dir` for nadeshiko.rc.sh.
+
+   Fonts from this directory will be used as an addition to the system fonts,
+   and those bundled with the container or the subtitle file itself. Mpv, for
+   example, takes additional fonts from  ~/.config/mpv/fonts. If you use it,
+   you probably want to use this path for `extra_fonts_dir`.
+
+   The format is an **absolute path**. No tildes or $HOME allowed. By default
+   this config variable is not used.
+
+2. **Improved transcoding from MPEG transport streams** (inlcuding blurays).
+   Now there will be no cubic artefacts in the beginning.
+
+
+3. **Fixed a bug** in Nadeshiko-mpv, which happened when predictor was
+   enabled and Nadeshiko reported an error on dry run. It happened when encode
+   was supposed to involve hardsubbing on extracted subtitles, and the last
+   line in the log wasn’t what Nadeshiko-mpv expected. Actually, the bug was
+   in Nadeshiko, the check on `dryrun` was placed too far.
+
+4. **Solved an issue** with the algo, that attempts to select a better audio
+   bitrate, but after an overshooting picks a bitrate lower than chosen origi-
+   nally. The issue was spotted again, after it was dealt with in v2.9.21
+   (see №2 in that update log), but the root cause happened to be different,
+   so now it was investigated again, solved and double checked.
+
+5. “fontconfig” and “harfbuzz” added to libass dependencies in the sample
+   .ebuild file.
+
+
+
+
 ——— v 2.9.22  ————————————————————————————————————————————————————————————————
 
 1. Fastfix for the borked update in v2.9.21: not all files were committed.

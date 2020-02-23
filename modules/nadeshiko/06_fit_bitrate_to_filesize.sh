@@ -423,7 +423,7 @@ is_it_sensible_to_use_better_abitrate() {
 	#  If it’s lossless, it’s better by definition.
 	[ -v src_a[is_lossless]  ]	&& {
 		info "Audio track in the source is lossless.
-		      Trying a higher audio bitrate makes sense!"
+		      It makes sense to use a higher audio bitrate!"
 		return 0
 	}
 
@@ -565,7 +565,7 @@ is_it_sensible_to_use_better_abitrate() {
 	top_acodec_profile=${top_acodec_profile##* }
 	if (( source_audio_stereo_equiv_bitrate >= top_acodec_profile )); then
 		info "Source track bitrate >= ${top_acodec_profile}k!
-		      Trying a higher audio bitrate makes sense!"
+		      It makes sense to use a higher audio bitrate!"
 	else
 		denied "For $format_per_se source audio bitrate should be equal to ${top_acodec_profile}k or bigger
 		        to consider switching from the default profile reasonable."
@@ -605,17 +605,24 @@ do_we_have_enough_space_in_the_file() {
 	declare -g  acodec_profile
 	declare -g  abitrate
 
-	local acodec_profiles_high_to_low
+	local  acodec_profiles_high_to_low
+	local  better_aprofile_fits
+
 	local -n source_acodec_profiles=${ffmpeg_acodec}_profiles
 
 	acodec_profiles_high_to_low=$(
-		IFS=$'\n'; echo "${!source_acodec_profiles[*]}" | tac  # Sic!
+		IFS=$'\n';  echo "${!source_acodec_profiles[*]}" | tac  # Sic!
 	)
 	old_acodec_profile=$acodec_profile
 
 	for acodec_profile in $acodec_profiles_high_to_low; do
-		(( acodec_profile < old_acodec_profile )) && break
 		abitrate=$((acodec_profile * 1000))
+
+		(( acodec_profile == old_acodec_profile )) && break
+
+		info "Trying acodec profile ${acodec_profile}k."
+		milinc
+
 		recalc_acodec_size_deviation
 		recalc_muxing_overhead
 
@@ -628,17 +635,15 @@ do_we_have_enough_space_in_the_file() {
 		              - muxing_overhead
 		       )                                         ))
 		then
-			if (( acodec_profile > old_acodec_profile )); then
-				info "${__bri}${__g}Better audio profile ${acodec_profile}k fits!${__s}"
-				return 0
-			else
-				#  The old acodec profile was chosen
-				denied 'Not enough space in the file.'
-				return 1
-			fi
+			info "${__bri}${__g}Better audio profile ${acodec_profile}k fits!${__s}"
+			better_aprofile_fits=t
+		else
+			denied 'Not enough space in the file.'
 		fi
-
+		mildec
 	done
+
+	[ -v better_aprofile_fits ] && return 0
 	return 1
 }
 

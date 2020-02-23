@@ -75,6 +75,18 @@ max_size_default=normal
 kilo=1024
 
 
+ # Directory for extra fonts, that may be used in addition to system-wide
+#    fonts and to those shipped with the video container or in the subtitle
+#    file itself.
+#  Usually you want to dump there MS fonts, that you don’t want to have
+#    installed in the system and see in other applications. Mpv, for example,
+#    takes additional fonts from  ~/.config/mpv/fonts. If you use it, you
+#    probably want to use this path here as well.
+#  Format is an absolute path to a directory. No ~/ or $HOME allowed.
+#
+# extra_fonts_dir=''
+
+
  # Nadeshiko always guarantees, that encoded file fits the maximum size.
 #  On top of that Nadeshiko may run additional checks. They will ensure, that
 #  - the container is built exactly with the settings;

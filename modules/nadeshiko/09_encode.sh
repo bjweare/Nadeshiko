@@ -201,7 +201,7 @@ stop_the_progressbar_for_ffmpeg() {
 		(( $(get_bahelite_verbosity console) >= 5 ))  \
 			&& info 'After 5 seconds, progressbar subprocess is still running.'
 		if kill -TERM $progressbar_pid 2>/dev/null; then
-			echo -en '\n\n'
+			echo
 			(( $(get_bahelite_verbosity console) >= 5 ))  \
 				&& info 'Killed progressbar process.'
 		else
@@ -220,8 +220,6 @@ stop_the_progressbar_for_ffmpeg() {
 
 
 encode() {
-	[ -v dryrun ] && exit 0
-
 	milinc
 	if [ "$(type -t encode-$ffmpeg_vcodec)" = 'function' ]; then
 		encode-$ffmpeg_vcodec

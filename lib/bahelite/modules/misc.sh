@@ -16,7 +16,7 @@
 #  Avoid sourcing twice
 [ -v BAHELITE_MODULE_MISC_VER ] && return 0
 #  Declaring presence of this module for other modules.
-declare -grx BAHELITE_MODULE_MISC_VER='1.14.2'
+declare -grx BAHELITE_MODULE_MISC_VER='1.15'
 
 BAHELITE_INTERNALLY_REQUIRED_UTILS+=(
 	pgrep   # (procps) Single process check.
@@ -245,6 +245,39 @@ export -f  __is_number_with_unit                           \
                is_integer_in_range_with_unit               \
                is_float_in_range_with_unit_or_without_it   \
                is_integer_in_range_with_unit_or_without_it
+
+is_a_readable_file() { __is_a_readable_file_or_dir  file       "$1";  }
+is_a_readable_dir()  { __is_a_readable_file_or_dir  directory  "$1";  }
+#
+#  Validates a path in RC variable
+#  $1  – either “file” or “directory”.
+#  $2  – variable name, whose value is to be checked.
+#
+__is_a_readable_file_or_dir() {
+	local  file_or_dir="$1"
+	local  varname="$2"
+
+	[[ "$file_or_dir" =~ ^(file|directory)$ ]]  \
+		|| err "First argument should be either “file” or “directory”."
+
+	[ -v "$varname" ]  \
+		|| err "Second argument must be a variable name, but a variable “$varname” doesn’t exist."
+	declare -g $varname
+
+	local f_or_d_key=${file_or_dir:0:1}
+	local -n path=$varname
+
+	[ -$f_or_d_key "$path"  -a  -r "$path" ] || {
+		redmsg "Variable “$varname” must hold a valid path to a $file_or_dir,
+		        but it holds “$path”.
+		        This path either doesn’t exist or is not readable."
+		err "Wrong path in “$varname”."
+	}
+	return 0
+}
+export -f  __is_a_readable_file_or_dir  \
+               is_a_readable_file       \
+               is_a_readable_dir
 
 
 is_function() {

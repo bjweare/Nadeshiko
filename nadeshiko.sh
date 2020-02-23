@@ -51,7 +51,7 @@ noglob_on
 
 place_examplerc 'nadeshiko.10_main.rc.sh'
 
-declare -r version='2.9.22'
+declare -r version='2.10'
 declare -r release_notes_url="http://github.com/deterenkelt/Nadeshiko/blob/master/RELEASE_NOTES"
 
  # Minimal libav libraries versions
@@ -146,6 +146,7 @@ display_assessed_parameters
 until [ -v size_fits ]; do
 	fit_bitrate_to_filesize
 	display_final_encoding_settings
+	[ -v dryrun ] && exit 0
 	set_common_ffmpeg_options
 	encode
 	new_file_size_B=$(stat --printf %s "$new_file_name")

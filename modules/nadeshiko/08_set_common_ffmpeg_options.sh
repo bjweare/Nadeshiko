@@ -273,6 +273,13 @@ assemble_vf_string() {
 					fi
 
 					extract_fonts
+
+					[ -v extra_fonts_dir ] && {
+						noglob_off
+						ln -s "$extra_fonts_dir"/*  -b -t $TMPDIR/fonts/  &>/dev/null  \
+							|| true
+						noglob_on
+					}
 					[ "${font_list:-}" ]  \
 						&& filter_list+=":fontsdir=$TMPDIR/fonts"
 
